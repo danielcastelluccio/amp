@@ -1,0 +1,36 @@
+function print(string s) {
+    1;
+    1;
+    s;
+    length(s);
+    pop rdx;
+    pop rsi;
+    pop rdi;
+    pop rax;
+    syscall;
+};
+
+function length(string s) {
+    s;
+    pop rdi;
+    0;
+    pop rax;
+    -1;
+    pop rcx;
+    cld;
+    repne scasb;
+    not rcx;
+    add rcx, -1;
+    pop rdx;
+    push rcx;
+    push rdx;
+};
+
+function test() {
+    return "Hello World!";
+};
+
+function main() {
+    variable test = test();
+    print(test);
+};
