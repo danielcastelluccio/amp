@@ -21,6 +21,10 @@ function print_size(string s, int size) {
     asm syscall;
 };
 
+function println(string s) {
+    print(s);
+};
+
 function length(string s): long {
     push s;
     asm pop rdi;
@@ -36,24 +40,18 @@ function length(string s): long {
 };
 
 function concat(string s1, string s2): string {
-    variable new_memory = malloc(16384);
-    variable length1 = add(length(s1), 1);
-    push length1;
-    asm pop rcx;
+    variable new_memory = malloc(16);
+    variable length1 = length(s1);
     push s1;
-    asm pop rsi;
+    asm pop rcx;
     push new_memory;
     asm pop rdi;
     asm cld;
     asm repnz movsb;
-    variable length2 = add(length(s2), 1);
+    variable length2 = length(s2);
     variable total_length = add(length1, length2);
-    push length1;
-    asm pop rcx;
     push s2;
-    asm pop rsi;
-    push new_memory;
-    asm pop rdi;
+    asm pop rcx;
     asm repnz movsb;
     return new_memory;
 };
@@ -85,7 +83,10 @@ function malloc(int size): int {
     return return_var;
 };
 
+function test() {
+    return concat("Hello World!", " test");
+};
+
 function main() {
-    variable test = concat("Hello World!", " test");
-    print_size(test, 4);
+    variable test = test();
 };
