@@ -19,6 +19,10 @@ class Function(Token):
         self.tokens = tokens
         self.locals = locals
         self.parameter_count = parameter_count
+        
+class Use(Token):
+    def __init__(self, file):
+        self.file = file
     
 class Statement(Token):
     def __init__(self, instructions):
@@ -67,11 +71,18 @@ def parse_file(file):
     file = open(file, "r")
     contents = file.read()
     contents = contents.replace("\n", "")
-    return parse(contents, "Program")
+    program = parse(contents, "Program")
+    
+    for token in program.tokens:
+        if isinstance(token, Use):
+            program.tokens.extend(parse_file(token.file).tokens)
+    return program
 
 def getType(statement):
-    if statement.startswith("function"):
+    if statement.startswith("function "):
         return "Function"
+    elif statement.startswith("use "):
+        return "Use"
     else:
         return "Statement"
     
@@ -147,6 +158,10 @@ def parse(contents, type):
                     locals.append(instruction.name)
 
         return Function(name, statements, locals, argument_count)
+    elif type == "Use":
+        use = contents[contents.index(" ") + 1 : len(contents)]
+        use = use[1 : len(use) - 1]
+        return Use(use)
     elif type == "Statement":
         return Statement(parse_statement(contents))
         
@@ -239,7 +254,7 @@ def create_asm(program, file_name_base):
             self.value = value
     
     asm_program = AsmProgram([], [])
-    
+
     for token in program.tokens:
         if isinstance(token, Function):
             asm_function = AsmFunction(token.name, [])
@@ -269,7 +284,7 @@ def create_asm(program, file_name_base):
                             for thing in put:
                                 put_string += thing + ","
         
-                            put_string += "0x00"
+                            put_string += "0x0"
 
                             asm_program.data.append(AsmData(name, put_string))
                             asm_function.instructions.append("push " + name)

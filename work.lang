@@ -1,54 +1,7 @@
-function print s {
-    print_size [s] (length [s]);
-    return;
-};
-
-function print_size s size {
-    push 1;
-    push 1;
-    push [s];
-    push [size];
-    asm pop rdx;
-    asm pop rsi;
-    asm pop rdi;
-    asm pop rax;
-    asm syscall;
-    return;
-};
-
-function length s : long {
-    push [s];
-    asm pop rdi;
-    asm xor rax, rax;
-    asm mov rcx, -1;
-    asm cld;
-    asm repne scasb;
-    asm not rcx;
-    asm dec rcx;
-    asm push rcx;
-    variable return_var = pop;
-    return [return_var];
-};
-
-function plus a b {
-    push [a];
-    asm pop rcx;
-    push [b];
-    asm pop rdx;
-    asm add rax, rdx;
-    asm push rcx;
-    return pop;
-};
+use "std.lang";
 
 function main {
     variable test = plus 59 1;
     print "Hello World!\n";
     return;
-};
-
-function _start {
-    push asm call main;
-    asm mov rax, 60;
-    asm xor rdi, rdi;
-    asm syscall;
 };
