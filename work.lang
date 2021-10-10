@@ -1,9 +1,9 @@
-function print(string s) {
+function print s {
     print_size [s] (length [s]);
     return;
 };
 
-function print_size(string s, int size) {
+function print_size s size {
     push 1;
     push 1;
     push [s];
@@ -16,7 +16,7 @@ function print_size(string s, int size) {
     return;
 };
 
-function length(string s): long {
+function length s : long {
     push [s];
     asm pop rdi;
     asm xor rax, rax;
@@ -30,7 +30,7 @@ function length(string s): long {
     return [return_var];
 };
 
-function plus(int a, int b) {
+function plus a b {
     push [a];
     asm pop rcx;
     push [b];
@@ -40,13 +40,13 @@ function plus(int a, int b) {
     return pop;
 };
 
-function main() {
+function main {
     variable test = plus 59 1;
-    print "Hello World!";
+    print "Hello World!\n";
     return;
 };
 
-function _start() {
+function _start {
     push asm call main;
     asm mov rax, 60;
     asm xor rdi, rdi;

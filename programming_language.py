@@ -93,17 +93,39 @@ def parse(contents, type):
                 current_indent -= 1
         return Program(things)
     elif type == "Function":
+        name = contents.split(" ")[1]
         current_thing = ""
         statements = []
         current_indent = 0
 
-        parameters = contents[contents.index("(") + 1 : contents.index(")")].split(",")
-        parameter_count = 0
-        for parameter in parameters[::-1]:
-            if parameter:
-                name = parameter.lstrip().split(" ")[1]
-                statements.append(Statement([Declare(name)]))
-                parameter_count += 1
+        arguments_array = []
+        arguments = contents[len("function " + name + " ") : contents.index("{")]
+
+        current_argument = ""
+        current_parenthesis = 0
+        in_quotations = False
+        for character in arguments:
+            if character == " " and current_parenthesis == 0 and not in_quotations:
+                arguments_array.append(current_argument)
+                current_argument = ""
+            elif character == "(":
+                current_parenthesis += 1
+            elif character == ")":
+                current_parenthesis -= 1
+            elif character == "\"":
+                in_quotations = not in_quotations
+
+            if (not character == " ") or (not current_parenthesis == 0) or (in_quotations):
+                current_argument += character
+        
+        if arguments:
+            arguments_array.append(current_argument)
+
+        argument_count = 0
+        for argument in arguments_array[::-1]:
+            if argument:
+                statements.append(Statement([Declare(argument)]))
+                argument_count += 1
         
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
             if character == ';' and current_indent == 0:
@@ -124,7 +146,7 @@ def parse(contents, type):
                 if isinstance(instruction, Declare):
                     locals.append(instruction.name)
 
-        return Function(contents.split(" ")[1][0: contents.split(" ")[1].index("(")], statements, locals, parameter_count)
+        return Function(name, statements, locals, argument_count)
     elif type == "Statement":
         return Statement(parse_statement(contents))
         
@@ -233,7 +255,23 @@ def create_asm(program, file_name_base):
                         elif isinstance(instruction.value, str):
                             letters = string.ascii_lowercase
                             name = ( ''.join(random.choice(letters) for i in range(8)) )
-                            asm_program.data.append(AsmData(name, "\"" + instruction.value + "\", 0x00"))
+                            put = []
+                            encoded = instruction.value.encode()
+                            for index, byte in enumerate(encoded):
+                                if byte == 0x6e:
+                                    if encoded[index - 1] == 0x5c:
+                                        put.pop()
+                                        put.append("0xa")
+                                else:
+                                    put.append(hex(byte))
+
+                            put_string = ""
+                            for thing in put:
+                                put_string += thing + ","
+        
+                            put_string += "0x00"
+
+                            asm_program.data.append(AsmData(name, put_string))
                             asm_function.instructions.append("push " + name)
                     elif isinstance(instruction, Invoke):
                         asm_function.instructions.append("call " + instruction.name)
