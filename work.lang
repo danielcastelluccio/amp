@@ -1,28 +1,23 @@
-function _start() {
-    asm call main;
-    asm mov rax, 60;
-    asm xor rdi, rdi;
-    asm syscall;
-};
-
 function print(string s) {
-    print_size(s, length(s));
+    print_size [s] (length [s]);
+    return;
 };
 
 function print_size(string s, int size) {
     push 1;
     push 1;
-    push s;
-    push size;
+    push [s];
+    push [size];
     asm pop rdx;
     asm pop rsi;
     asm pop rdi;
     asm pop rax;
     asm syscall;
+    return;
 };
 
 function length(string s): long {
-    push s;
+    push [s];
     asm pop rdi;
     asm xor rax, rax;
     asm mov rcx, -1;
@@ -32,60 +27,28 @@ function length(string s): long {
     asm dec rcx;
     asm push rcx;
     variable return_var = pop;
-    return return_var;
+    return [return_var];
 };
 
-function concat(string s1, string s2): string {
-    variable new_memory = malloc(16384);
-    variable length1 = add(length(s1), 1);
-    push length1;
+function plus(int a, int b) {
+    push [a];
     asm pop rcx;
-    push s1;
-    asm pop rsi;
-    push new_memory;
-    asm pop rdi;
-    asm cld;
-    asm repnz movsb;
-    variable length2 = add(length(s2), 1);
-    variable total_length = add(length1, length2);
-    push length1;
-    asm pop rcx;
-    push s2;
-    asm pop rsi;
-    push new_memory;
-    asm pop rdi;
-    asm repnz movsb;
-    return new_memory;
-};
-
-function add(int int1, int int2): int {
-    push int1;
-    push int2;
-    asm pop rdi;
-    asm pop rsi;
-    asm add rdi, rsi;
-    asm push rdi;
-    variable return_value = pop;
-    return return_value;
-};
-
-function malloc(int size): int {
-    asm mov rax, 45;
-    asm xor rbx, rbx;
-    asm syscall;
-    push size;
-    asm pop rdi;
-    asm add rax, rdi;
-    asm mov rbx, rax;
-    asm mov rax, 45;
-    asm syscall;
-    asm sub rax, rdi;
-    asm push rax;
-    variable return_var = pop;
-    return return_var;
+    push [b];
+    asm pop rdx;
+    asm add rax, rdx;
+    asm push rcx;
+    return pop;
 };
 
 function main() {
-    variable test = concat("Hello World!", " test");
-    print_size(test, 4);
+    variable test = plus 59 1;
+    print "Hello World!";
+    return;
+};
+
+function _start() {
+    push asm call main;
+    asm mov rax, 60;
+    asm xor rdi, rdi;
+    asm syscall;
 };
