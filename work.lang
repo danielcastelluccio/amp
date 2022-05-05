@@ -1,6 +1,7 @@
 use "std.lang";
 
 function main() {
-    print("Hello World!\n");
-    return;
+    if (true) {
+        print("Hello World!\n");
+    };
 };

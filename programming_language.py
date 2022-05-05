@@ -24,10 +24,6 @@ class Function(Token):
 class Use(Token):
     def __init__(self, file):
         self.file = file
-    
-class Statement(Token):
-    def __init__(self, instructions):
-        self.instructions = instructions
 
 class Instruction():
     pass
@@ -67,6 +63,16 @@ class Push(Instruction):
 class Pop(Instruction):
     def __init__(self):
         pass
+
+class StartIf(Instruction):
+    def __init__(self, id):
+        self.id = id
+
+class EndIf(Instruction):
+    def __init__(self, id):
+        self.id = id
+
+if_id = 0
     
 def parse_file(file):
     file = open(file, "r")
@@ -107,7 +113,7 @@ def parse(contents, type):
     elif type == "Function":
         name = contents.split(" ")[1].split("(")[0]
         current_thing = ""
-        statements = []
+        instructions = []
         current_indent = 0
 
         arguments_array = []
@@ -128,12 +134,12 @@ def parse(contents, type):
         argument_count = 0
         for argument in arguments_array[::-1]:
             if argument:
-                statements.append(Statement([Declare(argument)]))
+                instructions.append(Declare(argument))
                 argument_count += 1
         
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
             if character == ';' and current_indent == 0:
-                statements.append(parse(current_thing, getType(current_thing)))
+                instructions.extend(parse(current_thing, getType(current_thing)))
                 current_thing = ""
             else:
                 current_thing += character
@@ -145,23 +151,20 @@ def parse(contents, type):
                 
         locals = []
                 
-        for statement in statements:
-            for instruction in statement.instructions:
-                if isinstance(instruction, Declare):
-                    locals.append(instruction.name)
+        for instruction in instructions:
+            if isinstance(instruction, Declare):
+                locals.append(instruction.name)
 
-        return Function(name, statements, locals, argument_count)
+        return Function(name, instructions, locals, argument_count)
     elif type == "Use":
         use = contents[contents.index(" ") + 1 : len(contents)]
         use = use[1 : len(use) - 1]
         return Use(use)
     elif type == "Statement":
-        return Statement(parse_statement(contents))
+        return parse_statement(contents)
         
 def parse_statement(contents):
     contents = contents.lstrip()
-    if contents.startswith("("):
-        contents = contents[1 : len(contents) - 1]
     instructions = []
 
     if contents.startswith("variable "):
@@ -181,6 +184,8 @@ def parse_statement(contents):
         instructions.append(Return())
     elif contents[0].isnumeric() or contents[0] == "-":
         instructions.append(Constant(int(contents)))
+    elif contents == "true" or contents == "false":
+        instructions.append(Constant(contents == "true"))
     elif contents.startswith("\""):
         instructions.append(Constant(contents[1 : len(contents) - 1]))
     elif contents.startswith("asm "):
@@ -190,6 +195,34 @@ def parse_statement(contents):
         instructions.append(Push())
     elif contents.startswith("pop"):
         instructions.append(Pop())
+    elif contents.startswith("if"):
+        instructions.extend(parse_statement(contents[contents.index("(") + 1 : contents.index(")")]))
+
+        current_thing = ""
+        current_indent = 0
+        instructions2 = []
+
+        global if_id
+        id = if_id
+        if_id += 1
+
+        instructions.append(StartIf(id))
+
+        for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
+            if character == ';' and current_indent == 0:
+                instructions2.extend(parse(current_thing, getType(current_thing)))
+                current_thing = ""
+            else:
+                current_thing += character
+
+            if character == '{':
+                current_indent += 1
+            elif character == '}':
+                current_indent -= 1
+
+        instructions.extend(instructions2)
+
+        instructions.append(EndIf(id))
     else:
         if "(" in contents:
             name = contents[0 : contents.index("(")]
@@ -248,56 +281,66 @@ def create_asm(program, file_name_base):
             
             asm_function.instructions.append("push rbp")
             asm_function.instructions.append("mov rbp, rsp")
-            
-            for statement in token.tokens:
-                for instruction in statement.instructions:
-                    if isinstance(instruction, Constant):
-                        if isinstance(instruction.value, int):
-                            asm_function.instructions.append("mov rax," + str(instruction.value))
-                            asm_function.instructions.append("push rax")
-                        elif isinstance(instruction.value, str):
-                            letters = string.ascii_lowercase
-                            name = ( ''.join(random.choice(letters) for i in range(8)) )
-                            put = []
-                            encoded = instruction.value.encode()
-                            for index, byte in enumerate(encoded):
-                                if byte == 0x6e:
-                                    if encoded[index - 1] == 0x5c:
-                                        put.pop()
-                                        put.append("0xa")
-                                else:
-                                    put.append(hex(byte))
 
-                            put_string = ""
-                            for thing in put:
-                                put_string += thing + ","
-        
-                            put_string += "0x0"
+            for instruction in token.tokens:
+                if isinstance(instruction, Constant):
+                    if isinstance(instruction.value, bool):
+                        asm_function.instructions.append("push " + ("1" if instruction.value else "0"))
+                    elif isinstance(instruction.value, int):
+                        asm_function.instructions.append("push " + str(instruction.value))
+                    elif isinstance(instruction.value, str):
+                        letters = string.ascii_lowercase
+                        name = ( ''.join(random.choice(letters) for i in range(8)) )
+                        put = []
+                        encoded = instruction.value.encode()
+                        for index, byte in enumerate(encoded):
+                            if byte == 0x6e:
+                                if encoded[index - 1] == 0x5c:
+                                    put.pop()
+                                    put.append("0xa")
+                            else:
+                                put.append(hex(byte))
 
-                            asm_program.data.append(AsmData(name, put_string))
-                            asm_function.instructions.append("mov rax," + name)
-                            asm_function.instructions.append("push rax")
-                    elif isinstance(instruction, Invoke):
-                        asm_function.instructions.append("call " + instruction.name)
-                    elif isinstance(instruction, Raw):
-                        asm_function.instructions.append(instruction.instruction)
-                    elif isinstance(instruction, Assign):
-                        asm_function.instructions.append("pop rcx")
-                        index = token.locals.index(instruction.name)
-                        if index <= token.parameter_count - 1:
-                            index -= 2
-                        asm_function.instructions.append("mov [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "], rcx")
-                    elif isinstance(instruction, Retrieve):
-                        index = token.locals.index(instruction.name)
-                        if index <= token.parameter_count - 1:
-                            index -= 2
-                        asm_function.instructions.append("mov rcx, [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "]")
-                        asm_function.instructions.append("push rcx")
-                    elif isinstance(instruction, Return):
-                        asm_function.instructions.append("mov rsp, rbp")
-                        asm_function.instructions.append("pop rbp")
-                        asm_function.instructions.append("ret")
+                        put_string = ""
+                        for thing in put:
+                            put_string += thing + ","
+    
+                        put_string += "0x0"
 
+                        asm_program.data.append(AsmData(name, put_string))
+                        asm_function.instructions.append("mov rax, " + name)
+                        asm_function.instructions.append("push rax")
+                elif isinstance(instruction, Invoke):
+                    asm_function.instructions.append("call " + instruction.name)
+                elif isinstance(instruction, Raw):
+                    asm_function.instructions.append(instruction.instruction)
+                elif isinstance(instruction, Assign):
+                    asm_function.instructions.append("pop rcx")
+                    index = token.locals.index(instruction.name)
+                    if index <= token.parameter_count - 1:
+                        index -= 2
+                    asm_function.instructions.append("mov [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "], rcx")
+                elif isinstance(instruction, Retrieve):
+                    index = token.locals.index(instruction.name)
+                    if index <= token.parameter_count - 1:
+                        index -= 2
+                    asm_function.instructions.append("mov rcx, [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "]")
+                    asm_function.instructions.append("push rcx")
+                elif isinstance(instruction, Return):
+                    asm_function.instructions.append("mov rsp, rbp")
+                    asm_function.instructions.append("pop rbp")
+                    asm_function.instructions.append("ret")
+                elif isinstance(instruction, StartIf):
+                    asm_function.instructions.append("pop rcx")
+                    asm_function.instructions.append("cmp rcx, 1")
+                    asm_function.instructions.append("jne if_" + str(instruction.id))
+                elif isinstance(instruction, EndIf):
+                    asm_function.instructions.append("if_" + str(instruction.id) + ":")
+                    pass
+
+            asm_function.instructions.append("mov rsp, rbp")
+            asm_function.instructions.append("pop rbp")
+            asm_function.instructions.append("ret")
             asm_program.functions.append(asm_function)
 
     file = open(file_name_base + ".asm", "w")
@@ -336,6 +379,6 @@ elif system == "Linux":
 elif system == "Darwin":
     format = "macho64"
 
-os.system("nasm -f" + format + " " + file_name_base + ".asm && ld " + file_name_base + ".o -o " + file_name_base)
-if "-r" in sys.argv:
+code = os.system("nasm -f" + format + " " + file_name_base + ".asm && ld " + file_name_base + ".o -o " + file_name_base)
+if "-r" in sys.argv and code == 0:
     os.system("./" + file_name_base)
