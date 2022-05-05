@@ -1,7 +1,6 @@
 use "std.lang";
 
-function main {
-    variable test = plus 59 1;
-    print "Hello World!\n";
+function main() {
+    print("Hello World!\n");
     return;
 };

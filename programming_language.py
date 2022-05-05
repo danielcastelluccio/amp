@@ -5,6 +5,7 @@ random.seed(0)
 import string
 import inspect
 from enum import Enum
+import platform
 
 class Token:
     pass
@@ -104,29 +105,21 @@ def parse(contents, type):
                 current_indent -= 1
         return Program(things)
     elif type == "Function":
-        name = contents.split(" ")[1]
+        name = contents.split(" ")[1].split("(")[0]
         current_thing = ""
         statements = []
         current_indent = 0
 
         arguments_array = []
-        arguments = contents[len("function " + name + " ") : contents.index("{")]
+        arguments = contents[len("function " + name) : contents.index("{")]
 
         current_argument = ""
-        current_parenthesis = 0
-        in_quotations = False
         for character in arguments:
-            if character == " " and current_parenthesis == 0 and not in_quotations:
+            if character == "," or character == ")":
                 arguments_array.append(current_argument)
                 current_argument = ""
-            elif character == "(":
-                current_parenthesis += 1
-            elif character == ")":
-                current_parenthesis -= 1
-            elif character == "\"":
-                in_quotations = not in_quotations
 
-            if (not character == " ") or (not current_parenthesis == 0) or (in_quotations):
+            if (not character == " " and not character == "(" and not character == ")" and not character == ","):
                 current_argument += character
         
         if arguments:
@@ -197,42 +190,36 @@ def parse_statement(contents):
         instructions.append(Push())
     elif contents.startswith("pop"):
         instructions.append(Pop())
-    elif contents[0] == "[":
-        instructions.append(Retrieve(contents[1 : len(contents) - 1]))
     else:
-        if " " in contents:
-            name = contents[0 : contents.index(" ")]
-        else:
-            name = contents
+        if "(" in contents:
+            name = contents[0 : contents.index("(")]
 
-        arguments_array = []
-        arguments = contents[len(name) + 1 : len(contents)]
+            arguments_array = []
+            arguments = contents[len(name) + 1 : len(contents) - 1]
 
-        current_argument = ""
-        current_parenthesis = 0
-        in_quotations = False
-        for character in arguments:
-            if character == " " and current_parenthesis == 0 and not in_quotations:
+            current_argument = ""
+            current_parenthesis = 0
+            in_quotations = False
+            for character in arguments:
+                if character == "," and current_parenthesis == 0 and not in_quotations:
+                    arguments_array.append(current_argument)
+                    current_argument = ""
+                elif character == "\"":
+                    in_quotations = not in_quotations
+
+                if (not character == " " and not character == ",") or (not current_parenthesis == 0) or (in_quotations):
+                    current_argument += character
+            
+            if arguments:
                 arguments_array.append(current_argument)
-                current_argument = ""
-            elif character == "(":
-                current_parenthesis += 1
-            elif character == ")":
-                current_parenthesis -= 1
-            elif character == "\"":
-                in_quotations = not in_quotations
-
-            if (not character == " ") or (not current_parenthesis == 0) or (in_quotations):
-                current_argument += character
-        
-        if arguments:
-            arguments_array.append(current_argument)
-        
-        for parameter in arguments_array[::-1]:
-            if parameter:
-                instructions.extend(parse_statement(parameter))
-        instructions.append(Invoke(name))
-        instructions.append(Raw("push rax"))
+            
+            for parameter in arguments_array[::-1]:
+                if parameter:
+                    instructions.extend(parse_statement(parameter))
+            instructions.append(Invoke(name))
+            instructions.append(Raw("push rax"))
+        else:
+            instructions.append(Retrieve(contents))
         
     return instructions
     
@@ -266,7 +253,8 @@ def create_asm(program, file_name_base):
                 for instruction in statement.instructions:
                     if isinstance(instruction, Constant):
                         if isinstance(instruction.value, int):
-                            asm_function.instructions.append("push " + str(instruction.value))
+                            asm_function.instructions.append("mov rax," + str(instruction.value))
+                            asm_function.instructions.append("push rax")
                         elif isinstance(instruction.value, str):
                             letters = string.ascii_lowercase
                             name = ( ''.join(random.choice(letters) for i in range(8)) )
@@ -287,7 +275,8 @@ def create_asm(program, file_name_base):
                             put_string += "0x0"
 
                             asm_program.data.append(AsmData(name, put_string))
-                            asm_function.instructions.append("push " + name)
+                            asm_function.instructions.append("mov rax," + name)
+                            asm_function.instructions.append("push rax")
                     elif isinstance(instruction, Invoke):
                         asm_function.instructions.append("call " + instruction.name)
                     elif isinstance(instruction, Raw):
@@ -337,4 +326,16 @@ def create_asm(program, file_name_base):
 file_name_base = sys.argv[1][0 : sys.argv[1].index(".")]
 program = parse_file(sys.argv[1])
 create_asm(program, file_name_base)
-os.system("nasm -felf64 " + file_name_base + ".asm && ld " + file_name_base + ".o -o " + file_name_base)
+
+format = ""
+system = platform.system()
+if system == "Windows":
+    format = "win64"
+elif system == "Linux":
+    format = "elf64"
+elif system == "Darwin":
+    format = "macho64"
+
+os.system("nasm -f" + format + " " + file_name_base + ".asm && ld " + file_name_base + ".o -o " + file_name_base)
+if "-r" in sys.argv:
+    os.system("./" + file_name_base)

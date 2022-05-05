@@ -1,13 +1,13 @@
-function print s {
-    print_size [s] (length [s]);
+function print(string) {
+    print_size(string, length(string));
     return;
 };
 
-function print_size s size {
+function print_size(string, size) {
     push 1;
     push 1;
-    push [s];
-    push [size];
+    push string;
+    push size;
     asm pop rdx;
     asm pop rsi;
     asm pop rdi;
@@ -16,8 +16,8 @@ function print_size s size {
     return;
 };
 
-function length s : long {
-    push [s];
+function length(string): long {
+    push string;
     asm pop rdi;
     asm xor rax, rax;
     asm mov rcx, -1;
@@ -27,20 +27,20 @@ function length s : long {
     asm dec rcx;
     asm push rcx;
     variable return_var = pop;
-    return [return_var];
+    return return_var;
 };
 
-function plus a b {
-    push [a];
+function plus(a, b) {
+    push a;
     asm pop rcx;
-    push [b];
+    push b;
     asm pop rdx;
     asm add rax, rdx;
     asm push rcx;
     return pop;
 };
 
-function _start {
+function _start() {
     push asm call main;
     asm mov rax, 60;
     asm xor rdi, rdi;
