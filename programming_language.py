@@ -384,6 +384,8 @@ def create_linux_binary(program, file_name_base):
             asm_function.instructions.append("push rbp")
             asm_function.instructions.append("mov rbp, rsp")
 
+            index_thing = 0
+
             for instruction in token.tokens:
                 if isinstance(instruction, Constant):
                     if isinstance(instruction.value, bool):
@@ -394,7 +396,8 @@ def create_linux_binary(program, file_name_base):
                         letters = string.ascii_lowercase
 
                         printable = set("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-                        name = ''.join(filter(lambda x: x in printable, instruction.value.lower()))
+                        name = ''.join(filter(lambda x: x in printable, instruction.value.lower())) + "_" + str(index_thing)
+                        index_thing += 1
 
                         put = []
                         encoded = instruction.value.encode()
