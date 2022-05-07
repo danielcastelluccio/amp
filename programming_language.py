@@ -285,12 +285,8 @@ def create_linux_binary(program, file_name_base):
     print_size = AsmFunction("print_size", [])
     print_size.instructions.append("push rbp")
     print_size.instructions.append("mov rbp, rsp")
-    print_size.instructions.append("mov rcx, [rbp+16]")
-    print_size.instructions.append("push rcx")
-    print_size.instructions.append("mov rcx, [rbp+24]")
-    print_size.instructions.append("push rcx")
-    print_size.instructions.append("pop rdx")
-    print_size.instructions.append("pop rsi")
+    print_size.instructions.append("mov rdx, [rbp+24]")
+    print_size.instructions.append("mov rsi, [rbp+16]")
     print_size.instructions.append("mov rdi, 1")
     print_size.instructions.append("mov rax, 1")
     print_size.instructions.append("syscall")
@@ -302,8 +298,7 @@ def create_linux_binary(program, file_name_base):
     length = AsmFunction("length", [])
     length.instructions.append("push rbp")
     length.instructions.append("mov rbp, rsp")
-    length.instructions.append("mov rcx, [rbp+16]")
-    length.instructions.append("mov rdi, rcx")
+    length.instructions.append("mov rdi, [rbp+16]")
     length.instructions.append("xor rax, rax")
     length.instructions.append("mov rcx, -1")
     length.instructions.append("cld")
@@ -317,23 +312,17 @@ def create_linux_binary(program, file_name_base):
     asm_program.functions.append(length)
 
     _start = AsmFunction("_start", [])
-    _start.instructions.append("push rbp")
-    _start.instructions.append("mov rbp, rsp")
     _start.instructions.append("call main")
     _start.instructions.append("mov rax, 60")
     _start.instructions.append("xor rdi, rdi")
     _start.instructions.append("syscall")
-    _start.instructions.append("mov rsp, rbp")
-    _start.instructions.append("pop rbp")
-    _start.instructions.append("ret")
     asm_program.functions.append(_start)
 
     add = AsmFunction("add", [])
     add.instructions.append("push rbp")
     add.instructions.append("mov rbp, rsp")
     add.instructions.append("mov r8, [rbp+16]")
-    add.instructions.append("mov rbx, [rbp+24]")
-    add.instructions.append("add r8, rbx")
+    add.instructions.append("add r8, [rbp+24]")
     add.instructions.append("mov rsp, rbp")
     add.instructions.append("pop rbp")
     add.instructions.append("ret")
@@ -343,8 +332,7 @@ def create_linux_binary(program, file_name_base):
     subtract.instructions.append("push rbp")
     subtract.instructions.append("mov rbp, rsp")
     subtract.instructions.append("mov r8, [rbp+16]")
-    subtract.instructions.append("mov rcx, [rbp+24]")
-    subtract.instructions.append("sub r8, rcx")
+    subtract.instructions.append("sub r8, [rbp+24]")
     subtract.instructions.append("mov rsp, rbp")
     subtract.instructions.append("pop rbp")
     subtract.instructions.append("ret")
@@ -353,10 +341,9 @@ def create_linux_binary(program, file_name_base):
     malloc = AsmFunction("malloc", [])
     malloc.instructions.append("push rbp")
     malloc.instructions.append("mov rbp, rsp")
-    malloc.instructions.append("mov rcx, [rbp+16]")
     malloc.instructions.append("mov rax, [index]")
     malloc.instructions.append("mov rbx, rax")
-    malloc.instructions.append("add rbx, rcx")
+    malloc.instructions.append("add rbx, [rbp+16]")
     malloc.instructions.append("mov [index], rbx")
     malloc.instructions.append("mov r8, memory")
     malloc.instructions.append("add r8, rax")
@@ -420,9 +407,7 @@ def create_linux_binary(program, file_name_base):
                         asm_function.instructions.append("push r8")
                 elif isinstance(instruction, Invoke):
                     asm_function.instructions.append("call " + instruction.name)
-                    for _ in range(instruction.argument_count):
-                        asm_function.instructions.append("pop r9")
-
+                    asm_function.instructions.append("add rsp, " + str(instruction.argument_count * 8))
                     asm_function.instructions.append("push r8")
                 #elif isinstance(instruction, Raw):
                 #    asm_function.instructions.append(instruction.instruction)
@@ -436,8 +421,7 @@ def create_linux_binary(program, file_name_base):
                     index = token.locals.index(instruction.name)
                     if index <= token.parameter_count - 1:
                         index -= 2
-                    asm_function.instructions.append("mov r8, [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "]")
-                    asm_function.instructions.append("push r8")
+                    asm_function.instructions.append("push qword [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "]")
                 elif isinstance(instruction, Return):
                     if instruction.is_value:
                          asm_function.instructions.append("pop r8")
@@ -471,6 +455,8 @@ def create_linux_binary(program, file_name_base):
                 stack_index += 1
             elif instruction.startswith("pop "):
                 stack_index -= 1
+            elif instruction.startswith("add rsp,"):
+                stack_index -= int(int(instruction.split(" ")[2]) / 8)
 
             stack_index_max = max(stack_index, stack_index_max)
 
