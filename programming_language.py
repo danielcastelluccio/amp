@@ -371,6 +371,7 @@ def create_linux_binary(program, file_name_base):
     concat.instructions.append("mov r8, [rbp-8]")
     concat.instructions.append("push r8")
     concat.instructions.append("call plus")
+    concat.instructions.append("inc rax")
     concat.instructions.append("push rax")
     concat.instructions.append("call malloc")
     concat.instructions.append("mov r8, rax")
@@ -393,6 +394,8 @@ def create_linux_binary(program, file_name_base):
     concat.instructions.append("mov r8, [rbp-16]")
     concat.instructions.append("mov rcx, r8")
     concat.instructions.append("rep movsb")
+    concat.instructions.append("mov rax, 0")
+    concat.instructions.append("mov [rdi], ah")
     concat.instructions.append("mov r8, [rbp-24]")
     concat.instructions.append("mov rax, r8")
     concat.instructions.append("mov rsp, rbp")
@@ -468,7 +471,7 @@ def create_linux_binary(program, file_name_base):
             asm_function.instructions.append("ret")
             asm_program.functions.append(asm_function)
 
-    file = open(file_name_base + ".asm", "w")
+    file = open("build/" + file_name_base + ".asm", "w")
 
     file.write(inspect.cleandoc("""
         global _start
@@ -503,15 +506,20 @@ program = parse_file(sys.argv[1])
 format = ""
 system = platform.system()
 
+try:
+    os.mkdir("build")
+except OSError:
+    pass
+
 if system == "Windows":
     #format = "win64"
     pass
 elif system == "Linux":
     create_linux_binary(program, file_name_base)
-    code = os.system("nasm -felf64 " + file_name_base + ".asm && ld " + file_name_base + ".o -o " + file_name_base)
+    code = os.system("nasm -felf64 build/" + file_name_base + ".asm && ld build/" + file_name_base + ".o -o build/" + file_name_base)
 
     if "-r" in sys.argv and code == 0:
-        os.system("./" + file_name_base)
+        os.system("./build/" + file_name_base)
 elif system == "Darwin":
     #format = "macho64"
     pass
