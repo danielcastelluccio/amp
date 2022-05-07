@@ -239,6 +239,10 @@ def parse_statement(contents):
                     current_argument = ""
                 elif character == "\"":
                     in_quotations = not in_quotations
+                elif character == "(":
+                    current_parenthesis += 1
+                elif character == ")":
+                    current_parenthesis -= 1
 
                 if (not character == " " and not character == ",") or (not current_parenthesis == 0) or (in_quotations):
                     current_argument += character
@@ -256,7 +260,7 @@ def parse_statement(contents):
         
     return instructions
     
-def create_asm(program, file_name_base):
+def create_linux_binary(program, file_name_base):
     
     class AsmProgram:
         def __init__(self, functions, data):
@@ -274,6 +278,141 @@ def create_asm(program, file_name_base):
             self.value = value
     
     asm_program = AsmProgram([], [])
+
+    print_size = AsmFunction("print_size", [])
+    print_size.instructions.append("push rbp")
+    print_size.instructions.append("mov rbp, rsp")
+    print_size.instructions.append("push 1")
+    print_size.instructions.append("push 1")
+    print_size.instructions.append("mov rcx, [rbp+16]")
+    print_size.instructions.append("push rcx")
+    print_size.instructions.append("mov rcx, [rbp+24]")
+    print_size.instructions.append("push rcx")
+    print_size.instructions.append("pop rdx")
+    print_size.instructions.append("pop rsi")
+    print_size.instructions.append("pop rdi")
+    print_size.instructions.append("pop rax")
+    print_size.instructions.append("syscall")
+    print_size.instructions.append("mov rsp, rbp")
+    print_size.instructions.append("pop rbp")
+    print_size.instructions.append("ret")
+    asm_program.functions.append(print_size)
+
+    length = AsmFunction("length", [])
+    length.instructions.append("push rbp")
+    length.instructions.append("mov rbp, rsp")
+    length.instructions.append("mov rcx, [rbp+16]")
+    length.instructions.append("push rcx")
+    length.instructions.append("pop rdi")
+    length.instructions.append("xor rax, rax")
+    length.instructions.append("mov rcx, -1")
+    length.instructions.append("cld")
+    length.instructions.append("repne scasb")
+    length.instructions.append("not rcx")
+    length.instructions.append("dec rcx")
+    length.instructions.append("push rcx")
+    length.instructions.append("pop rax")
+    length.instructions.append("mov rsp, rbp")
+    length.instructions.append("pop rbp")
+    length.instructions.append("ret")
+    asm_program.functions.append(length)
+
+    _start = AsmFunction("_start", [])
+    _start.instructions.append("push rbp")
+    _start.instructions.append("mov rbp, rsp")
+    _start.instructions.append("call main")
+    _start.instructions.append("mov rax, 60")
+    _start.instructions.append("xor rdi, rdi")
+    _start.instructions.append("syscall")
+    _start.instructions.append("mov rsp, rbp")
+    _start.instructions.append("pop rbp")
+    _start.instructions.append("ret")
+    asm_program.functions.append(_start)
+
+    plus = AsmFunction("plus", [])
+    plus.instructions.append("push rbp")
+    plus.instructions.append("mov rbp, rsp")
+    plus.instructions.append("mov rax, [rbp+16]")
+    plus.instructions.append("mov rcx, [rbp+24]")
+    plus.instructions.append("add rax, rcx")
+    plus.instructions.append("push rcx")
+    plus.instructions.append("mov rsp, rbp")
+    plus.instructions.append("pop rbp")
+    plus.instructions.append("ret")
+    asm_program.functions.append(plus)
+
+    malloc = AsmFunction("malloc", [])
+    malloc.instructions.append("push rbp")
+    malloc.instructions.append("mov rbp, rsp")
+    malloc.instructions.append("mov rcx, [rbp+16]")
+    malloc.instructions.append("mov rax, [index]")
+    malloc.instructions.append("mov rbx, rax")
+    malloc.instructions.append("add rbx, rcx")
+    malloc.instructions.append("mov [index], rbx")
+    malloc.instructions.append("mov r8, memory")
+    malloc.instructions.append("add rax, r8")
+    malloc.instructions.append("push rax")
+    malloc.instructions.append("mov rsp, rbp")
+    malloc.instructions.append("pop rbp")
+    malloc.instructions.append("ret")
+    asm_program.functions.append(malloc)
+
+    concat = AsmFunction("concat", [])
+    concat.instructions.append("push rbp")
+    concat.instructions.append("mov rbp, rsp")
+    concat.instructions.append("mov r8, [rbp+16]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("call length")
+    concat.instructions.append("push rax")
+    concat.instructions.append("pop r8")
+    concat.instructions.append("mov [rbp-8], r8")
+    concat.instructions.append("mov r8, [rbp+24]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("call length")
+    concat.instructions.append("push rax")
+    concat.instructions.append("pop r8")
+    concat.instructions.append("mov [rbp-16], r8")
+    concat.instructions.append("mov r8, [rbp-16]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("mov r8, [rbp-8]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("call plus")
+    concat.instructions.append("push rax")
+    concat.instructions.append("call malloc")
+    concat.instructions.append("push rax")
+    concat.instructions.append("pop r8")
+    concat.instructions.append("mov [rbp-24], r8")
+    concat.instructions.append("mov r8, [rbp-8]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("pop rcx")
+    concat.instructions.append("mov r8, [rbp+16]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("pop rsi")
+    concat.instructions.append("mov r8, [rbp-24]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("pop rdi")
+    concat.instructions.append("rep movsb")
+    concat.instructions.append("mov r8, [rbp+24]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("pop rsi")
+    concat.instructions.append("mov r8, [rbp-8]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("mov r8, [rbp-24]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("call plus")
+    concat.instructions.append("push rax")
+    concat.instructions.append("pop rdi")
+    concat.instructions.append("mov r8, [rbp-16]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("pop rcx")
+    concat.instructions.append("rep movsb")
+    concat.instructions.append("mov r8, [rbp-24]")
+    concat.instructions.append("push r8")
+    concat.instructions.append("pop rax")
+    concat.instructions.append("mov rsp, rbp")
+    concat.instructions.append("pop rbp")
+    concat.instructions.append("ret")
+    asm_program.functions.append(concat)
 
     for token in program.tokens:
         if isinstance(token, Function):
@@ -315,24 +454,24 @@ def create_asm(program, file_name_base):
                 elif isinstance(instruction, Raw):
                     asm_function.instructions.append(instruction.instruction)
                 elif isinstance(instruction, Assign):
-                    asm_function.instructions.append("pop rcx")
+                    asm_function.instructions.append("pop r8")
                     index = token.locals.index(instruction.name)
                     if index <= token.parameter_count - 1:
                         index -= 2
-                    asm_function.instructions.append("mov [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "], rcx")
+                    asm_function.instructions.append("mov [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "], r8")
                 elif isinstance(instruction, Retrieve):
                     index = token.locals.index(instruction.name)
                     if index <= token.parameter_count - 1:
                         index -= 2
-                    asm_function.instructions.append("mov rcx, [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "]")
-                    asm_function.instructions.append("push rcx")
+                    asm_function.instructions.append("mov r8, [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "]")
+                    asm_function.instructions.append("push r8")
                 elif isinstance(instruction, Return):
                     asm_function.instructions.append("mov rsp, rbp")
                     asm_function.instructions.append("pop rbp")
                     asm_function.instructions.append("ret")
                 elif isinstance(instruction, StartIf):
-                    asm_function.instructions.append("pop rcx")
-                    asm_function.instructions.append("cmp rcx, 1")
+                    asm_function.instructions.append("pop r8")
+                    asm_function.instructions.append("cmp r8, 1")
                     asm_function.instructions.append("jne if_" + str(instruction.id))
                 elif isinstance(instruction, EndIf):
                     asm_function.instructions.append("if_" + str(instruction.id) + ":")
@@ -364,21 +503,29 @@ def create_asm(program, file_name_base):
     for data in asm_program.data:
         file.write(data.name + ": db " + data.value + "\n")
 
+    file.write(inspect.cleandoc("""
+        section .bss
+        memory: resb 16384
+        index: resb 8
+    """))
+
     file.close()
 
 file_name_base = sys.argv[1][0 : sys.argv[1].index(".")]
 program = parse_file(sys.argv[1])
-create_asm(program, file_name_base)
 
 format = ""
 system = platform.system()
-if system == "Windows":
-    format = "win64"
-elif system == "Linux":
-    format = "elf64"
-elif system == "Darwin":
-    format = "macho64"
 
-code = os.system("nasm -f" + format + " " + file_name_base + ".asm && ld " + file_name_base + ".o -o " + file_name_base)
-if "-r" in sys.argv and code == 0:
-    os.system("./" + file_name_base)
+if system == "Windows":
+    #format = "win64"
+    pass
+elif system == "Linux":
+    create_linux_binary(program, file_name_base)
+    code = os.system("nasm -felf64 " + file_name_base + ".asm && ld " + file_name_base + ".o -o " + file_name_base)
+
+    if "-r" in sys.argv and code == 0:
+        os.system("./" + file_name_base)
+elif system == "Darwin":
+    #format = "macho64"
+    pass

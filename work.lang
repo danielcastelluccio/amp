@@ -1,7 +1,6 @@
 use "std.lang";
 
 function main() {
-    if (true) {
-        print("Hello World!\n");
-    };
+    variable thing = concat("test", "test2\n");
+    print(thing);
 };
