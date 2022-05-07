@@ -103,7 +103,7 @@ def parse_file(file):
     return program
 
 def getType(statement):
-    if statement.startswith("function "):
+    if statement.startswith("fn "):
         return "Function"
     elif statement.startswith("use "):
         return "Use"
@@ -134,7 +134,7 @@ def parse(contents, type):
         current_indent = 0
 
         arguments_array = []
-        arguments = contents[len("function " + name) : contents.index("{")]
+        arguments = contents[len("fn " + name) : contents.index("{")]
 
         current_argument = ""
         for character in arguments:
@@ -189,7 +189,7 @@ def parse_statement(contents):
 
     global if_id
 
-    if contents.startswith("variable "):
+    if contents.startswith("let "):
         name = contents.split(" ")[1]
         instructions.append(Declare(name))
 
@@ -547,6 +547,11 @@ def create_linux_binary(program, file_name_base):
                     asm_function.instructions.append("while_" + str(instruction.id2) + ":")
             asm_program.functions.append(asm_function)
 
+    try:
+        os.mkdir(os.path.dirname("build/" + file_name_base + ".asm"))
+    except:
+        pass
+        
     file = open("build/" + file_name_base + ".asm", "w")
 
     file.write(inspect.cleandoc("""

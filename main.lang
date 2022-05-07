@@ -1,9 +1,0 @@
-use "std.lang";
-
-function main() {
-    variable test = 4;
-    while (not(equal(test, 0))) {
-        println("Hello World!");
-        test = subtract(test, 1);
-    };
-};
