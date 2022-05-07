@@ -74,6 +74,21 @@ class EndIf(Instruction):
     def __init__(self, id):
         self.id = id
 
+class PreStartWhile(Instruction):
+    def __init__(self, id1, id2):
+        self.id1 = id1
+        self.id2 = id2
+
+class StartWhile(Instruction):
+    def __init__(self, id1, id2):
+        self.id1 = id1
+        self.id2 = id2
+
+class EndWhile(Instruction):
+    def __init__(self, id1, id2):
+        self.id1 = id1
+        self.id2 = id2
+
 if_id = 0
     
 def parse_file(file):
@@ -172,6 +187,8 @@ def parse_statement(contents):
     contents = contents.lstrip()
     instructions = []
 
+    global if_id
+
     if contents.startswith("variable "):
         name = contents.split(" ")[1]
         instructions.append(Declare(name))
@@ -200,13 +217,12 @@ def parse_statement(contents):
     #elif contents.startswith("pop"):
     #    instructions.append(Pop())
     elif contents.startswith("if"):
-        instructions.extend(parse_statement(contents[contents.index("(") + 1 : contents.index(")")]))
+        instructions.extend(parse_statement(contents[contents.index("(") + 1 : contents[0 : contents.index("{")].rindex(")")]))
 
         current_thing = ""
         current_indent = 0
         instructions2 = []
 
-        global if_id
         id = if_id
         if_id += 1
 
@@ -227,8 +243,45 @@ def parse_statement(contents):
         instructions.extend(instructions2)
 
         instructions.append(EndIf(id))
+    elif contents.startswith("while"):
+        id1 = if_id
+        if_id += 1
+        id2 = if_id
+        if_id += 1
+
+        instructions.append(PreStartWhile(id1, id2))
+
+        instructions.extend(parse_statement(contents[contents.index("(") + 1 : contents[0 : contents.index("{")].rindex(")")]))
+
+        current_thing = ""
+        current_indent = 0
+        instructions2 = []
+
+        instructions.append(StartWhile(id1, id2))
+
+        for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
+            if character == ';' and current_indent == 0:
+                instructions2.extend(parse(current_thing, getType(current_thing)))
+                current_thing = ""
+            else:
+                current_thing += character
+
+            if character == '{':
+                current_indent += 1
+            elif character == '}':
+                current_indent -= 1
+
+        instructions.extend(instructions2)
+
+        instructions.append(EndWhile(id1, id2))
     else:
-        if "(" in contents:
+        if "=" in contents:
+                name = contents.split(" ")[0]
+                expression = contents[contents.index("=") + 1 : len(contents)]
+                expression = expression.lstrip()
+                instructions.extend(parse_statement(expression))
+                instructions.append(Assign(name))
+        elif "(" in contents:
             name = contents[0 : contents.index("(")]
 
             arguments_array = []
@@ -364,6 +417,54 @@ def create_linux_binary(program, file_name_base):
     copy.instructions.append("ret")
     asm_program.functions.append(copy)
 
+    or_ = AsmFunction("or", [])
+    or_.instructions.append("push rbp")
+    or_.instructions.append("mov rbp, rsp")
+    or_.instructions.append("mov r8, [rbp+16]")
+    or_.instructions.append("or r8, [rbp+24]")
+    or_.instructions.append("mov rsp, rbp")
+    or_.instructions.append("pop rbp")
+    or_.instructions.append("ret")
+    asm_program.functions.append(or_)
+
+    and_ = AsmFunction("and", [])
+    and_.instructions.append("push rbp")
+    and_.instructions.append("mov rbp, rsp")
+    and_.instructions.append("mov r8, [rbp+16]")
+    and_.instructions.append("and r8, [rbp+24]")
+    and_.instructions.append("mov rsp, rbp")
+    and_.instructions.append("pop rbp")
+    and_.instructions.append("ret")
+    asm_program.functions.append(and_)
+
+    not_ = AsmFunction("not", [])
+    not_.instructions.append("push rbp")
+    not_.instructions.append("mov rbp, rsp")
+    not_.instructions.append("mov r8, [rbp+16]")
+    not_.instructions.append("xor r8, 1")
+    not_.instructions.append("mov rsp, rbp")
+    not_.instructions.append("pop rbp")
+    not_.instructions.append("ret")
+    asm_program.functions.append(not_)
+
+    equal = AsmFunction("equal", [])
+    equal.instructions.append("push rbp")
+    equal.instructions.append("mov rbp, rsp")
+    equal.instructions.append("mov r8, [rbp+16]")
+    equal.instructions.append("cmp r8, [rbp+24]")
+    equal.instructions.append("jne equal_not_equal")
+    equal.instructions.append("equal_equal:")
+    equal.instructions.append("mov r8, 1")
+    equal.instructions.append("mov rsp, rbp")
+    equal.instructions.append("pop rbp")
+    equal.instructions.append("ret")
+    equal.instructions.append("equal_not_equal:")
+    equal.instructions.append("mov r8, 0")
+    equal.instructions.append("mov rsp, rbp")
+    equal.instructions.append("pop rbp")
+    equal.instructions.append("ret")
+    asm_program.functions.append(equal)
+
     for token in program.tokens:
         if isinstance(token, Function):
             asm_function = AsmFunction(token.name, [])
@@ -435,7 +536,15 @@ def create_linux_binary(program, file_name_base):
                     asm_function.instructions.append("jne if_" + str(instruction.id))
                 elif isinstance(instruction, EndIf):
                     asm_function.instructions.append("if_" + str(instruction.id) + ":")
-                    pass
+                elif isinstance(instruction, PreStartWhile):
+                    asm_function.instructions.append("while_" + str(instruction.id1) + ":")
+                elif isinstance(instruction, StartWhile):
+                    asm_function.instructions.append("pop r8")
+                    asm_function.instructions.append("cmp r8, 1")
+                    asm_function.instructions.append("jne while_" + str(instruction.id2))
+                elif isinstance(instruction, EndWhile):
+                    asm_function.instructions.append("jmp while_" + str(instruction.id1))
+                    asm_function.instructions.append("while_" + str(instruction.id2) + ":")
             asm_program.functions.append(asm_function)
 
     file = open("build/" + file_name_base + ".asm", "w")

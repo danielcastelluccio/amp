@@ -1,6 +1,9 @@
 use "std.lang";
 
 function main() {
-    variable concatenated = concatenate("Hello ", "World!");
-    println(concatenated);
+    variable test = 4;
+    while (not(equal(test, 0))) {
+        println("Hello World!");
+        test = subtract(test, 1);
+    };
 };
