@@ -1,11 +1,12 @@
 import sys
 import os
 import random
-random.seed(0)
 import string
 import inspect
 from enum import Enum
 import platform
+
+random.seed(0)
 
 class Token:
     pass
@@ -45,24 +46,25 @@ class Constant(Instruction):
         self.value = value
     
 class Invoke(Instruction):
-    def __init__(self, name):
+    def __init__(self, name, argument_count):
         self.name = name
+        self.argument_count = argument_count
     
 class Return(Instruction):
-    def __init__(self):
-        pass
+    def __init__(self, is_value):
+        self.is_value = is_value
     
-class Raw(Instruction):
-    def __init__(self, instruction):
-        self.instruction = instruction
+#class Raw(Instruction):
+#    def __init__(self, instruction):
+#        self.instruction = instruction
     
-class Push(Instruction):
-    def __init__(self):
-        pass
+#class Push(Instruction):
+#    def __init__(self):
+#        pass
 
-class Pop(Instruction):
-    def __init__(self):
-        pass
+#class Pop(Instruction):
+#    def __init__(self):
+#        pass
 
 class StartIf(Instruction):
     def __init__(self, id):
@@ -155,6 +157,9 @@ def parse(contents, type):
             if isinstance(instruction, Declare):
                 locals.append(instruction.name)
 
+        if not instructions[-1] is Return:
+            instructions.append(Return(False))
+
         return Function(name, instructions, locals, argument_count)
     elif type == "Use":
         use = contents[contents.index(" ") + 1 : len(contents)]
@@ -180,21 +185,20 @@ def parse_statement(contents):
         return_value_statement = contents[7 : len(contents)]
         if return_value_statement:
             instructions.extend(parse_statement(return_value_statement))
-            instructions.append(Raw("pop r8"))
-        instructions.append(Return())
+        instructions.append(Return(return_value_statement))
     elif contents[0].isnumeric() or contents[0] == "-":
         instructions.append(Constant(int(contents)))
     elif contents == "true" or contents == "false":
         instructions.append(Constant(contents == "true"))
     elif contents.startswith("\""):
         instructions.append(Constant(contents[1 : len(contents) - 1]))
-    elif contents.startswith("asm "):
-        instructions.append(Raw(contents[4: len(contents)]))
-    elif contents.startswith("push "):
-        instructions.extend(parse_statement(contents[5 : len(contents)]))
-        instructions.append(Push())
-    elif contents.startswith("pop"):
-        instructions.append(Pop())
+    #elif contents.startswith("asm "):
+    #    instructions.append(Raw(contents[4: len(contents)]))
+    #elif contents.startswith("push "):
+    #    instructions.extend(parse_statement(contents[5 : len(contents)]))
+    #    instructions.append(Push())
+    #elif contents.startswith("pop"):
+    #    instructions.append(Pop())
     elif contents.startswith("if"):
         instructions.extend(parse_statement(contents[contents.index("(") + 1 : contents.index(")")]))
 
@@ -253,12 +257,7 @@ def parse_statement(contents):
             for parameter in arguments_array[::-1]:
                 if parameter:
                     instructions.extend(parse_statement(parameter))
-            instructions.append(Invoke(name))
-
-            for argument in arguments_array:
-                instructions.append(Raw("pop r9"))
-
-            instructions.append(Raw("push r8"))
+            instructions.append(Invoke(name, len(arguments_array)))
         else:
             instructions.append(Retrieve(contents))
         
@@ -393,7 +392,10 @@ def create_linux_binary(program, file_name_base):
                         asm_function.instructions.append("push " + str(instruction.value))
                     elif isinstance(instruction.value, str):
                         letters = string.ascii_lowercase
-                        name = ( ''.join(random.choice(letters) for i in range(8)) )
+
+                        printable = set("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                        name = ''.join(filter(lambda x: x in printable, instruction.value.lower()))
+
                         put = []
                         encoded = instruction.value.encode()
                         for index, byte in enumerate(encoded):
@@ -415,8 +417,12 @@ def create_linux_binary(program, file_name_base):
                         asm_function.instructions.append("push r8")
                 elif isinstance(instruction, Invoke):
                     asm_function.instructions.append("call " + instruction.name)
-                elif isinstance(instruction, Raw):
-                    asm_function.instructions.append(instruction.instruction)
+                    for _ in range(instruction.argument_count):
+                        asm_function.instructions.append("pop r9")
+
+                    asm_function.instructions.append("push r8")
+                #elif isinstance(instruction, Raw):
+                #    asm_function.instructions.append(instruction.instruction)
                 elif isinstance(instruction, Assign):
                     asm_function.instructions.append("pop r8")
                     index = token.locals.index(instruction.name)
@@ -430,6 +436,9 @@ def create_linux_binary(program, file_name_base):
                     asm_function.instructions.append("mov r8, [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "]")
                     asm_function.instructions.append("push r8")
                 elif isinstance(instruction, Return):
+                    if instruction.is_value:
+                         asm_function.instructions.append("pop r8")
+
                     asm_function.instructions.append("mov rsp, rbp")
                     asm_function.instructions.append("pop rbp")
                     asm_function.instructions.append("ret")
@@ -440,10 +449,6 @@ def create_linux_binary(program, file_name_base):
                 elif isinstance(instruction, EndIf):
                     asm_function.instructions.append("if_" + str(instruction.id) + ":")
                     pass
-
-            asm_function.instructions.append("mov rsp, rbp")
-            asm_function.instructions.append("pop rbp")
-            asm_function.instructions.append("ret")
             asm_program.functions.append(asm_function)
 
     file = open("build/" + file_name_base + ".asm", "w")
