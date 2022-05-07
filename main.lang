@@ -1,0 +1,6 @@
+use "std.lang";
+
+function main() {
+    variable concatenate_thing = concat("Hello ", "world!\n");
+    print(concatenate_thing);
+};

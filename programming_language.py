@@ -180,7 +180,7 @@ def parse_statement(contents):
         return_value_statement = contents[7 : len(contents)]
         if return_value_statement:
             instructions.extend(parse_statement(return_value_statement))
-            instructions.append(Raw("pop rax"))
+            instructions.append(Raw("pop r8"))
         instructions.append(Return())
     elif contents[0].isnumeric() or contents[0] == "-":
         instructions.append(Constant(int(contents)))
@@ -254,7 +254,11 @@ def parse_statement(contents):
                 if parameter:
                     instructions.extend(parse_statement(parameter))
             instructions.append(Invoke(name))
-            instructions.append(Raw("push rax"))
+
+            for argument in arguments_array:
+                instructions.append(Raw("pop r9"))
+
+            instructions.append(Raw("push r8"))
         else:
             instructions.append(Retrieve(contents))
         
@@ -307,7 +311,7 @@ def create_linux_binary(program, file_name_base):
     length.instructions.append("repne scasb")
     length.instructions.append("not rcx")
     length.instructions.append("dec rcx")
-    length.instructions.append("mov rax, rcx")
+    length.instructions.append("mov r8, rcx")
     length.instructions.append("mov rsp, rbp")
     length.instructions.append("pop rbp")
     length.instructions.append("ret")
@@ -325,17 +329,27 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("ret")
     asm_program.functions.append(_start)
 
-    plus = AsmFunction("plus", [])
-    plus.instructions.append("push rbp")
-    plus.instructions.append("mov rbp, rsp")
-    plus.instructions.append("mov rax, [rbp+16]")
-    plus.instructions.append("mov rcx, [rbp+24]")
-    plus.instructions.append("add rax, rcx")
-    plus.instructions.append("push rcx")
-    plus.instructions.append("mov rsp, rbp")
-    plus.instructions.append("pop rbp")
-    plus.instructions.append("ret")
-    asm_program.functions.append(plus)
+    add = AsmFunction("add", [])
+    add.instructions.append("push rbp")
+    add.instructions.append("mov rbp, rsp")
+    add.instructions.append("mov r8, [rbp+16]")
+    add.instructions.append("mov rbx, [rbp+24]")
+    add.instructions.append("add r8, rbx")
+    add.instructions.append("mov rsp, rbp")
+    add.instructions.append("pop rbp")
+    add.instructions.append("ret")
+    asm_program.functions.append(add)
+
+    subtract = AsmFunction("subtract", [])
+    subtract.instructions.append("push rbp")
+    subtract.instructions.append("mov rbp, rsp")
+    subtract.instructions.append("mov r8, [rbp+16]")
+    subtract.instructions.append("mov rcx, [rbp+24]")
+    subtract.instructions.append("sub r8, rcx")
+    subtract.instructions.append("mov rsp, rbp")
+    subtract.instructions.append("pop rbp")
+    subtract.instructions.append("ret")
+    asm_program.functions.append(subtract)
 
     malloc = AsmFunction("malloc", [])
     malloc.instructions.append("push rbp")
@@ -346,62 +360,23 @@ def create_linux_binary(program, file_name_base):
     malloc.instructions.append("add rbx, rcx")
     malloc.instructions.append("mov [index], rbx")
     malloc.instructions.append("mov r8, memory")
-    malloc.instructions.append("add rax, r8")
-    malloc.instructions.append("push rax")
+    malloc.instructions.append("add r8, rax")
     malloc.instructions.append("mov rsp, rbp")
     malloc.instructions.append("pop rbp")
     malloc.instructions.append("ret")
     asm_program.functions.append(malloc)
 
-    concat = AsmFunction("concat", [])
-    concat.instructions.append("push rbp")
-    concat.instructions.append("mov rbp, rsp")
-    concat.instructions.append("mov r8, [rbp+16]")
-    concat.instructions.append("push r8")
-    concat.instructions.append("call length")
-    concat.instructions.append("mov r8, rax")
-    concat.instructions.append("mov [rbp-8], r8")
-    concat.instructions.append("mov r8, [rbp+24]")
-    concat.instructions.append("push r8")
-    concat.instructions.append("call length")
-    concat.instructions.append("mov r8, rax")
-    concat.instructions.append("mov [rbp-16], r8")
-    concat.instructions.append("mov r8, [rbp-16]")
-    concat.instructions.append("push r8")
-    concat.instructions.append("mov r8, [rbp-8]")
-    concat.instructions.append("push r8")
-    concat.instructions.append("call plus")
-    concat.instructions.append("inc rax")
-    concat.instructions.append("push rax")
-    concat.instructions.append("call malloc")
-    concat.instructions.append("mov r8, rax")
-    concat.instructions.append("mov [rbp-24], r8")
-    concat.instructions.append("mov r8, [rbp-8]")
-    concat.instructions.append("mov rcx, r8")
-    concat.instructions.append("mov r8, [rbp+16]")
-    concat.instructions.append("mov rsi, r8")
-    concat.instructions.append("mov r8, [rbp-24]")
-    concat.instructions.append("mov rdi, r8")
-    concat.instructions.append("rep movsb")
-    concat.instructions.append("mov r8, [rbp+24]")
-    concat.instructions.append("mov rsi, r8")
-    concat.instructions.append("mov r8, [rbp-8]")
-    concat.instructions.append("push r8")
-    concat.instructions.append("mov r8, [rbp-24]")
-    concat.instructions.append("push r8")
-    concat.instructions.append("call plus")
-    concat.instructions.append("mov rdi, rax")
-    concat.instructions.append("mov r8, [rbp-16]")
-    concat.instructions.append("mov rcx, r8")
-    concat.instructions.append("rep movsb")
-    concat.instructions.append("mov rax, 0")
-    concat.instructions.append("mov [rdi], ah")
-    concat.instructions.append("mov r8, [rbp-24]")
-    concat.instructions.append("mov rax, r8")
-    concat.instructions.append("mov rsp, rbp")
-    concat.instructions.append("pop rbp")
-    concat.instructions.append("ret")
-    asm_program.functions.append(concat)
+    copy = AsmFunction("copy", [])
+    copy.instructions.append("push rbp")
+    copy.instructions.append("mov rbp, rsp")
+    copy.instructions.append("mov rsi, [rbp+16]")
+    copy.instructions.append("mov rdi, [rbp+24]")
+    copy.instructions.append("mov rcx, [rbp+32]")
+    copy.instructions.append("rep movsb")
+    copy.instructions.append("mov rsp, rbp")
+    copy.instructions.append("pop rbp")
+    copy.instructions.append("ret")
+    asm_program.functions.append(copy)
 
     for token in program.tokens:
         if isinstance(token, Function):
@@ -436,8 +411,8 @@ def create_linux_binary(program, file_name_base):
                         put_string += "0x0"
 
                         asm_program.data.append(AsmData(name, put_string))
-                        asm_function.instructions.append("mov rax, " + name)
-                        asm_function.instructions.append("push rax")
+                        asm_function.instructions.append("mov r8, " + name)
+                        asm_function.instructions.append("push r8")
                 elif isinstance(instruction, Invoke):
                     asm_function.instructions.append("call " + instruction.name)
                 elif isinstance(instruction, Raw):
@@ -481,6 +456,18 @@ def create_linux_binary(program, file_name_base):
 
     for function in asm_program.functions:
         file.write(function.name + ":\n")
+        stack_index = 0
+        stack_index_max = 0
+        for instruction in function.instructions:
+            if instruction.startswith("push "):
+                stack_index += 1
+            elif instruction.startswith("pop "):
+                stack_index -= 1
+
+            stack_index_max = max(stack_index, stack_index_max)
+
+        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8))
+    
         for instruction in function.instructions:
             file.write("   " + instruction + "\n")
 

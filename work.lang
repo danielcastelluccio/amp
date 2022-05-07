@@ -1,7 +1,0 @@
-use "std.lang";
-
-function main() {
-    variable thing = concat("test", "test2\n");
-    variable thing2 = concat("test", "test2\n");
-    print(thing);
-};

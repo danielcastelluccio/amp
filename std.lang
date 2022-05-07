@@ -1,3 +1,12 @@
 function print(string) {
     print_size(string, length(string));
 };
+
+function concat(string1, string2) {
+    variable string1_length = length(string1);
+    variable string2_length = length(string2);
+    variable new_memory = malloc(add(string1_length, string2_length));
+    copy(string1, new_memory, string1_length);
+    copy(string2, add(new_memory, string1_length), string2_length);
+    return new_memory;
+};
