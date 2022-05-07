@@ -15,3 +15,19 @@ fn concatenate(string1, string2) {
     copy(string2, add(new_memory, string1_length), add(1, string2_length));
     return new_memory;
 };
+
+fn int_to_string(integer) {
+    let string = "";
+    while (not(equal(integer, 0))) {
+        let modulo = modulo(integer, 10);
+        integer = divide(integer, 10);
+        string = concatenate(store(add(modulo, 48)), string);
+    };
+    return string;
+};
+
+fn store(value) {
+    let new_memory = malloc(1);
+    set(value, new_memory);
+    return new_memory;
+};

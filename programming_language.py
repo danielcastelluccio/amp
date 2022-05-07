@@ -172,7 +172,7 @@ def parse(contents, type):
             if isinstance(instruction, Declare):
                 locals.append(instruction.name)
 
-        if not instructions[-1] is Return:
+        if not isinstance(instructions[-1], Return):
             instructions.append(Return(False))
 
         return Function(name, instructions, locals, argument_count)
@@ -303,7 +303,7 @@ def parse_statement(contents):
 
                 if (not character == " " and not character == ",") or (not current_parenthesis == 0) or (in_quotations):
                     current_argument += character
-            
+
             if arguments:
                 arguments_array.append(current_argument)
             
@@ -391,6 +391,30 @@ def create_linux_binary(program, file_name_base):
     subtract.instructions.append("ret")
     asm_program.functions.append(subtract)
 
+    divide = AsmFunction("divide", [])
+    divide.instructions.append("push rbp")
+    divide.instructions.append("mov rbp, rsp")
+    divide.instructions.append("mov rax, [rbp+16]")
+    divide.instructions.append("xor rdx, rdx")
+    divide.instructions.append("div qword [rbp+24]")
+    divide.instructions.append("mov r8, rax")
+    divide.instructions.append("mov rsp, rbp")
+    divide.instructions.append("pop rbp")
+    divide.instructions.append("ret")
+    asm_program.functions.append(divide)
+
+    modulo = AsmFunction("modulo", [])
+    modulo.instructions.append("push rbp")
+    modulo.instructions.append("mov rbp, rsp")
+    modulo.instructions.append("mov rax, [rbp+16]")
+    modulo.instructions.append("xor rdx, rdx")
+    modulo.instructions.append("div qword [rbp+24]")
+    modulo.instructions.append("mov r8, rdx")
+    modulo.instructions.append("mov rsp, rbp")
+    modulo.instructions.append("pop rbp")
+    modulo.instructions.append("ret")
+    asm_program.functions.append(modulo)
+
     malloc = AsmFunction("malloc", [])
     malloc.instructions.append("push rbp")
     malloc.instructions.append("mov rbp, rsp")
@@ -465,6 +489,17 @@ def create_linux_binary(program, file_name_base):
     equal.instructions.append("ret")
     asm_program.functions.append(equal)
 
+    set_ = AsmFunction("set", [])
+    set_.instructions.append("push rbp")
+    set_.instructions.append("mov rbp, rsp")
+    set_.instructions.append("mov r8, [rbp+16]")
+    set_.instructions.append("mov r9, [rbp+24]")
+    set_.instructions.append("mov [r9], r8b")
+    set_.instructions.append("mov rsp, rbp")
+    set_.instructions.append("pop rbp")
+    set_.instructions.append("ret")
+    asm_program.functions.append(set_)
+
     for token in program.tokens:
         if isinstance(token, Function):
             asm_function = AsmFunction(token.name, [])
@@ -494,6 +529,8 @@ def create_linux_binary(program, file_name_base):
                                 if encoded[index - 1] == 0x5c:
                                     put.pop()
                                     put.append("0xa")
+                                else:
+                                    put.append(hex(byte))
                             else:
                                 put.append(hex(byte))
 
@@ -551,7 +588,7 @@ def create_linux_binary(program, file_name_base):
         os.mkdir(os.path.dirname("build/" + file_name_base + ".asm"))
     except:
         pass
-        
+
     file = open("build/" + file_name_base + ".asm", "w")
 
     file.write(inspect.cleandoc("""
