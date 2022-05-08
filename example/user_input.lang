@@ -1,0 +1,7 @@
+use "std.lang";
+
+fn main() {
+    print("Hello, what is your name? ");
+    let string = read();
+    print(concatenate("Hello ", string));
+};

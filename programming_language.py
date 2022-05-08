@@ -500,14 +500,27 @@ def create_linux_binary(program, file_name_base):
     set_.instructions.append("ret")
     asm_program.functions.append(set_)
 
+    read_size = AsmFunction("read_size", [])
+    read_size.instructions.append("push rbp")
+    read_size.instructions.append("mov rbp, rsp")
+    read_size.instructions.append("mov rdx, [rbp+24]")
+    read_size.instructions.append("mov rsi, [rbp+16]")
+    read_size.instructions.append("mov rdi, 0")
+    read_size.instructions.append("mov rax, 0")
+    read_size.instructions.append("syscall")
+    read_size.instructions.append("mov rsp, rbp")
+    read_size.instructions.append("pop rbp")
+    read_size.instructions.append("ret")
+    asm_program.functions.append(read_size)
+
+    index_thing = 0
+
     for token in program.tokens:
         if isinstance(token, Function):
             asm_function = AsmFunction(token.name, [])
             
             asm_function.instructions.append("push rbp")
             asm_function.instructions.append("mov rbp, rsp")
-
-            index_thing = 0
 
             for instruction in token.tokens:
                 if isinstance(instruction, Constant):
@@ -519,7 +532,7 @@ def create_linux_binary(program, file_name_base):
                         letters = string.ascii_lowercase
 
                         printable = set("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-                        name = ''.join(filter(lambda x: x in printable, instruction.value.lower())) + "_" + str(index_thing)
+                        name = ''.join(filter(lambda x: x in printable, instruction.value)) + "_" + str(index_thing)
                         index_thing += 1
 
                         put = []

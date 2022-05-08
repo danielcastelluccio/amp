@@ -2,6 +2,12 @@ fn print(string) {
     print_size(string, length(string));
 };
 
+fn read(): string {
+    let string = malloc(16);
+    read_size(string, 16);
+    return string;
+};
+
 fn println(string) {
     print(string);
     print("\n");
@@ -30,4 +36,8 @@ fn store(value) {
     let new_memory = malloc(1);
     set(value, new_memory);
     return new_memory;
+};
+
+fn not_equal(value1, value2) {
+    return not(equal(value1, value2));  
 };
