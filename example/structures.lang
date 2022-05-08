@@ -2,7 +2,14 @@ use "std.lang";
 
 fn main() {
     let pair = IntPair.new(1, 2);
-    IntPair.int1(pair, 4);
+    println(int_to_string(IntPair.int1(pair)));
+    println(int_to_string(IntPair.int2(pair)));
+
+    IntPair.int2(pair, 4);
+    println(int_to_string(IntPair.int2(pair)));
+
+    IntPair.reset(pair);
+
     println(int_to_string(IntPair.int1(pair)));
     println(int_to_string(IntPair.int2(pair)));
 };
@@ -10,4 +17,9 @@ fn main() {
 struct IntPair {
     int1;
     int2;
+};
+
+fn IntPair.reset(pair) {
+    IntPair.int1(pair, 0);
+    IntPair.int2(pair, 0);
 };

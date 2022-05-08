@@ -214,17 +214,17 @@ def parse(contents, type):
                 instructions = []
                 locals = []
 
-                instructions.append(Declare(item))
                 instructions.append(Declare("instance"))
-                instructions.append(Retrieve(item))
+                instructions.append(Declare(item))
                 instructions.append(Retrieve("instance"))
                 instructions.append(Constant(8 * len(items)))
                 instructions.append(Invoke("add", 2))
+                instructions.append(Retrieve(item))
                 instructions.append(Invoke("set_8", 2))
-                instructions.append(Return(True))
+                instructions.append(Return(False))
 
-                locals.append("instance")
                 locals.append(item)
+                locals.append("instance")
 
                 function = Function(set_name, instructions, locals, 2)
                 functions.append(function)
@@ -725,7 +725,7 @@ def create_linux_binary(program, file_name_base):
                     elif isinstance(instruction.value, str):
                         letters = string.ascii_lowercase
 
-                        printable = set("0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+                        printable = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
                         name = ''.join(filter(lambda x: x in printable, instruction.value)) + "_" + str(index_thing)
                         index_thing += 1
 
