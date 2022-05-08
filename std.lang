@@ -2,15 +2,24 @@ fn print(string) {
     print_size(string, length(string));
 };
 
-fn read(): string {
-    let string = malloc(16);
-    read_size(string, 16);
-    return string;
-};
-
 fn println(string) {
     print(string);
     print("\n");
+};
+
+fn error(string) {
+    error_size(string, length(string));
+};
+
+fn errorln(string) {
+    error(string);
+    error("\n");
+};
+
+fn read(): string {
+    let string = malloc(128);
+    read_size(string, 128);
+    return string;
 };
 
 fn concatenate(string1, string2) {
@@ -34,10 +43,23 @@ fn int_to_string(integer) {
 
 fn store(value) {
     let new_memory = malloc(1);
-    set(value, new_memory);
+    set_1(value, new_memory);
     return new_memory;
 };
 
 fn not_equal(value1, value2) {
     return not(equal(value1, value2));  
+};
+
+fn new_array(size) {
+    let new_memory = malloc(multiply(size, 8));
+    return new_memory;
+};
+
+fn set_array(array, index, value) {
+    set_8(value, add(array, multiply(index, 8)));
+};
+
+fn get_array(array, index) {
+    return get_8(add(array, multiply(index, 8)));
 };
