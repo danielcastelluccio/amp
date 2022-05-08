@@ -46,9 +46,9 @@ class Constant(Instruction):
         self.value = value
     
 class Invoke(Instruction):
-    def __init__(self, name, argument_count):
+    def __init__(self, name, parameter_count):
         self.name = name
-        self.argument_count = argument_count
+        self.parameter_count = parameter_count
     
 class Return(Instruction):
     def __init__(self, is_value):
@@ -100,6 +100,7 @@ def parse_file(file):
     for token in program.tokens:
         if isinstance(token, Use):
             program.tokens.extend(parse_file(token.file).tokens)
+    
     return program
 
 def getType(statement):
@@ -107,6 +108,8 @@ def getType(statement):
         return "Function"
     elif statement.startswith("use "):
         return "Use"
+    elif statement.startswith("struct "):
+        return "Struct"    
     else:
         return "Statement"
     
@@ -117,7 +120,7 @@ def parse(contents, type):
         current_indent = 0
         for character in contents:
             if character == ';' and current_indent == 0:
-                things.append(parse(current_thing, getType(current_thing)))
+                things.extend(parse(current_thing, getType(current_thing)))
                 current_thing = ""
             else:
                 current_thing += character
@@ -126,6 +129,7 @@ def parse(contents, type):
                 current_indent += 1
             elif character == '}':
                 current_indent -= 1
+
         return Program(things)
     elif type == "Function":
         name = contents.split(" ")[1].split("(")[0]
@@ -148,11 +152,11 @@ def parse(contents, type):
         if arguments:
             arguments_array.append(current_argument)
 
-        argument_count = 0
+        parameter_count = 0
         for argument in arguments_array[::-1]:
             if argument:
                 instructions.append(Declare(argument))
-                argument_count += 1
+                parameter_count += 1
         
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
             if character == ';' and current_indent == 0:
@@ -175,11 +179,87 @@ def parse(contents, type):
         if len(instructions) == 0 or not isinstance(instructions[-1], Return):
             instructions.append(Return(False))
 
-        return Function(name, instructions, locals, argument_count)
+        return [Function(name, instructions, locals, parameter_count)]
     elif type == "Use":
         use = contents[contents.index(" ") + 1 : len(contents)]
         use = use[1 : len(use) - 1]
-        return Use(use)
+        return [Use(use)]
+    elif type == "Struct":
+        name = contents.split(" ")[1]
+        items = []
+        functions = []
+
+        body = contents[contents.index("{") + 1 : contents.index("}")]
+        for item in body.split(";"):
+            if item:
+                item = item.strip()
+
+                get_name = name + "." + item
+                instructions = []
+                locals = []
+
+                instructions.append(Declare("instance"))
+                instructions.append(Retrieve("instance"))
+                instructions.append(Constant(8 * len(items)))
+                instructions.append(Invoke("add", 2))
+                instructions.append(Invoke("get_8", 1))
+                instructions.append(Return(True))
+
+                locals.append("instance")
+
+                function = Function(get_name, instructions, locals, 1)
+                functions.append(function)
+
+                set_name = name + "." + item
+                instructions = []
+                locals = []
+
+                instructions.append(Declare(item))
+                instructions.append(Declare("instance"))
+                instructions.append(Retrieve(item))
+                instructions.append(Retrieve("instance"))
+                instructions.append(Constant(8 * len(items)))
+                instructions.append(Invoke("add", 2))
+                instructions.append(Invoke("set_8", 2))
+                instructions.append(Return(True))
+
+                locals.append("instance")
+                locals.append(item)
+
+                function = Function(set_name, instructions, locals, 2)
+                functions.append(function)
+
+                items.append(item)
+
+        instructions = []
+        locals = []
+
+        for item in reversed(items):
+            instructions.append(Declare(item))
+            locals.append(item)
+
+        instructions.append(Declare("instance"))
+
+        instructions.append(Constant(8 * len(items)))
+        instructions.append(Invoke("malloc", 1))
+        instructions.append(Assign("instance"))
+
+        for item in items:
+            instructions.append(Constant(8 * items.index(item)))
+            instructions.append(Retrieve("instance"))
+            instructions.append(Invoke("add", 2))
+            instructions.append(Retrieve(item))
+            instructions.append(Invoke("set_8", 2))
+
+        instructions.append(Retrieve("instance"))
+        instructions.append(Return(True))
+
+        locals.append("instance")
+
+        function = Function(name + ".new", instructions, locals, len(items))
+        functions.append(function)
+
+        return functions
     elif type == "Statement":
         return parse_statement(contents)
         
@@ -335,7 +415,7 @@ def create_linux_binary(program, file_name_base):
     
     asm_program = AsmProgram([], [])
 
-    print_size = AsmFunction("print_size", [])
+    print_size = AsmFunction("print_size_2", [])
     print_size.instructions.append("push rbp")
     print_size.instructions.append("mov rbp, rsp")
     print_size.instructions.append("mov rdx, [rbp+24]")
@@ -348,7 +428,7 @@ def create_linux_binary(program, file_name_base):
     print_size.instructions.append("ret")
     asm_program.functions.append(print_size)
 
-    error_size = AsmFunction("error_size", [])
+    error_size = AsmFunction("error_size_2", [])
     error_size.instructions.append("push rbp")
     error_size.instructions.append("mov rbp, rsp")
     error_size.instructions.append("mov rdx, [rbp+24]")
@@ -361,7 +441,7 @@ def create_linux_binary(program, file_name_base):
     error_size.instructions.append("ret")
     asm_program.functions.append(error_size)
 
-    length = AsmFunction("length", [])
+    length = AsmFunction("length_1", [])
     length.instructions.append("push rbp")
     length.instructions.append("mov rbp, rsp")
     length.instructions.append("mov rdi, [rbp+16]")
@@ -386,7 +466,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("mul rdx")
     _start.instructions.append("push rcx")
     _start.instructions.append("push rax")
-    _start.instructions.append("call malloc")
+    _start.instructions.append("call malloc_1")
     _start.instructions.append("add rsp, 8")
     _start.instructions.append("pop rcx")
     _start.instructions.append("mov rax, 0")
@@ -416,7 +496,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("syscall")
     asm_program.functions.append(_start)
 
-    add = AsmFunction("add", [])
+    add = AsmFunction("add_2", [])
     add.instructions.append("push rbp")
     add.instructions.append("mov rbp, rsp")
     add.instructions.append("mov r8, [rbp+16]")
@@ -426,7 +506,7 @@ def create_linux_binary(program, file_name_base):
     add.instructions.append("ret")
     asm_program.functions.append(add)
 
-    multiply = AsmFunction("multiply", [])
+    multiply = AsmFunction("multiply_2", [])
     multiply.instructions.append("push rbp")
     multiply.instructions.append("mov rbp, rsp")
     multiply.instructions.append("mov rax, [rbp+16]")
@@ -438,7 +518,7 @@ def create_linux_binary(program, file_name_base):
     multiply.instructions.append("ret")
     asm_program.functions.append(multiply)
 
-    subtract = AsmFunction("subtract", [])
+    subtract = AsmFunction("subtract_2", [])
     subtract.instructions.append("push rbp")
     subtract.instructions.append("mov rbp, rsp")
     subtract.instructions.append("mov r8, [rbp+16]")
@@ -448,7 +528,7 @@ def create_linux_binary(program, file_name_base):
     subtract.instructions.append("ret")
     asm_program.functions.append(subtract)
 
-    divide = AsmFunction("divide", [])
+    divide = AsmFunction("divide_2", [])
     divide.instructions.append("push rbp")
     divide.instructions.append("mov rbp, rsp")
     divide.instructions.append("mov rax, [rbp+16]")
@@ -460,7 +540,7 @@ def create_linux_binary(program, file_name_base):
     divide.instructions.append("ret")
     asm_program.functions.append(divide)
 
-    modulo = AsmFunction("modulo", [])
+    modulo = AsmFunction("modulo_2", [])
     modulo.instructions.append("push rbp")
     modulo.instructions.append("mov rbp, rsp")
     modulo.instructions.append("mov rax, [rbp+16]")
@@ -472,7 +552,7 @@ def create_linux_binary(program, file_name_base):
     modulo.instructions.append("ret")
     asm_program.functions.append(modulo)
 
-    malloc = AsmFunction("malloc", [])
+    malloc = AsmFunction("malloc_1", [])
     malloc.instructions.append("push rbp")
     malloc.instructions.append("mov rbp, rsp")
     malloc.instructions.append("mov rax, [index]")
@@ -486,7 +566,7 @@ def create_linux_binary(program, file_name_base):
     malloc.instructions.append("ret")
     asm_program.functions.append(malloc)
 
-    copy = AsmFunction("copy", [])
+    copy = AsmFunction("copy_3", [])
     copy.instructions.append("push rbp")
     copy.instructions.append("mov rbp, rsp")
     copy.instructions.append("mov rsi, [rbp+16]")
@@ -498,7 +578,7 @@ def create_linux_binary(program, file_name_base):
     copy.instructions.append("ret")
     asm_program.functions.append(copy)
 
-    or_ = AsmFunction("or", [])
+    or_ = AsmFunction("or_2", [])
     or_.instructions.append("push rbp")
     or_.instructions.append("mov rbp, rsp")
     or_.instructions.append("mov r8, [rbp+16]")
@@ -508,7 +588,7 @@ def create_linux_binary(program, file_name_base):
     or_.instructions.append("ret")
     asm_program.functions.append(or_)
 
-    and_ = AsmFunction("and", [])
+    and_ = AsmFunction("and_2", [])
     and_.instructions.append("push rbp")
     and_.instructions.append("mov rbp, rsp")
     and_.instructions.append("mov r8, [rbp+16]")
@@ -518,7 +598,7 @@ def create_linux_binary(program, file_name_base):
     and_.instructions.append("ret")
     asm_program.functions.append(and_)
 
-    not_ = AsmFunction("not", [])
+    not_ = AsmFunction("not_1", [])
     not_.instructions.append("push rbp")
     not_.instructions.append("mov rbp, rsp")
     not_.instructions.append("mov r8, [rbp+16]")
@@ -528,7 +608,7 @@ def create_linux_binary(program, file_name_base):
     not_.instructions.append("ret")
     asm_program.functions.append(not_)
 
-    equal = AsmFunction("equal", [])
+    equal = AsmFunction("equal_2", [])
     equal.instructions.append("push rbp")
     equal.instructions.append("mov rbp, rsp")
     equal.instructions.append("mov r8, [rbp+16]")
@@ -546,7 +626,7 @@ def create_linux_binary(program, file_name_base):
     equal.instructions.append("ret")
     asm_program.functions.append(equal)
 
-    less = AsmFunction("less", [])
+    less = AsmFunction("less_2", [])
     less.instructions.append("push rbp")
     less.instructions.append("mov rbp, rsp")
     less.instructions.append("mov r8, [rbp+16]")
@@ -564,7 +644,7 @@ def create_linux_binary(program, file_name_base):
     less.instructions.append("ret")
     asm_program.functions.append(less)
 
-    greater = AsmFunction("greater", [])
+    greater = AsmFunction("greater_2", [])
     greater.instructions.append("push rbp")
     greater.instructions.append("mov rbp, rsp")
     greater.instructions.append("mov r8, [rbp+16]")
@@ -582,7 +662,7 @@ def create_linux_binary(program, file_name_base):
     greater.instructions.append("ret")
     asm_program.functions.append(greater)
 
-    set_1 = AsmFunction("set_1", [])
+    set_1 = AsmFunction("set_1_2", [])
     set_1.instructions.append("push rbp")
     set_1.instructions.append("mov rbp, rsp")
     set_1.instructions.append("mov r8, [rbp+16]")
@@ -593,7 +673,7 @@ def create_linux_binary(program, file_name_base):
     set_1.instructions.append("ret")
     asm_program.functions.append(set_1)
 
-    set_8 = AsmFunction("set_8", [])
+    set_8 = AsmFunction("set_8_2", [])
     set_8.instructions.append("push rbp")
     set_8.instructions.append("mov rbp, rsp")
     set_8.instructions.append("mov r8, [rbp+16]")
@@ -604,7 +684,7 @@ def create_linux_binary(program, file_name_base):
     set_8.instructions.append("ret")
     asm_program.functions.append(set_8)
 
-    get = AsmFunction("get_8", [])
+    get = AsmFunction("get_8_1", [])
     get.instructions.append("push rbp")
     get.instructions.append("mov rbp, rsp")
     get.instructions.append("mov r9, [rbp+16]")
@@ -614,7 +694,7 @@ def create_linux_binary(program, file_name_base):
     get.instructions.append("ret")
     asm_program.functions.append(get)
 
-    read_size = AsmFunction("read_size", [])
+    read_size = AsmFunction("read_size_2", [])
     read_size.instructions.append("push rbp")
     read_size.instructions.append("mov rbp, rsp")
     read_size.instructions.append("mov rdx, [rbp+24]")
@@ -631,7 +711,7 @@ def create_linux_binary(program, file_name_base):
 
     for token in program.tokens:
         if isinstance(token, Function):
-            asm_function = AsmFunction(token.name, [])
+            asm_function = AsmFunction("main" if token.name == "main" else token.name + "_" + str(token.parameter_count), [])
             
             asm_function.instructions.append("push rbp")
             asm_function.instructions.append("mov rbp, rsp")
@@ -671,8 +751,8 @@ def create_linux_binary(program, file_name_base):
                         asm_function.instructions.append("mov r8, " + name)
                         asm_function.instructions.append("push r8")
                 elif isinstance(instruction, Invoke):
-                    asm_function.instructions.append("call " + instruction.name)
-                    asm_function.instructions.append("add rsp, " + str(instruction.argument_count * 8))
+                    asm_function.instructions.append("call " + instruction.name + "_" + str(instruction.parameter_count))
+                    asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
                     asm_function.instructions.append("push r8")
                 #elif isinstance(instruction, Raw):
                 #    asm_function.instructions.append(instruction.instruction)
