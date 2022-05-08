@@ -3,7 +3,7 @@ use "std.lang";
 fn main() {
     let string = "";
 
-    while (less(length(string), 4)) {
+    while (less(String.length(string), 4)) {
         string = concatenate(string, "a");
         println(string);
     };

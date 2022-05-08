@@ -1,5 +1,5 @@
 fn print(string) {
-    print_size(string, length(string));
+    print_size(String.pointer(string), String.length(string));
 };
 
 fn println(string) {
@@ -16,19 +16,19 @@ fn errorln(string) {
     error("\n");
 };
 
-fn read(): string {
+fn read() {
     let string = allocate(128);
     read_size(string, 128);
-    return string;
+    return String.new(string);
 };
 
 fn concatenate(string1, string2) {
-    let string1_length = length(string1);
-    let string2_length = length(string2);
+    let string1_length = String.length(string1);
+    let string2_length = String.length(string2);
     let new_memory = allocate(add(add(string1_length, string2_length), 1));
-    copy(string1, new_memory, string1_length);
-    copy(string2, add(new_memory, string1_length), add(1, string2_length));
-    return new_memory;
+    copy(String.pointer(string1), new_memory, string1_length);
+    copy(String.pointer(string2), add(new_memory, string1_length), add(1, string2_length));
+    return String.new(new_memory);
 };
 
 fn int_to_string(integer) {
@@ -40,7 +40,7 @@ fn int_to_string(integer) {
     while (greater(integer, 0)) {
         let modulo = modulo(integer, 10);
         integer = divide(integer, 10);
-        string = concatenate(store(add(modulo, 48)), string);
+        string = concatenate(String.new(store(add(modulo, 48))), string);
     };
     return string;
 };
@@ -70,4 +70,13 @@ fn Array.set(array, index, value) {
 
 fn Array.get(array, index) {
     return get_8(add(Array.pointer(array), multiply(index, 8)));
+};
+
+struct String {
+    pointer;
+    length;
+};
+
+fn String.new(pointer) {
+    return String.new(pointer, length(pointer));
 };
