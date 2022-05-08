@@ -33,7 +33,7 @@ fn concatenate(string1, string2) {
 
 fn int_to_string(integer) {
     let string = "";
-    while (not(equal(integer, 0))) {
+    while (greater(integer, 0)) {
         let modulo = modulo(integer, 10);
         integer = divide(integer, 10);
         string = concatenate(store(add(modulo, 48)), string);

@@ -2,7 +2,7 @@ use "std.lang";
 
 fn main(arguments, arguments_length) {
     let i = 0;
-    while (not_equal(i, arguments_length)) {
+    while (less(i, arguments_length)) {
         println(get_array(arguments, i));
         i = add(i, 1);
     };
