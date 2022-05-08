@@ -1,9 +1,9 @@
 use "std.lang";
 
-fn main(arguments, arguments_length) {
+fn main(arguments) {
     let i = 0;
-    while (less(i, arguments_length)) {
-        println(get_array(arguments, i));
+    while (less(i, Array.length(arguments))) {
+        println(Array.get(arguments, i));
         i = add(i, 1);
     };
 };
