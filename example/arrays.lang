@@ -1,7 +1,7 @@
 use "std.lang";
 
 fn main() {
-    let array = new_array(4);
+    let array = new_array(2);
     set_array(array, 0, "Hello ");
     set_array(array, 1, "World!");
     println(concatenate(get_array(array, 0), get_array(array, 1)));

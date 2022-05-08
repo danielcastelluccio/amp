@@ -1,0 +1,22 @@
+use "std.lang";
+
+fn main() {
+    let pair = new_int_pair(4, 5);
+    println(int_to_string(get_int1_int_pair(pair)));
+    println(int_to_string(get_int2_int_pair(pair)));
+};
+
+fn new_int_pair(int1, int2) {
+    let new_memory = malloc(16);
+    set_8(int1, new_memory);
+    set_8(int2, add(new_memory, 8));
+    return new_memory;
+};
+
+fn get_int1_int_pair(int_pair): int {
+    return get_8(int_pair);
+};
+
+fn get_int2_int_pair(int_pair): int {
+    return get_8(add(int_pair, 8));
+};
