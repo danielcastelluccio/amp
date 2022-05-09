@@ -22,6 +22,19 @@ fn read() {
     return String.new(string);
 };
 
+fn length(string) {
+    let location = string;
+    let i = 0;
+
+    while (true) {
+        if (equal(get_1(location), 0)) {
+            return i;
+        };
+        location = add(location, 1);
+        i = add(i, 1);
+    };
+};
+
 fn concatenate(string1, string2) {
     let string1_length = String.length(string1);
     let string2_length = String.length(string2);
