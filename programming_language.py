@@ -749,18 +749,18 @@ def create_linux_binary(program, file_name_base):
                             else:
                                 put.append(hex(byte))
 
-                        put_string = ""
-                        for thing in put:
-                            put_string += thing + ","
-    
-                        put_string += "0x0"
+                        put_string = ",".join(put)
 
-                        asm_program.data.append(AsmData(name, put_string))
-                        asm_function.instructions.append("push " + str(len(instruction.value)))
+                        asm_function.instructions.append("push " + str(0 if not put_string else len(put_string.split(","))))
                         asm_function.instructions.append("push qword " + name)
                         asm_function.instructions.append("call String.new_2")
                         asm_function.instructions.append("add rsp, 16")
                         asm_function.instructions.append("push r8")
+
+                        if not put_string:
+                            put_string = "0x0"
+
+                        asm_program.data.append(AsmData(name, put_string))
                 elif isinstance(instruction, Invoke):
                     asm_function.instructions.append("call " + instruction.name + "_" + str(instruction.parameter_count))
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))

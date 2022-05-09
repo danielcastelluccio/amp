@@ -38,10 +38,10 @@ fn length(string) {
 fn concatenate(string1, string2) {
     let string1_length = String.length(string1);
     let string2_length = String.length(string2);
-    let new_memory = allocate(add(add(string1_length, string2_length), 1));
+    let new_memory = allocate(add(string1_length, string2_length));
     copy(String.pointer(string1), new_memory, string1_length);
-    copy(String.pointer(string2), add(new_memory, string1_length), add(1, string2_length));
-    return String.new(new_memory);
+    copy(String.pointer(string2), add(new_memory, string1_length), string2_length);
+    return String.new(new_memory, add(string1_length, string2_length));
 };
 
 fn int_to_string(integer) {
