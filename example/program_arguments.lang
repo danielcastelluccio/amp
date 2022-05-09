@@ -4,7 +4,7 @@ fn main(arguments) {
     let i = 0;
     while (less(i, Array.length(arguments))) {
         let argument = Array.get(arguments, i);
-        println(concatenate(argument, concatenate(", size: ", int_to_string(String.length(argument)))));
+        println(concatenate(argument, concatenate(", size: ", integer_to_string(String.length(argument)))));
         i = add(i, 1);
     };
 };

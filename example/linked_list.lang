@@ -11,13 +11,13 @@ fn main() {
     LinkedList.insert(list, 2, 4);
     LinkedList.remove(list, 1);
     print_int_list(list);
-    println(concatenate("List size: ", int_to_string(LinkedList.size(list))));
+    println(concatenate("List size: ", integer_to_string(LinkedList.size(list))));
 };
 
 fn print_int_list(list) {
     let node = LinkedList.head(list);
     while (not_equal(LinkedList_Node.next(node), null())) {
         node = LinkedList_Node.next(node);
-        println(int_to_string(LinkedList_Node.data(node)));
+        println(integer_to_string(LinkedList_Node.data(node)));
     };
 };

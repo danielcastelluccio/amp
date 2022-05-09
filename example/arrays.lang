@@ -5,5 +5,5 @@ fn main() {
     Array.set(array, 0, "Hello ");
     Array.set(array, 1, "World!");
     println(concatenate(Array.get(array, 0), Array.get(array, 1)));
-    println(concatenate("Array Length: ", int_to_string(Array.length(array))));
+    println(concatenate("Array Length: ", integer_to_string(Array.length(array))));
 };

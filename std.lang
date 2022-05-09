@@ -44,7 +44,7 @@ fn concatenate(string1, string2) {
     return String.new(new_memory, add(string1_length, string2_length));
 };
 
-fn int_to_string(integer) {
+fn integer_to_string(integer) {
     let string = "";
     if (equal(integer, 0)) {
         string = "0";
@@ -56,6 +56,13 @@ fn int_to_string(integer) {
         string = concatenate(String.new(store(add(modulo, 48))), string);
     };
     return string;
+};
+
+fn boolean_to_string(boolean) {
+    if (equal(boolean, 1)) {
+        return "true";
+    };
+    return "false";
 };
 
 fn store(value) {
@@ -92,6 +99,23 @@ struct String {
 
 fn String.new(pointer) {
     return String.new(pointer, length(pointer));
+};
+
+fn String.equal(string1, string2) {
+    if (not_equal(String.length(string1), String.length(string2))) {
+        return false;
+    };
+
+    let i = 0;
+    while (less(i, String.length(string1))) {
+        if (not_equal(get_1(add(String.pointer(string1), i)), get_1(add(String.pointer(string2), i)))) {
+            return false;
+        };
+
+        i = add(i, 1);
+    };
+
+    return true;
 };
 
 fn null() {

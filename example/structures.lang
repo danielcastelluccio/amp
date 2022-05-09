@@ -2,16 +2,16 @@ use "std.lang";
 
 fn main() {
     let pair = IntPair.new(1, 2);
-    println(int_to_string(IntPair.int1(pair)));
-    println(int_to_string(IntPair.int2(pair)));
+    println(integer_to_string(IntPair.int1(pair)));
+    println(integer_to_string(IntPair.int2(pair)));
 
     IntPair.int2(pair, 4);
-    println(int_to_string(IntPair.int2(pair)));
+    println(integer_to_string(IntPair.int2(pair)));
 
     IntPair.reset(pair);
 
-    println(int_to_string(IntPair.int1(pair)));
-    println(int_to_string(IntPair.int2(pair)));
+    println(integer_to_string(IntPair.int1(pair)));
+    println(integer_to_string(IntPair.int2(pair)));
 };
 
 struct IntPair {
