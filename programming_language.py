@@ -432,7 +432,7 @@ internals = [
     Function("less", [], [], ["integer", "integer"], "boolean")
 ]
 
-def type_check_program(program):
+def check_program(program):
     functions = {}
     for token in program.tokens:
         if (isinstance(token, Function)):
@@ -455,45 +455,51 @@ def type_check_program(program):
                         types.append("String")
                 elif isinstance(instruction, StartIf):
                     if len(types) == 0:
-                        print("TYPECHECK: If in " + token.name + " expects boolean, given nothing.")
+                        print("CHECK: If in " + token.name + " expects boolean, given nothing.")
                         return 1
 
                     given_type = types.pop()
                     if not is_type(given_type, "boolean"):
-                        print("TYPECHECK: If in " + token.name + " expects boolean, given " + given_type + ".")
+                        print("CHECK: If in " + token.name + " expects boolean, given " + given_type + ".")
                         return 1
                 elif isinstance(instruction, StartWhile):
                     if len(types) == 0:
-                        print("TYPECHECK: While in " + token.name + " expects boolean, given nothing.")
+                        print("CHECK: While in " + token.name + " expects boolean, given nothing.")
                         return 1
 
                     given_type = types.pop()
                     if not is_type(given_type, "boolean"):
-                        print("TYPECHECK: While in " + token.name + " expects boolean, given " + given_type + ".")
+                        print("CHECK: While in " + token.name + " expects boolean, given " + given_type + ".")
                         return 1
                 elif isinstance(instruction, Declare):
                     variables[instruction.name] = instruction.type
                 elif isinstance(instruction, Assign):
                     if len(types) == 0:
-                        print("TYPECHECK: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given nothing.")
+                        print("CHECK: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given nothing.")
                         return 1
 
                     given_type = types.pop()
                     if not is_type(given_type, variables[instruction.name]):
-                        print("TYPECHECK: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given " + given_type + ".")
+                        print("CHECK: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given " + given_type + ".")
                         return 1
                 elif isinstance(instruction, Retrieve):
                     types.append(variables[instruction.name])
                 elif isinstance(instruction, Invoke):
-                    function = functions[instruction.name + "_" + str(instruction.parameter_count)]
+                    id = instruction.name + "_" + str(instruction.parameter_count)
+
+                    if not id in functions:
+                        print("CHECK: Function " + instruction.name + " with " + str(instruction.parameter_count) + " parameters not defined.")
+                        return 1
+
+                    function = functions[id]
                     for parameter in function.parameters:
                         if len(types) == 0:
-                            print("TYPECHECK: Invoke of " + instruction.name + " in " + token.name + " expects " + parameter + " as a parameter, given nothing.")
+                            print("CHECK: Invoke of " + instruction.name + " in " + token.name + " expects " + parameter + " as a parameter, given nothing.")
                             return 1
 
                         given_type = types.pop()
                         if not is_type(given_type, parameter):
-                            print("TYPECHECK: Invoke of " + instruction.name + " in " + token.name + " expects " + parameter + " as a parameter, given " + given_type + ".")
+                            print("CHECK: Invoke of " + instruction.name + " in " + token.name + " expects " + parameter + " as a parameter, given " + given_type + ".")
                             return 1
 
                     if not function.return_ == "none":
@@ -966,7 +972,7 @@ def create_linux_binary(program, file_name_base):
 
 file_name_base = sys.argv[1][0 : sys.argv[1].index(".")]
 program = parse_file(sys.argv[1])
-if type_check_program(program) == 1:
+if check_program(program) == 1:
     exit()
 
 format = ""
