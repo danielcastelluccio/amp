@@ -16,11 +16,12 @@ class Program(Token):
         self.tokens = tokens
     
 class Function(Token):
-    def __init__(self, name, tokens, locals, parameter_count):
+    def __init__(self, name, tokens, locals, parameters, return_):
         self.name = name
         self.tokens = tokens
         self.locals = locals
-        self.parameter_count = parameter_count
+        self.parameters = parameters
+        self.return_ = return_
         
 class Use(Token):
     def __init__(self, file):
@@ -30,8 +31,9 @@ class Instruction():
     pass
 
 class Declare(Instruction):
-    def __init__(self, name):
+    def __init__(self, name, type):
         self.name = name
+        self.type = type
     
 class Assign(Instruction):
     def __init__(self, name):
@@ -53,6 +55,10 @@ class Invoke(Instruction):
 class Return(Instruction):
     def __init__(self, is_value):
         self.is_value = is_value
+
+#class Type():
+#    def __init__(self, type):
+#        self.type = type
     
 #class Raw(Instruction):
 #    def __init__(self, instruction):
@@ -138,7 +144,8 @@ def parse(contents, type):
         current_indent = 0
 
         arguments_array = []
-        arguments = contents[len("fn " + name) : contents.index("{")]
+        arguments_old = contents[len("fn " + name) : contents.index("{")]
+        arguments = arguments_old[0 : arguments_old.rindex(")")]
 
         current_argument = ""
         for character in arguments:
@@ -152,11 +159,14 @@ def parse(contents, type):
         if arguments:
             arguments_array.append(current_argument)
 
-        parameter_count = 0
+        parameters = []
         for argument in arguments_array[::-1]:
             if argument:
-                instructions.append(Declare(argument))
-                parameter_count += 1
+                instructions.append(Declare(argument.split(":")[0], argument.split(":")[1].strip()))
+
+        for argument in arguments_array:
+            if argument:
+                parameters.append(argument.split(":")[1].strip())
         
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
             if character == ';' and current_indent == 0:
@@ -179,26 +189,30 @@ def parse(contents, type):
         if len(instructions) == 0 or not isinstance(instructions[-1], Return):
             instructions.append(Return(False))
 
-        return [Function(name, instructions, locals, parameter_count)]
+        return_ = arguments_old[arguments_old.rindex(":") + 1 : len(arguments_old)] if ":" in arguments_old[arguments_old.rindex(")") : len(arguments_old)] else ""
+
+        return [Function(name, instructions, locals, parameters, return_.strip() if return_.strip() else "none")]
     elif type == "Use":
         use = contents[contents.index(" ") + 1 : len(contents)]
         use = use[1 : len(use) - 1]
         return [Use(use)]
     elif type == "Struct":
         name = contents.split(" ")[1]
-        items = []
+        items = {}
+        items_list = []
         functions = []
 
         body = contents[contents.index("{") + 1 : contents.index("}")]
         for item in body.split(";"):
             if item:
                 item = item.strip()
+                item_name = item.split(":")[0]
 
-                get_name = name + "." + item
+                get_name = name + "." + item_name
                 instructions = []
                 locals = []
 
-                instructions.append(Declare("instance"))
+                instructions.append(Declare("instance", name))
                 instructions.append(Retrieve("instance"))
                 instructions.append(Constant(8 * len(items)))
                 instructions.append(Invoke("add", 2))
@@ -207,45 +221,46 @@ def parse(contents, type):
 
                 locals.append("instance")
 
-                function = Function(get_name, instructions, locals, 1)
+                function = Function(get_name, instructions, locals, [name], item.split(":")[1].strip())
                 functions.append(function)
 
-                set_name = name + "." + item
+                set_name = name + "." + item_name
                 instructions = []
                 locals = []
 
-                instructions.append(Declare("instance"))
-                instructions.append(Declare(item))
+                instructions.append(Declare("instance", name))
+                instructions.append(Declare(item_name, item.split(":")[1].strip()))
                 instructions.append(Retrieve("instance"))
                 instructions.append(Constant(8 * len(items)))
                 instructions.append(Invoke("add", 2))
-                instructions.append(Retrieve(item))
+                instructions.append(Retrieve(item_name))
                 instructions.append(Invoke("set_8", 2))
                 instructions.append(Return(False))
 
-                locals.append(item)
+                locals.append(item_name)
                 locals.append("instance")
 
-                function = Function(set_name, instructions, locals, 2)
+                function = Function(set_name, instructions, locals, [name, item.split(":")[1].strip()], "none")
                 functions.append(function)
 
-                items.append(item)
+                items[item.split(":")[0]] = item.split(":")[1].strip()
+                items_list.append(item.split(":")[0])
 
         instructions = []
         locals = []
 
-        for item in reversed(items):
-            instructions.append(Declare(item))
+        for item, type_ in reversed(items.items()):
+            instructions.append(Declare(item, type_))
             locals.append(item)
 
-        instructions.append(Declare("instance"))
+        instructions.append(Declare("instance", name))
 
         instructions.append(Constant(8 * len(items)))
         instructions.append(Invoke("allocate", 1))
         instructions.append(Assign("instance"))
 
         for item in items:
-            instructions.append(Constant(8 * items.index(item)))
+            instructions.append(Constant(8 * items_list.index(item)))
             instructions.append(Retrieve("instance"))
             instructions.append(Invoke("add", 2))
             instructions.append(Retrieve(item))
@@ -256,7 +271,7 @@ def parse(contents, type):
 
         locals.append("instance")
 
-        function = Function(name + ".new", instructions, locals, len(items))
+        function = Function(name + ".new", instructions, locals, items.values(), name)
         functions.append(function)
 
         return functions
@@ -270,8 +285,9 @@ def parse_statement(contents):
     global if_id
 
     if contents.startswith("let "):
-        name = contents.split(" ")[1]
-        instructions.append(Declare(name))
+        name = contents.split(" ")[1].replace(":", "")
+        type_ = contents.split(" ")[2]
+        instructions.append(Declare(name, type_))
 
         if contents.find("=") != -1:
             expression = contents[contents.index("=") + 1 : len(contents)]
@@ -396,6 +412,104 @@ def parse_statement(contents):
         
     return instructions
     
+internals = [
+    Function("print_size", [], [], ["String", "integer"], "none"),
+    Function("add", [], [], ["any", "any"], "any"),
+    Function("get_8", [], [], ["any"], "integer"),
+    Function("set_8", [], [], ["integer", "any"], "none"),
+    Function("allocate", [], [], ["integer"], "any"),
+    Function("error_size", [], [], ["String", "integer"], "none"),
+    Function("read_size", [], [], ["String", "integer"], "none"),
+    Function("get_1", [], [], ["any"], "integer"),
+    Function("equal", [], [], ["any", "any"], "boolean"),
+    Function("copy", [], [], ["any", "any", "integer"], "none"),
+    Function("greater", [], [], ["integer", "integer"], "boolean"),
+    Function("modulo", [], [], ["integer", "integer"], "integer"),
+    Function("divide", [], [], ["integer", "integer"], "integer"),
+    Function("set_1", [], [], ["integer", "any"], "none"),
+    Function("not", [], [], ["boolean"], "boolean"),
+    Function("multiply", [], [], ["integer", "integer"], "integer"),
+    Function("less", [], [], ["integer", "integer"], "boolean")
+]
+
+def type_check_program(program):
+    functions = {}
+    for token in program.tokens:
+        if (isinstance(token, Function)):
+            functions[token.name + "_" + str(len(token.parameters))] = token
+    
+    for function in internals:
+        functions[function.name + "_" + str(len(function.parameters))] = function
+
+    for token in program.tokens:
+        if (isinstance(token, Function)):
+            types = []
+            variables = {}
+            for instruction in token.tokens:
+                if isinstance(instruction, Constant):
+                    if isinstance(instruction.value, bool):
+                        types.append("boolean")
+                    elif isinstance(instruction.value, int):
+                        types.append("integer")
+                    elif isinstance(instruction.value, str):
+                        types.append("String")
+                elif isinstance(instruction, StartIf):
+                    if len(types) == 0:
+                        print("TYPECHECK: If in " + token.name + " expects boolean, given nothing.")
+                        return 1
+
+                    given_type = types.pop()
+                    if not is_type(given_type, "boolean"):
+                        print("TYPECHECK: If in " + token.name + " expects boolean, given " + given_type + ".")
+                        return 1
+                elif isinstance(instruction, StartWhile):
+                    if len(types) == 0:
+                        print("TYPECHECK: While in " + token.name + " expects boolean, given nothing.")
+                        return 1
+
+                    given_type = types.pop()
+                    if not is_type(given_type, "boolean"):
+                        print("TYPECHECK: While in " + token.name + " expects boolean, given " + given_type + ".")
+                        return 1
+                elif isinstance(instruction, Declare):
+                    variables[instruction.name] = instruction.type
+                elif isinstance(instruction, Assign):
+                    if len(types) == 0:
+                        print("TYPECHECK: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given nothing.")
+                        return 1
+
+                    given_type = types.pop()
+                    if not is_type(given_type, variables[instruction.name]):
+                        print("TYPECHECK: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given " + given_type + ".")
+                        return 1
+                elif isinstance(instruction, Retrieve):
+                    types.append(variables[instruction.name])
+                elif isinstance(instruction, Invoke):
+                    function = functions[instruction.name + "_" + str(instruction.parameter_count)]
+                    for parameter in function.parameters:
+                        if len(types) == 0:
+                            print("TYPECHECK: Invoke of " + instruction.name + " in " + token.name + " expects " + parameter + " as a parameter, given nothing.")
+                            return 1
+
+                        given_type = types.pop()
+                        if not is_type(given_type, parameter):
+                            print("TYPECHECK: Invoke of " + instruction.name + " in " + token.name + " expects " + parameter + " as a parameter, given " + given_type + ".")
+                            return 1
+
+                    if not function.return_ == "none":
+                        types.append(function.return_)
+
+    return 0
+
+def is_type(given, wanted):
+    if wanted == "any":
+        return True
+    
+    if given == "any":
+        return True
+
+    return given == wanted
+
 def create_linux_binary(program, file_name_base):
     
     class AsmProgram:
@@ -719,7 +833,7 @@ def create_linux_binary(program, file_name_base):
 
     for token in program.tokens:
         if isinstance(token, Function):
-            asm_function = AsmFunction("main" if token.name == "main" else token.name + "_" + str(token.parameter_count), [])
+            asm_function = AsmFunction("main" if token.name == "main" else token.name + "_" + str(len(token.parameters)), [])
             
             asm_function.instructions.append("push rbp")
             asm_function.instructions.append("mov rbp, rsp")
@@ -770,14 +884,14 @@ def create_linux_binary(program, file_name_base):
                 elif isinstance(instruction, Assign):
                     asm_function.instructions.append("pop r8")
                     index = token.locals.index(instruction.name)
-                    if index <= token.parameter_count - 1:
+                    if index <= len(token.parameters) - 1:
                         index -= 2
-                    asm_function.instructions.append("mov [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "], r8")
+                    asm_function.instructions.append("mov [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * len(token.parameters)) + "], r8")
                 elif isinstance(instruction, Retrieve):
                     index = token.locals.index(instruction.name)
-                    if index <= token.parameter_count - 1:
+                    if index <= len(token.parameters) - 1:
                         index -= 2
-                    asm_function.instructions.append("push qword [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * token.parameter_count) + "]")
+                    asm_function.instructions.append("push qword [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * len(token.parameters)) + "]")
                 elif isinstance(instruction, Return):
                     if instruction.is_value:
                          asm_function.instructions.append("pop r8")
@@ -852,6 +966,8 @@ def create_linux_binary(program, file_name_base):
 
 file_name_base = sys.argv[1][0 : sys.argv[1].index(".")]
 program = parse_file(sys.argv[1])
+if type_check_program(program) == 1:
+    exit()
 
 format = ""
 system = platform.system()

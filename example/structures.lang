@@ -1,7 +1,7 @@
 use "std.lang";
 
 fn main() {
-    let pair = IntPair.new(1, 2);
+    let pair: IntPair = IntPair.new(1, 2);
     println(integer_to_string(IntPair.int1(pair)));
     println(integer_to_string(IntPair.int2(pair)));
 
@@ -15,11 +15,11 @@ fn main() {
 };
 
 struct IntPair {
-    int1;
-    int2;
+    int1: integer;
+    int2: integer;
 };
 
-fn IntPair.reset(pair) {
+fn IntPair.reset(pair: IntPair) {
     IntPair.int1(pair, 0);
     IntPair.int2(pair, 0);
 };

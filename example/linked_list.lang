@@ -1,7 +1,7 @@
 use "std.lang";
 
 fn main() {
-    let list = LinkedList.new();
+    let list: LinkedList = LinkedList.new();
     LinkedList.append(list, 5);
     LinkedList.append(list, 3);
     LinkedList.append(list, 2);
@@ -14,8 +14,8 @@ fn main() {
     println(concatenate("List size: ", integer_to_string(LinkedList.size(list))));
 };
 
-fn print_int_list(list) {
-    let node = LinkedList.head(list);
+fn print_int_list(list: LinkedList) {
+    let node: LinkedList_Node = LinkedList.head(list);
     while (not_equal(LinkedList_Node.next(node), null())) {
         node = LinkedList_Node.next(node);
         println(integer_to_string(LinkedList_Node.data(node)));
