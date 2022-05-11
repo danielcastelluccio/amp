@@ -73,11 +73,20 @@ class Return(Instruction):
 #    def __init__(self):
 #        pass
 
-class StartIf(Instruction):
+class PreCheckIf(Instruction):
     def __init__(self, id):
         self.id = id
 
+class CheckIf(Instruction):
+    def __init__(self, false_id, checking):
+        self.false_id = false_id
+        self.checking = checking
+
 class EndIf(Instruction):
+    def __init__(self, id):
+        self.id = id
+
+class EndIfBlock(Instruction):
     def __init__(self, id):
         self.id = id
 
@@ -323,7 +332,13 @@ def parse_statement(contents):
         id = if_id
         if_id += 1
 
-        instructions.append(StartIf(id))
+        false_id = if_id
+        if_id += 1
+
+        end_id = if_id
+        if_id += 1
+
+        instructions.append(CheckIf(false_id, True))
 
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
             if character == ';' and current_indent == 0:
@@ -334,12 +349,36 @@ def parse_statement(contents):
 
             if character == '{':
                 current_indent += 1
+                if current_indent == 0:
+                    element = current_thing[0 : len(current_thing) - 1].strip()
+                    if element == "else":
+                        id = false_id
+
+                        false_id = if_id
+                        if_id += 1
+
+                        instructions2.append(PreCheckIf(id))
+                        instructions2.append(CheckIf(false_id, False))
+                    elif element.startswith("else if"):
+                        id = false_id
+
+                        false_id = if_id
+                        if_id += 1
+
+                        instructions2.append(PreCheckIf(id))
+                        instructions2.extend(parse_statement(element[element.index("(") + 1 : element.rindex(")")]))
+                        instructions2.append(CheckIf(false_id, True))
+                    current_thing = ""
             elif character == '}':
                 current_indent -= 1
+                if current_indent < 0:
+                    instructions2.append(EndIfBlock(end_id))
+                    current_thing = ""
 
         instructions.extend(instructions2)
 
-        instructions.append(EndIf(id))
+        instructions.append(EndIf(false_id))
+        instructions.append(EndIf(end_id))
     elif contents.startswith("while"):
         id1 = if_id
         if_id += 1
@@ -459,15 +498,16 @@ def process_program(program):
                         types.append("integer")
                     elif isinstance(instruction.value, str):
                         types.append("String")
-                elif isinstance(instruction, StartIf):
-                    if len(types) == 0:
-                        print("CHECK: If in " + token.name + " expects boolean, given nothing.")
-                        return 1
+                elif isinstance(instruction, CheckIf):
+                    if instruction.checking:
+                        if len(types) == 0:
+                            print("CHECK: If in " + token.name + " expects boolean, given nothing.")
+                            return 1
 
-                    given_type = types.pop()
-                    if not is_type(given_type, "boolean"):
-                        print("CHECK: If in " + token.name + " expects boolean, given " + given_type + ".")
-                        return 1
+                        given_type = types.pop()
+                        if not is_type(given_type, "boolean"):
+                            print("CHECK: If in " + token.name + " expects boolean, given " + given_type + ".")
+                            return 1
                 elif isinstance(instruction, StartWhile):
                     if len(types) == 0:
                         print("CHECK: While in " + token.name + " expects boolean, given nothing.")
@@ -934,12 +974,18 @@ def create_linux_binary(program, file_name_base):
                     asm_function.instructions.append("mov rsp, rbp")
                     asm_function.instructions.append("pop rbp")
                     asm_function.instructions.append("ret")
-                elif isinstance(instruction, StartIf):
-                    asm_function.instructions.append("pop r8")
-                    asm_function.instructions.append("cmp r8, 1")
-                    asm_function.instructions.append("jne if_" + str(instruction.id))
+                elif isinstance(instruction, PreCheckIf):
+                    asm_function.instructions.append("if_" + str(instruction.id) + ":") 
+                elif isinstance(instruction, CheckIf):
+                    #asm_function.instructions.append("if_" + str(instruction.id) + ":")
+                    if instruction.checking:
+                        asm_function.instructions.append("pop r8")
+                        asm_function.instructions.append("cmp r8, 1")
+                        asm_function.instructions.append("jne if_" + str(instruction.false_id))
                 elif isinstance(instruction, EndIf):
                     asm_function.instructions.append("if_" + str(instruction.id) + ":")
+                elif isinstance(instruction, EndIfBlock):
+                    asm_function.instructions.append("jmp if_" + str(instruction.id))
                 elif isinstance(instruction, PreStartWhile):
                     asm_function.instructions.append("while_" + str(instruction.id1) + ":")
                 elif isinstance(instruction, StartWhile):

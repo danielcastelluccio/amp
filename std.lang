@@ -202,7 +202,7 @@ struct Option {
     data: any;
 };
 
-fn Option.none(): Option {
+fn Option.empty(): Option {
     return Option.new(null());
 };
 
