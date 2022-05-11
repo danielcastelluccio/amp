@@ -1,0 +1,12 @@
+use "std.lang";
+
+fn main() {
+    let option: Option = Option.none();
+
+    println(boolean_to_string(Option.is_value(option)));
+
+    option = Option.of("Hello Option!");
+    if (Option.is_value(option)) {
+        println(Option.data(option));
+    };
+};

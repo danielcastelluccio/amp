@@ -58,7 +58,7 @@ fn integer_to_string(integer: integer): String {
     return string;
 };
 
-fn boolean_to_string(boolean: boolean) {
+fn boolean_to_string(boolean: boolean): String {
     if (equal(boolean, 1)) {
         return "true";
     };
@@ -194,4 +194,20 @@ fn LinkedList.size(linked_list: LinkedList): integer {
 struct LinkedList_Node {
     data: any;
     next: any;
+};
+
+struct Option {
+    data: any;
+};
+
+fn Option.none(): Option {
+    return Option.new(null());
+};
+
+fn Option.of(data: any): Option {
+    return Option.new(data);
+};
+
+fn Option.is_value(option: Option): boolean {
+    return not_equal(Option.data(option), null());
 };
