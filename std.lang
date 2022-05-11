@@ -17,14 +17,14 @@ fn errorln(string: String) {
 };
 
 fn read(): String {
-    let string: String = allocate(128);
+    let string = allocate(128);
     read_size(string, 128);
     return String.new(string);
 };
 
 fn length(string: String): integer {
-    let location: String = string;
-    let i: integer = 0;
+    let location = string;
+    let i = 0;
 
     while (true) {
         if (equal(get_1(location), 0)) {
@@ -33,25 +33,27 @@ fn length(string: String): integer {
         location = add(location, 1);
         i = add(i, 1);
     };
+
+    return -1;
 };
 
 fn concatenate(string1: String, string2: String): String {
-    let string1_length: integer = String.length(string1);
-    let string2_length: integer = String.length(string2);
-    let new_memory: any = allocate(add(string1_length, string2_length));
+    let string1_length = String.length(string1);
+    let string2_length = String.length(string2);
+    let new_memory = allocate(add(string1_length, string2_length));
     copy(String.pointer(string1), new_memory, string1_length);
     copy(String.pointer(string2), add(new_memory, string1_length), string2_length);
     return String.new(new_memory, add(string1_length, string2_length));
 };
 
 fn integer_to_string(integer: integer): String {
-    let string: String = "";
+    let string = "";
     if (equal(integer, 0)) {
         string = "0";
     };
 
     while (greater(integer, 0)) {
-        let modulo: integer = modulo(integer, 10);
+        let modulo = modulo(integer, 10);
         integer = divide(integer, 10);
         string = concatenate(String.new(store(add(modulo, 48))), string);
     };
@@ -106,7 +108,7 @@ fn String.equal(string1: String, string2: String) {
         return false;
     };
 
-    let i: integer = 0;
+    let i = 0;
     while (less(i, String.length(string1))) {
         if (not_equal(get_1(add(String.pointer(string1), i)), get_1(add(String.pointer(string2), i)))) {
             return false;
@@ -131,17 +133,17 @@ fn LinkedList.new(): LinkedList {
 };
 
 fn LinkedList.append(linked_list: LinkedList, data: any) {
-    let node: LinkedList_Node = LinkedList.head(linked_list);
+    let node = LinkedList.head(linked_list);
     while (not_equal(LinkedList_Node.next(node), null())) {
         node = LinkedList_Node.next(node);
     };
 
-    let new_node: LinkedList_Node = LinkedList_Node.new(data, null());
+    let new_node = LinkedList_Node.new(data, null());
     LinkedList_Node.next(node, new_node);
 };
 
 fn LinkedList.insert(linked_list: LinkedList, index: integer, data: any) {
-    let node: LinkedList_Node = LinkedList.head(linked_list);
+    let node = LinkedList.head(linked_list);
 
     let i: integer = 0;
     while (less(i, index)) {
@@ -149,13 +151,13 @@ fn LinkedList.insert(linked_list: LinkedList, index: integer, data: any) {
         i = add(i, 1);
     };
 
-    let temp_next: LinkedList_Node = LinkedList_Node.next(node);
-    let new_node: LinkedList_Node = LinkedList_Node.new(data, temp_next);
+    let temp_next = LinkedList_Node.next(node);
+    let new_node = LinkedList_Node.new(data, temp_next);
     LinkedList_Node.next(node, new_node);
 };
 
 fn LinkedList.remove(linked_list: LinkedList, index: integer) {
-    let node: LinkedList_Node = LinkedList.head(linked_list);
+    let node = LinkedList.head(linked_list);
 
     let i: integer = 0;
     while (less(i, index)) {
@@ -163,12 +165,12 @@ fn LinkedList.remove(linked_list: LinkedList, index: integer) {
         i = add(i, 1);
     };
 
-    let temp_next_next: LinkedList_Node = LinkedList_Node.next(LinkedList_Node.next(node));
+    let temp_next_next = LinkedList_Node.next(LinkedList_Node.next(node));
     LinkedList_Node.next(node, temp_next_next);
 };
 
 fn LinkedList.get(linked_list: LinkedList, index: integer): any {
-    let node: LinkedList_Node = LinkedList.head(linked_list);
+    let node = LinkedList.head(linked_list);
     let i: integer = 0;
 
     while (less(i, add(index, 1))) {
@@ -180,8 +182,8 @@ fn LinkedList.get(linked_list: LinkedList, index: integer): any {
 };
 
 fn LinkedList.size(linked_list: LinkedList): integer {
-    let node: LinkedList_Node = LinkedList.head(linked_list);
-    let i: integer = 0;
+    let node = LinkedList.head(linked_list);
+    let i = 0;
 
     while (not_equal(LinkedList_Node.next(node), null())) {
         node = LinkedList_Node.next(node);

@@ -1,7 +1,7 @@
 use "std.lang";
 
 fn main() {
-    let array: Array = Array.new(2);
+    let array = Array.new(2);
     Array.set(array, 0, "Hello ");
     Array.set(array, 1, "World!");
     println(concatenate(Array.get(array, 0), Array.get(array, 1)));

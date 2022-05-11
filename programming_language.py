@@ -286,7 +286,7 @@ def parse_statement(contents):
 
     if contents.startswith("let "):
         name = contents.split(" ")[1].replace(":", "")
-        type_ = contents.split(" ")[2]
+        type_ = contents.split(" ")[2] if ":" in contents else ""
         instructions.append(Declare(name, type_))
 
         if contents.find("=") != -1:
@@ -432,7 +432,7 @@ internals = [
     Function("less", [], [], ["integer", "integer"], "boolean")
 ]
 
-def check_program(program):
+def process_program(program):
     functions = {}
     for token in program.tokens:
         if (isinstance(token, Function)):
@@ -475,10 +475,13 @@ def check_program(program):
                     variables[instruction.name] = instruction.type
                 elif isinstance(instruction, Assign):
                     if len(types) == 0:
-                        print("CHECK: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given nothing.")
+                        print("CHECK: Assign of " + instruction.name + " in " + token.name + " expects " + (variables[instruction.name] if variables[instruction.name] else "a value") + ", given nothing.")
                         return 1
-
+                    
                     given_type = types.pop()
+                    if variables[instruction.name] == "":
+                        variables[instruction.name] = given_type
+
                     if not is_type(given_type, variables[instruction.name]):
                         print("CHECK: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given " + given_type + ".")
                         return 1
@@ -504,6 +507,16 @@ def check_program(program):
 
                     if not function.return_ == "none":
                         types.append(function.return_)
+                elif isinstance(instruction, Return):
+                    if not token.return_ == "none":
+                        if len(types) == 0:
+                            print("CHECK: Return in " + token.name + " expects " + token.return_ + ", given nothing.")
+                            return 1
+
+                        given_type = types.pop()
+                        if not is_type(given_type, token.return_):
+                            print("CHECK: Return in " + token.name + " expects " + token.return_ + ", given " + given_type + ".")
+                            return 1
 
     return 0
 
@@ -972,7 +985,7 @@ def create_linux_binary(program, file_name_base):
 
 file_name_base = sys.argv[1][0 : sys.argv[1].index(".")]
 program = parse_file(sys.argv[1])
-if check_program(program) == 1:
+if process_program(program) == 1:
     exit()
 
 format = ""

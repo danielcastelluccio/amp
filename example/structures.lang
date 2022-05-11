@@ -1,7 +1,7 @@
 use "std.lang";
 
 fn main() {
-    let pair: IntPair = IntPair.new(1, 2);
+    let pair = IntPair.new(1, 2);
     println(integer_to_string(IntPair.int1(pair)));
     println(integer_to_string(IntPair.int2(pair)));
 

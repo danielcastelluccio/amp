@@ -1,7 +1,7 @@
 use "std.lang";
 
 fn main() {
-    let option: Option = Option.none();
+    let option = Option.none();
 
     println(boolean_to_string(Option.is_value(option)));
 
