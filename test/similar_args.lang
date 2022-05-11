@@ -1,0 +1,14 @@
+use "std.lang";
+
+fn main() {
+    test1(4);
+    test1(true);
+};
+
+fn test1(value: integer) {
+    println(concatenate("Printing integer: ", integer_to_string(value)));
+};
+
+fn test1(value: boolean) {
+    println(concatenate("Printing boolean: ", boolean_to_string(value)));
+};
