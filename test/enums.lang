@@ -1,0 +1,23 @@
+use "std.lang";
+
+fn main() {
+    print_test(Test.TEST1());
+    print_test(Test.TEST2());
+    print_test(Test.TEST3());
+};
+
+fn print_test(test: Test) {
+    if (Test.TEST1(test)) {
+        println("is TEST1");
+    } else if (Test.TEST2(test)) {
+        println("is TEST2");
+    } else {
+        println("is TEST3? could be another thing");
+    };
+};
+
+enum Test {
+    TEST1;
+    TEST2;
+    TEST3;
+};

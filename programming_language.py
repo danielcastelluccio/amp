@@ -125,7 +125,9 @@ def getType(statement):
     elif statement.startswith("use "):
         return "Use"
     elif statement.startswith("struct "):
-        return "Struct"    
+        return "Struct"
+    elif statement.startswith("enum "):
+        return "Enum"    
     else:
         return "Statement"
     
@@ -283,6 +285,46 @@ def parse(contents, type):
 
         function = Function(name + ".new", instructions, locals, list(items.values()), name)
         functions.append(function)
+
+        return functions
+    elif type == "Enum":
+        name = contents.split(" ")[1]
+        items = {}
+        items_list = []
+        functions = []
+
+        body = contents[contents.index("{") + 1 : contents.index("}")]
+        for item in body.split(";"):
+            if item:
+                item = item.strip()
+
+                get_name = name + "." + item
+                instructions = []
+                locals = []
+
+                instructions.append(Constant(len(items_list)))
+                instructions.append(Invoke("to_any", 1, []))
+                instructions.append(Return(True))
+
+                function = Function(get_name, instructions, locals, [], name)
+                functions.append(function)
+
+                check_name = name + "." + item
+                instructions = []
+                locals = []
+
+                instructions.append(Declare("instance", name))
+                instructions.append(Retrieve("instance"))
+                instructions.append(Constant(len(items_list)))
+                instructions.append(Invoke("equal", 2, []))
+                instructions.append(Return(True))
+
+                locals.append("instance")
+
+                function = Function(check_name, instructions, locals, [name], "boolean")
+                functions.append(function)
+
+                items_list.append(item)
 
         return functions
     elif type == "Statement":
@@ -479,6 +521,17 @@ def process_program(program):
         if (isinstance(token, Function)):
             id = token.name + "_" + str(len(token.parameters))
             functions.setdefault(id, [])
+
+            for other_function in functions[id]:
+                matches = True
+                for i in range(0, len(other_function.parameters)):
+                    if not other_function.parameters[i] == token.parameters[i]:
+                        matches = False
+                
+                if matches:
+                    print("PROCESS: " + token.name + " has duplicate definitions.")
+                    return 1
+
             functions[id].append(token)
     
     for function in internals:
@@ -501,27 +554,27 @@ def process_program(program):
                 elif isinstance(instruction, CheckIf):
                     if instruction.checking:
                         if len(types) == 0:
-                            print("CHECK: If in " + token.name + " expects boolean, given nothing.")
+                            print("PROCESS: If in " + token.name + " expects boolean, given nothing.")
                             return 1
 
                         given_type = types.pop()
                         if not is_type(given_type, "boolean"):
-                            print("CHECK: If in " + token.name + " expects boolean, given " + given_type + ".")
+                            print("PROCESS: If in " + token.name + " expects boolean, given " + given_type + ".")
                             return 1
                 elif isinstance(instruction, StartWhile):
                     if len(types) == 0:
-                        print("CHECK: While in " + token.name + " expects boolean, given nothing.")
+                        print("PROCESS: While in " + token.name + " expects boolean, given nothing.")
                         return 1
 
                     given_type = types.pop()
                     if not is_type(given_type, "boolean"):
-                        print("CHECK: While in " + token.name + " expects boolean, given " + given_type + ".")
+                        print("PROCESS: While in " + token.name + " expects boolean, given " + given_type + ".")
                         return 1
                 elif isinstance(instruction, Declare):
                     variables[instruction.name] = instruction.type
                 elif isinstance(instruction, Assign):
                     if len(types) == 0:
-                        print("CHECK: Assign of " + instruction.name + " in " + token.name + " expects " + (variables[instruction.name] if variables[instruction.name] else "a value") + ", given nothing.")
+                        print("PROCESS: Assign of " + instruction.name + " in " + token.name + " expects " + (variables[instruction.name] if variables[instruction.name] else "a value") + ", given nothing.")
                         return 1
                     
                     given_type = types.pop()
@@ -529,7 +582,7 @@ def process_program(program):
                         variables[instruction.name] = given_type
 
                     if not is_type(given_type, variables[instruction.name]):
-                        print("CHECK: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given " + given_type + ".")
+                        print("PROCESS: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given " + given_type + ".")
                         return 1
                 elif isinstance(instruction, Retrieve):
                     types.append(variables[instruction.name])
@@ -537,7 +590,7 @@ def process_program(program):
                     id = instruction.name + "_" + str(instruction.parameter_count)
 
                     if not id in functions:
-                        print("CHECK: Function " + instruction.name + " with " + str(instruction.parameter_count) + " parameters not defined.")
+                        print("PROCESS: Function " + instruction.name + " with " + str(instruction.parameter_count) + " parameters not defined.")
                         return 1
 
                     named_functions = list(functions[id])
@@ -545,7 +598,7 @@ def process_program(program):
 
                     for i in range(0, instruction.parameter_count):
                         if len(types) == 0:
-                            print("CHECK: Invoke of " + instruction.name + " in " + token.name + " expects " + parameter + " as a parameter, given nothing.")
+                            print("PROCESS: Invoke of " + instruction.name + " in " + token.name + " expects " + parameter + " as a parameter, given nothing.")
                             return 1
 
                         given_type = types.pop()
@@ -557,7 +610,7 @@ def process_program(program):
                         function = named_functions[0]
 
                         if not is_type(given_type, function.parameters[i]):
-                            print("CHECK: Invoke of " + instruction.name + " in " + token.name + " expects " + function.parameters[i] + " as a parameter, given " + given_type + ".")
+                            print("PROCESS: Invoke of " + instruction.name + " in " + token.name + " expects " + function.parameters[i] + " as a parameter, given " + given_type + ".")
                             return 1
 
                     instruction.parameters = function.parameters
@@ -566,12 +619,12 @@ def process_program(program):
                 elif isinstance(instruction, Return):
                     if not token.return_ == "none":
                         if len(types) == 0:
-                            print("CHECK: Return in " + token.name + " expects " + token.return_ + ", given nothing.")
+                            print("PROCESS: Return in " + token.name + " expects " + token.return_ + ", given nothing.")
                             return 1
 
                         given_type = types.pop()
                         if not is_type(given_type, token.return_):
-                            print("CHECK: Return in " + token.name + " expects " + token.return_ + ", given " + given_type + ".")
+                            print("PROCESS: Return in " + token.name + " expects " + token.return_ + ", given " + given_type + ".")
                             return 1
 
     return 0
