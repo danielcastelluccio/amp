@@ -1,0 +1,13 @@
+use "std.lang";
+
+fn main() {
+    let array = Array.new(1);
+    Array.set(array, 0, "/bin/ls");
+
+    execute_command("/bin/ls", array);
+
+    array = Array.new(2);
+    Array.set(array, 0, "/bin/ls");
+    Array.set(array, 1, "-l");
+    execute_command("/bin/ls", array);
+};

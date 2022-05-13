@@ -502,7 +502,7 @@ internals = [
     Function("set_8", [], [], ["integer", "any"], "none"),
     Function("allocate", [], [], ["integer"], "any"),
     Function("error_size", [], [], ["String", "integer"], "none"),
-    Function("read_size", [], [], ["String", "integer"], "none"),
+    Function("read_size", [], [], ["any", "integer"], "none"),
     Function("get_1", [], [], ["any"], "integer"),
     Function("equal", [], [], ["any", "any"], "boolean"),
     Function("copy", [], [], ["any", "any", "integer"], "none"),
@@ -512,7 +512,9 @@ internals = [
     Function("set_1", [], [], ["integer", "any"], "none"),
     Function("not", [], [], ["boolean"], "boolean"),
     Function("multiply", [], [], ["integer", "integer"], "integer"),
-    Function("less", [], [], ["integer", "integer"], "boolean")
+    Function("less", [], [], ["integer", "integer"], "boolean"),
+    Function("exit", [], [], [], "none"),
+    Function("execute", [], [], ["any", "any"], "integer")
 ]
 
 def process_program(program):
@@ -948,7 +950,7 @@ def create_linux_binary(program, file_name_base):
     get.instructions.append("ret")
     asm_program.functions.append(get)
 
-    read_size = AsmFunction("read_size_String~integer", [])
+    read_size = AsmFunction("read_size_any~integer", [])
     read_size.instructions.append("push rbp")
     read_size.instructions.append("mov rbp, rsp")
     read_size.instructions.append("mov rdx, [rbp+24]")
@@ -960,6 +962,35 @@ def create_linux_binary(program, file_name_base):
     read_size.instructions.append("pop rbp")
     read_size.instructions.append("ret")
     asm_program.functions.append(read_size)
+
+    exit = AsmFunction("exit_", [])
+    exit.instructions.append("mov rax, 60")
+    exit.instructions.append("xor rdi, rdi")
+    exit.instructions.append("syscall")
+    asm_program.functions.append(exit)
+
+    execute = AsmFunction("execute_any~any", [])
+    execute.instructions.append("push rbp")
+    execute.instructions.append("mov rbp, rsp")
+    execute.instructions.append("mov rax, 39")
+    execute.instructions.append("syscall")
+    execute.instructions.append("mov r9, rax")
+    execute.instructions.append("mov rax, 57")
+    execute.instructions.append("syscall")
+    execute.instructions.append("mov rax, 39")
+    execute.instructions.append("syscall")
+    execute.instructions.append("cmp rax, r9")
+    execute.instructions.append("je _execute_thing")
+    execute.instructions.append("mov rdi, [rbp+16]")
+    execute.instructions.append("mov rsi, [rbp+24]")
+    execute.instructions.append("mov rdx, 0")
+    execute.instructions.append("mov rax, 59")
+    execute.instructions.append("syscall")
+    execute.instructions.append("_execute_thing:")
+    execute.instructions.append("mov rsp, rbp")
+    execute.instructions.append("pop rbp")
+    execute.instructions.append("ret")
+    asm_program.functions.append(execute)
 
     index_thing = 0
 
@@ -986,12 +1017,12 @@ def create_linux_binary(program, file_name_base):
                         put = []
                         encoded = instruction.value.encode()
                         for index, byte in enumerate(encoded):
-                            if byte == 0x6e:
-                                if encoded[index - 1] == 0x5c:
-                                    put.pop()
-                                    put.append("0xa")
-                                else:
-                                    put.append(hex(byte))
+                            if byte == 0x6e and encoded[index - 1] == 0x5c:
+                                put.pop()
+                                put.append("0xa")
+                            elif byte == 0x30 and encoded[index - 1] == 0x5c:
+                                put.pop()
+                                put.append("0x0")
                             else:
                                 put.append(hex(byte))
 
