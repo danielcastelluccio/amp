@@ -1,12 +1,9 @@
 import sys
 import os
-import random
 import string
 import inspect
 from enum import Enum
 import platform
-
-random.seed(0)
 
 class Token:
     pass
@@ -104,6 +101,10 @@ class EndWhile(Instruction):
     def __init__(self, id1, id2):
         self.id1 = id1
         self.id2 = id2
+
+class Cast(Instruction):
+    def __init__(self, wanted_type):
+        self.wanted_type = wanted_type
 
 if_id = 0
     
@@ -303,7 +304,7 @@ def parse(contents, type):
                 locals = []
 
                 instructions.append(Constant(len(items_list)))
-                instructions.append(Invoke("to_any", 1, []))
+                instructions.append(Cast(name))
                 instructions.append(Return(True))
 
                 function = Function(get_name, instructions, locals, [], name)
@@ -586,6 +587,9 @@ def process_program(program):
                         return 1
                 elif isinstance(instruction, Retrieve):
                     types.append(variables[instruction.name])
+                elif isinstance(instruction, Cast):
+                    types.pop()
+                    types.append(instruction.wanted_type)
                 elif isinstance(instruction, Invoke):
                     id = instruction.name + "_" + str(instruction.parameter_count)
 

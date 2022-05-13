@@ -213,7 +213,3 @@ fn Option.of(data: any): Option {
 fn Option.is_value(option: Option): boolean {
     return not_equal(Option.data(option), null());
 };
-
-fn to_any(thing: any): any {
-    return thing;
-};
