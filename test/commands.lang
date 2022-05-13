@@ -6,8 +6,12 @@ fn main() {
 
     execute_command("/bin/ls", array);
 
+    println("after first!");
+
     array = Array.new(2);
     Array.set(array, 0, "/bin/ls");
     Array.set(array, 1, "-l");
     execute_command("/bin/ls", array);
+
+    println("after second!");
 };

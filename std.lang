@@ -22,12 +22,9 @@ fn read(): String {
     return String.new(string);
 };
 
-fn test() {
-    println("Test2");
-};
-
 fn execute_command(file: String, arguments: Array) {
     execute(to_null_terminated_string(file), to_null_terminated_array(arguments));
+    print("");
 };
 
 fn to_null_terminated_string(string: String): any {

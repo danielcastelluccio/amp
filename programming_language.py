@@ -496,12 +496,12 @@ def parse_statement(contents):
     return instructions
     
 internals = [
-    Function("print_size", [], [], ["String", "integer"], "none"),
+    Function("print_size", [], [], ["any", "integer"], "none"),
     Function("add", [], [], ["any", "any"], "any"),
     Function("get_8", [], [], ["any"], "integer"),
     Function("set_8", [], [], ["integer", "any"], "none"),
     Function("allocate", [], [], ["integer"], "any"),
-    Function("error_size", [], [], ["String", "integer"], "none"),
+    Function("error_size", [], [], ["any", "integer"], "none"),
     Function("read_size", [], [], ["any", "integer"], "none"),
     Function("get_1", [], [], ["any"], "integer"),
     Function("equal", [], [], ["any", "any"], "boolean"),
@@ -663,7 +663,7 @@ def create_linux_binary(program, file_name_base):
     
     asm_program = AsmProgram([], [])
 
-    print_size = AsmFunction("print_size_String~integer", [])
+    print_size = AsmFunction("print_size_any~integer", [])
     print_size.instructions.append("push rbp")
     print_size.instructions.append("mov rbp, rsp")
     print_size.instructions.append("mov rdx, [rbp+24]")
@@ -676,7 +676,7 @@ def create_linux_binary(program, file_name_base):
     print_size.instructions.append("ret")
     asm_program.functions.append(print_size)
 
-    error_size = AsmFunction("error_size_String~integer", [])
+    error_size = AsmFunction("error_size_any~integer", [])
     error_size.instructions.append("push rbp")
     error_size.instructions.append("mov rbp, rsp")
     error_size.instructions.append("mov rdx, [rbp+24]")
@@ -972,21 +972,24 @@ def create_linux_binary(program, file_name_base):
     execute = AsmFunction("execute_any~any", [])
     execute.instructions.append("push rbp")
     execute.instructions.append("mov rbp, rsp")
-    execute.instructions.append("mov rax, 39")
-    execute.instructions.append("syscall")
-    execute.instructions.append("mov r9, rax")
     execute.instructions.append("mov rax, 57")
     execute.instructions.append("syscall")
-    execute.instructions.append("mov rax, 39")
-    execute.instructions.append("syscall")
-    execute.instructions.append("cmp rax, r9")
-    execute.instructions.append("je _execute_thing")
+    execute.instructions.append("cmp rax, 0")
+    execute.instructions.append("jne _execute_thing")
     execute.instructions.append("mov rdi, [rbp+16]")
     execute.instructions.append("mov rsi, [rbp+24]")
     execute.instructions.append("mov rdx, 0")
     execute.instructions.append("mov rax, 59")
     execute.instructions.append("syscall")
+    execute.instructions.append("mov rax, 60")
+    execute.instructions.append("xor rdi, rdi")
+    execute.instructions.append("syscall")
     execute.instructions.append("_execute_thing:")
+    execute.instructions.append("mov rsi, rax")
+    execute.instructions.append("mov rax, 247")
+    execute.instructions.append("mov rdi, 1")
+    execute.instructions.append("mov r10, 4")
+    execute.instructions.append("syscall")
     execute.instructions.append("mov rsp, rbp")
     execute.instructions.append("pop rbp")
     execute.instructions.append("ret")
