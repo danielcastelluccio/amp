@@ -18,6 +18,6 @@ fn print_int_list(list: LinkedList) {
     let node = LinkedList.head(list);
     while (not_equal(LinkedList_Node.next(node), null())) {
         node = LinkedList_Node.next(node);
-        println(integer_to_string(LinkedList_Node.data(node)));
+        println(integer_to_string(integer(LinkedList_Node.data(node))));
     };
 };

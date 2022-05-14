@@ -19,6 +19,10 @@ class Function(Token):
         self.locals = locals
         self.parameters = parameters
         self.return_ = return_
+
+class StructMarker(Token):
+    def __init__(self, name):
+        self.name = name
         
 class Use(Token):
     def __init__(self, file):
@@ -101,10 +105,6 @@ class EndWhile(Instruction):
     def __init__(self, id1, id2):
         self.id1 = id1
         self.id2 = id2
-
-class Cast(Instruction):
-    def __init__(self, wanted_type):
-        self.wanted_type = wanted_type
 
 if_id = 0
     
@@ -213,7 +213,7 @@ def parse(contents, type):
         name = contents.split(" ")[1]
         items = {}
         items_list = []
-        functions = []
+        tokens = []
 
         body = contents[contents.index("{") + 1 : contents.index("}")]
         for item in body.split(";"):
@@ -230,12 +230,13 @@ def parse(contents, type):
                 instructions.append(Constant(8 * len(items)))
                 instructions.append(Invoke("add", 2, []))
                 instructions.append(Invoke("get_8", 1, []))
+                instructions.append(Invoke(item.split(":")[1].strip(), 1, []))
                 instructions.append(Return(True))
 
                 locals.append("instance")
 
                 function = Function(get_name, instructions, locals, [name], item.split(":")[1].strip())
-                functions.append(function)
+                tokens.append(function)
 
                 set_name = name + "." + item_name
                 instructions = []
@@ -247,6 +248,7 @@ def parse(contents, type):
                 instructions.append(Constant(8 * len(items)))
                 instructions.append(Invoke("add", 2, []))
                 instructions.append(Retrieve(item_name))
+                instructions.append(Invoke("integer", 1, []))
                 instructions.append(Invoke("set_8", 2, []))
                 instructions.append(Return(False))
 
@@ -254,7 +256,7 @@ def parse(contents, type):
                 locals.append("instance")
 
                 function = Function(set_name, instructions, locals, [name, item.split(":")[1].strip()], "none")
-                functions.append(function)
+                tokens.append(function)
 
                 items[item.split(":")[0]] = item.split(":")[1].strip()
                 items_list.append(item.split(":")[0])
@@ -270,6 +272,7 @@ def parse(contents, type):
 
         instructions.append(Constant(8 * len(items)))
         instructions.append(Invoke("allocate", 1, []))
+        instructions.append(Invoke(name, 1, []))
         instructions.append(Assign("instance"))
 
         for item in items:
@@ -277,6 +280,7 @@ def parse(contents, type):
             instructions.append(Retrieve("instance"))
             instructions.append(Invoke("add", 2, []))
             instructions.append(Retrieve(item))
+            instructions.append(Invoke("integer", 1, []))
             instructions.append(Invoke("set_8", 2, []))
 
         instructions.append(Retrieve("instance"))
@@ -285,14 +289,16 @@ def parse(contents, type):
         locals.append("instance")
 
         function = Function(name + ".new", instructions, locals, list(items.values()), name)
-        functions.append(function)
+        tokens.append(function)
 
-        return functions
+        tokens.append(StructMarker(name))
+
+        return tokens
     elif type == "Enum":
         name = contents.split(" ")[1]
         items = {}
         items_list = []
-        functions = []
+        tokens = []
 
         body = contents[contents.index("{") + 1 : contents.index("}")]
         for item in body.split(";"):
@@ -304,11 +310,11 @@ def parse(contents, type):
                 locals = []
 
                 instructions.append(Constant(len(items_list)))
-                instructions.append(Cast(name))
+                instructions.append(Invoke(name, 1, []))
                 instructions.append(Return(True))
 
                 function = Function(get_name, instructions, locals, [], name)
-                functions.append(function)
+                tokens.append(function)
 
                 check_name = name + "." + item
                 instructions = []
@@ -323,11 +329,13 @@ def parse(contents, type):
                 locals.append("instance")
 
                 function = Function(check_name, instructions, locals, [name], "boolean")
-                functions.append(function)
+                tokens.append(function)
 
                 items_list.append(item)
 
-        return functions
+        tokens.append(StructMarker(name))
+
+        return tokens
     elif type == "Statement":
         return parse_statement(contents)
         
@@ -519,9 +527,10 @@ internals = [
 
 def process_program(program):
     functions = {}
+    program_types = ["integer", "boolean", "any"]
 
     for token in program.tokens:
-        if (isinstance(token, Function)):
+        if isinstance(token, Function):
             id = token.name + "_" + str(len(token.parameters))
             functions.setdefault(id, [])
 
@@ -536,6 +545,8 @@ def process_program(program):
                     return 1
 
             functions[id].append(token)
+        elif isinstance(token, StructMarker):
+            program_types.append(token.name)
     
     for function in internals:
         id = function.name + "_" + str(len(function.parameters))
@@ -546,7 +557,7 @@ def process_program(program):
         if (isinstance(token, Function)):
             types = []
             variables = {}
-            for instruction in token.tokens:
+            for instruction in list(token.tokens):
                 if isinstance(instruction, Constant):
                     if isinstance(instruction.value, bool):
                         types.append("boolean")
@@ -589,39 +600,42 @@ def process_program(program):
                         return 1
                 elif isinstance(instruction, Retrieve):
                     types.append(variables[instruction.name])
-                elif isinstance(instruction, Cast):
-                    types.pop()
-                    types.append(instruction.wanted_type)
                 elif isinstance(instruction, Invoke):
-                    id = instruction.name + "_" + str(instruction.parameter_count)
+                    if instruction.name in program_types:
+                        types.pop()
+                        types.append(instruction.name)
 
-                    if not id in functions:
-                        print("PROCESS: Function " + instruction.name + " with " + str(instruction.parameter_count) + " parameters not defined.")
-                        return 1
+                        token.tokens.remove(instruction)
+                    else:
+                        id = instruction.name + "_" + str(instruction.parameter_count)
 
-                    named_functions = list(functions[id])
-                    function = named_functions[0]
-
-                    for i in range(0, instruction.parameter_count):
-                        if len(types) == 0:
-                            print("PROCESS: Invoke of " + instruction.name + " in " + token.name + " expects " + parameter + " as a parameter, given nothing.")
+                        if not id in functions:
+                            print("PROCESS: Function " + instruction.name + " with " + str(instruction.parameter_count) + " parameters not defined.")
                             return 1
 
-                        given_type = types.pop()
-
-                        for function in named_functions:
-                            if not is_type(given_type, function.parameters[i]):
-                                named_functions.remove(function)
-
+                        named_functions = list(functions[id])
                         function = named_functions[0]
 
-                        if not is_type(given_type, function.parameters[i]):
-                            print("PROCESS: Invoke of " + instruction.name + " in " + token.name + " expects " + function.parameters[i] + " as a parameter, given " + given_type + ".")
-                            return 1
+                        for i in range(0, instruction.parameter_count):
+                            if len(types) == 0:
+                                print("PROCESS: Invoke of " + instruction.name + " in " + token.name + " expects " + function.parameters[i] + " as a parameter, given nothing.")
+                                return 1
 
-                    instruction.parameters = function.parameters
-                    if not function.return_ == "none":
-                        types.append(function.return_)
+                            given_type = types.pop()
+
+                            for function in named_functions:
+                                if not is_type(given_type, function.parameters[i]):
+                                    named_functions.remove(function)
+
+                            function = named_functions[0]
+
+                            if not is_type(given_type, function.parameters[i]):
+                                print("PROCESS: Invoke of " + instruction.name + " in " + token.name + " expects " + function.parameters[i] + " as a parameter, given " + given_type + ".")
+                                return 1
+
+                        instruction.parameters = function.parameters
+                        if not function.return_ == "none":
+                            types.append(function.return_)
                 elif isinstance(instruction, Return):
                     if not token.return_ == "none":
                         if len(types) == 0:
@@ -637,9 +651,6 @@ def process_program(program):
 
 def is_type(given, wanted):
     if wanted == "any":
-        return True
-    
-    if given == "any":
         return True
 
     return given == wanted

@@ -1,5 +1,5 @@
 use "std.lang";
 
 fn main() {
-    println(integer_to_string(add(34, 35)));
+    println(integer_to_string(integer(add(34, 35))));
 };
