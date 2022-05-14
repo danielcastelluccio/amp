@@ -22,8 +22,8 @@ fn read(): String {
     return String.new(string);
 };
 
-fn execute_command(file: String, arguments: Array) {
-    execute(to_null_terminated_string(file), to_null_terminated_array(arguments));
+fn execute_command(file: String, arguments: Array, wait: boolean) {
+    execute(to_null_terminated_string(file), to_null_terminated_array(arguments), wait);
     print("");
 };
 

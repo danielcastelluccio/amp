@@ -514,7 +514,7 @@ internals = [
     Function("multiply", [], [], ["integer", "integer"], "integer"),
     Function("less", [], [], ["integer", "integer"], "boolean"),
     Function("exit", [], [], [], "none"),
-    Function("execute", [], [], ["any", "any"], "integer")
+    Function("execute", [], [], ["any", "any", "boolean"], "integer")
 ]
 
 def process_program(program):
@@ -969,7 +969,7 @@ def create_linux_binary(program, file_name_base):
     exit.instructions.append("syscall")
     asm_program.functions.append(exit)
 
-    execute = AsmFunction("execute_any~any", [])
+    execute = AsmFunction("execute_any~any~boolean", [])
     execute.instructions.append("push rbp")
     execute.instructions.append("mov rbp, rsp")
     execute.instructions.append("mov rax, 57")
@@ -985,11 +985,15 @@ def create_linux_binary(program, file_name_base):
     execute.instructions.append("xor rdi, rdi")
     execute.instructions.append("syscall")
     execute.instructions.append("_execute_thing:")
+    execute.instructions.append("mov rbx, [rbp+32]")
+    execute.instructions.append("cmp rbx, 0")
+    execute.instructions.append("je _execute_thing2")
     execute.instructions.append("mov rsi, rax")
     execute.instructions.append("mov rax, 247")
     execute.instructions.append("mov rdi, 1")
     execute.instructions.append("mov r10, 4")
     execute.instructions.append("syscall")
+    execute.instructions.append("_execute_thing2:")
     execute.instructions.append("mov rsp, rbp")
     execute.instructions.append("pop rbp")
     execute.instructions.append("ret")
