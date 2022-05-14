@@ -1,0 +1,24 @@
+use "std.lang";
+
+fn main() {
+    let parameters = Array.new(1);
+    Array.set(parameters, 0, "Welcome child!");
+
+    let functions = Array.new(2);
+    Array.set(functions, 0, test);
+    Array.set(functions, 1, test2);
+
+    let i = 0;
+    while (less(i, Array.length(functions))) {
+        println(String(Function.call(Function(Array.get(functions, i)), parameters)));
+        i = integer(add(i, 1));
+    };
+};
+
+fn test(test: String) {
+    return concatenate("Hello from test function! Main function says: ", test);
+};
+
+fn test2(test: String) {
+    return concatenate("Hello from test2 function! Main function says: ", test);
+};

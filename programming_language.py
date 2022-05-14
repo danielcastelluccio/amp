@@ -41,8 +41,9 @@ class Assign(Instruction):
         self.name = name
     
 class Retrieve(Instruction):
-    def __init__(self, name):
+    def __init__(self, name, data):
         self.name = name
+        self.data = data
     
 class Constant(Instruction):
     def __init__(self, value):
@@ -57,22 +58,6 @@ class Invoke(Instruction):
 class Return(Instruction):
     def __init__(self, is_value):
         self.is_value = is_value
-
-#class Type():
-#    def __init__(self, type):
-#        self.type = type
-    
-#class Raw(Instruction):
-#    def __init__(self, instruction):
-#        self.instruction = instruction
-    
-#class Push(Instruction):
-#    def __init__(self):
-#        pass
-
-#class Pop(Instruction):
-#    def __init__(self):
-#        pass
 
 class PreCheckIf(Instruction):
     def __init__(self, id):
@@ -226,7 +211,7 @@ def parse(contents, type):
                 locals = []
 
                 instructions.append(Declare("instance", name))
-                instructions.append(Retrieve("instance"))
+                instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(8 * len(items)))
                 instructions.append(Invoke("add", 2, []))
                 instructions.append(Invoke("get_8", 1, []))
@@ -244,10 +229,10 @@ def parse(contents, type):
 
                 instructions.append(Declare("instance", name))
                 instructions.append(Declare(item_name, item.split(":")[1].strip()))
-                instructions.append(Retrieve("instance"))
+                instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(8 * len(items)))
                 instructions.append(Invoke("add", 2, []))
-                instructions.append(Retrieve(item_name))
+                instructions.append(Retrieve(item_name, None))
                 instructions.append(Invoke("integer", 1, []))
                 instructions.append(Invoke("set_8", 2, []))
                 instructions.append(Return(False))
@@ -277,13 +262,13 @@ def parse(contents, type):
 
         for item in items:
             instructions.append(Constant(8 * items_list.index(item)))
-            instructions.append(Retrieve("instance"))
+            instructions.append(Retrieve("instance", None))
             instructions.append(Invoke("add", 2, []))
-            instructions.append(Retrieve(item))
+            instructions.append(Retrieve(item, None))
             instructions.append(Invoke("integer", 1, []))
             instructions.append(Invoke("set_8", 2, []))
 
-        instructions.append(Retrieve("instance"))
+        instructions.append(Retrieve("instance", None))
         instructions.append(Return(True))
 
         locals.append("instance")
@@ -366,13 +351,6 @@ def parse_statement(contents):
         instructions.append(Constant(contents == "true"))
     elif contents.startswith("\""):
         instructions.append(Constant(contents[1 : len(contents) - 1]))
-    #elif contents.startswith("asm "):
-    #    instructions.append(Raw(contents[4: len(contents)]))
-    #elif contents.startswith("push "):
-    #    instructions.extend(parse_statement(contents[5 : len(contents)]))
-    #    instructions.append(Push())
-    #elif contents.startswith("pop"):
-    #    instructions.append(Pop())
     elif contents.startswith("if"):
         instructions.extend(parse_statement(contents[contents.index("(") + 1 : contents[0 : contents.index("{")].rindex(")")]))
 
@@ -499,7 +477,7 @@ def parse_statement(contents):
                     instructions.extend(parse_statement(parameter))
             instructions.append(Invoke(name, len(arguments_array), []))
         else:
-            instructions.append(Retrieve(contents))
+            instructions.append(Retrieve(contents, None))
         
     return instructions
     
@@ -522,11 +500,13 @@ internals = [
     Function("multiply", [], [], ["integer", "integer"], "integer"),
     Function("less", [], [], ["integer", "integer"], "boolean"),
     Function("exit", [], [], [], "none"),
-    Function("execute", [], [], ["any", "any", "boolean"], "integer")
+    Function("execute", [], [], ["any", "any", "boolean"], "integer"),
+    Function("call_function", [], [], ["any", "any", "integer"], "any")
 ]
 
 def process_program(program):
     functions = {}
+    functions2 = {}
     program_types = ["integer", "boolean", "any"]
 
     for token in program.tokens:
@@ -545,6 +525,7 @@ def process_program(program):
                     return 1
 
             functions[id].append(token)
+            functions2[token.name] = token
         elif isinstance(token, StructMarker):
             program_types.append(token.name)
     
@@ -552,6 +533,7 @@ def process_program(program):
         id = function.name + "_" + str(len(function.parameters))
         functions.setdefault(id, [])
         functions[id].append(function)
+        functions2[token.name] = function
 
     for token in program.tokens:
         if (isinstance(token, Function)):
@@ -599,7 +581,11 @@ def process_program(program):
                         print("PROCESS: Assign of " + instruction.name + " in " + token.name + " expects " + variables[instruction.name] + ", given " + given_type + ".")
                         return 1
                 elif isinstance(instruction, Retrieve):
-                    types.append(variables[instruction.name])
+                    if instruction.name in functions2 and not instruction.name in variables:
+                        types.append("Function")
+                        instruction.data = functions2[instruction.name].parameters
+                    else:
+                        types.append(variables[instruction.name])
                 elif isinstance(instruction, Invoke):
                     if instruction.name in program_types:
                         types.pop()
@@ -1010,6 +996,27 @@ def create_linux_binary(program, file_name_base):
     execute.instructions.append("ret")
     asm_program.functions.append(execute)
 
+    call_function = AsmFunction("call_function_any~any~integer", [])
+    call_function.instructions.append("push rbp")
+    call_function.instructions.append("mov rbp, rsp")
+    call_function.instructions.append("mov rax, 8")
+    call_function.instructions.append("xor rdx, rdx")
+    call_function.instructions.append("mul qword [rbp+32]")
+    call_function.instructions.append("sub rsp, rax")
+    call_function.instructions.append("mov rdx, [rbp+24]") # pointer to array
+    call_function.instructions.append("_call_function_not_done:")
+    call_function.instructions.append("cmp qword [rdx], 0")
+    call_function.instructions.append("je _call_function_done")
+    call_function.instructions.append("push qword [rdx]")
+    call_function.instructions.append("add rdx, 8")
+    call_function.instructions.append("jmp _call_function_not_done")
+    call_function.instructions.append("_call_function_done:")
+    call_function.instructions.append("call [rbp+16]")
+    call_function.instructions.append("mov rsp, rbp")
+    call_function.instructions.append("pop rbp")
+    call_function.instructions.append("ret")
+    asm_program.functions.append(call_function)
+
     index_thing = 0
 
     for token in program.tokens:
@@ -1060,8 +1067,6 @@ def create_linux_binary(program, file_name_base):
                     asm_function.instructions.append("call " + instruction.name + "_" + "~".join(instruction.parameters))
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
                     asm_function.instructions.append("push r8")
-                #elif isinstance(instruction, Raw):
-                #    asm_function.instructions.append(instruction.instruction)
                 elif isinstance(instruction, Assign):
                     asm_function.instructions.append("pop r8")
                     index = token.locals.index(instruction.name)
@@ -1069,10 +1074,16 @@ def create_linux_binary(program, file_name_base):
                         index -= 2
                     asm_function.instructions.append("mov [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * len(token.parameters)) + "], r8")
                 elif isinstance(instruction, Retrieve):
-                    index = token.locals.index(instruction.name)
-                    if index <= len(token.parameters) - 1:
-                        index -= 2
-                    asm_function.instructions.append("push qword [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * len(token.parameters)) + "]")
+                    if isinstance(instruction.data, list) and not instruction.name in token.locals:
+                        asm_function.instructions.append("push " + instruction.name + "_" + "~".join(instruction.data))
+                        asm_function.instructions.append("call Function.new_any")
+                        asm_function.instructions.append("add rsp, 8")
+                        asm_function.instructions.append("push r8")
+                    else:
+                        index = token.locals.index(instruction.name)
+                        if index <= len(token.parameters) - 1:
+                            index -= 2
+                        asm_function.instructions.append("push qword [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * len(token.parameters)) + "]")
                 elif isinstance(instruction, Return):
                     if instruction.is_value:
                          asm_function.instructions.append("pop r8")
@@ -1083,7 +1094,6 @@ def create_linux_binary(program, file_name_base):
                 elif isinstance(instruction, PreCheckIf):
                     asm_function.instructions.append("if_" + str(instruction.id) + ":") 
                 elif isinstance(instruction, CheckIf):
-                    #asm_function.instructions.append("if_" + str(instruction.id) + ":")
                     if instruction.checking:
                         asm_function.instructions.append("pop r8")
                         asm_function.instructions.append("cmp r8, 1")

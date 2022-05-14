@@ -113,6 +113,14 @@ fn Array.get(array: Array, index: integer): any {
     return get_8(add(Array.pointer(array), multiply(index, 8)));
 };
 
+struct Function {
+    pointer: any;
+};
+
+fn Function.call(function: Function, parameters: Array): any {
+    return call_function(Function.pointer(function), Array.pointer(parameters), Array.length(parameters));
+};
+
 struct String {
     pointer: any;
     length: integer;
