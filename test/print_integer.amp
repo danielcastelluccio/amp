@@ -1,4 +1,4 @@
-use "std.lang";
+use "std.amp";
 
 fn main() {
     println(integer_to_string(integer(add(34, 35))));

@@ -1,4 +1,4 @@
-use "std.lang";
+use "std.amp";
 
 fn main() {
     let pair = IntPair.new(1, 2);
