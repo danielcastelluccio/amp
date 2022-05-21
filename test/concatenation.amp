@@ -3,7 +3,7 @@ use "std.amp";
 fn main() {
     let string = "";
 
-    while (less(String.length(string), 4)) {
+    while (less(string.length(), 4)) {
         string = concatenate(string, "a");
         println(string);
     };

@@ -95,8 +95,15 @@ if_id = 0
     
 def parse_file(file):
     file = open(file, "r")
-    contents = file.read()
-    contents = contents.replace("\n", "")
+    contents_split = file.read().split("\n")
+    contents = "" 
+    
+    for content in contents_split:
+        if "//" in content:
+            contents += content[0 : content.index("//")]
+        else:
+            contents += content
+
     program = parse(contents, "Program")
     
     for token in program.tokens:
@@ -306,7 +313,7 @@ def parse(contents, type):
                 locals = []
 
                 instructions.append(Declare("instance", name))
-                instructions.append(Retrieve("instance"))
+                instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(len(items_list)))
                 instructions.append(Invoke("equal", 2, []))
                 instructions.append(Return(True))
@@ -448,7 +455,7 @@ def parse_statement(contents):
                 instructions.append(Assign(name))
         elif "(" in contents:
             name = contents[0 : contents.index("(")]
-
+                
             arguments_array = []
             arguments = contents[len(name) + 1 : len(contents) - 1]
 
@@ -534,9 +541,85 @@ def process_program(program):
         functions.setdefault(id, [])
         functions[id].append(function)
         functions2[token.name] = function
+        
+    for function in program.tokens:
+        if isinstance(function, Function):
+            types = []
+            variables = {}
+            j = 0
+            while True:
+                if j > len(function.tokens) - 1:
+                    break
 
+                instruction = function.tokens[j]
+                if isinstance(instruction, Constant):
+                    if isinstance(instruction.value, bool):
+                        types.append("boolean")
+                    elif isinstance(instruction.value, int):
+                        types.append("integer")
+                    elif isinstance(instruction.value, str):
+                        types.append("String")
+                elif isinstance(instruction, CheckIf):
+                    if instruction.checking:
+                        given_type = types.pop()
+                elif isinstance(instruction, StartWhile):
+                    given_type = types.pop()
+                elif isinstance(instruction, Declare):
+                    variables[instruction.name] = instruction.type
+                elif isinstance(instruction, Assign):
+                    given_type = types.pop()
+                    if variables[instruction.name] == "":
+                        variables[instruction.name] = given_type
+                elif isinstance(instruction, Retrieve):
+                    if instruction.name in functions2 and not instruction.name in variables:
+                        types.append("Function")
+                    else:
+                        types.append(variables[instruction.name])
+                elif isinstance(instruction, Invoke):
+                    if "." in instruction.name:
+                        first = instruction.name.split(".")[0]
+                        if first in function.locals:
+                            instruction.name = instruction.name.replace(first, variables[first])
+                            instruction.parameter_count += 1
+                            function.tokens.insert(function.tokens.index(instruction), Retrieve(first, None))
+                            types.append(variables[first])
+                            j += 1
+
+                    if instruction.name in program_types:
+                        types.pop()
+                        types.append(instruction.name)
+                    else:
+                        id = instruction.name + "_" + str(instruction.parameter_count)
+
+                        if id in functions:
+                            named_functions = list(functions[id])
+                            function2 = named_functions[0]
+
+                            #print("begin")
+                            for i in range(0, instruction.parameter_count):
+                                #print(id + " " + str(types) + " " + str(function2.parameters) + " " + function2.parameters[i] + " " + str(i) + " " + str(instruction.parameter_count))
+
+                                #if len(types) == 0:
+                                    #print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given nothing.")
+                                    #return 1
+
+                                given_type = types.pop()
+
+                                for function2 in named_functions:
+                                    if not is_type(given_type, function2.parameters[i]):
+                                        named_functions.remove(function2)
+
+                                function2 = named_functions[0]
+
+                            instruction.parameters = function2.parameters
+                            if not function2.return_ == "none":
+                                types.append(function2.return_)
+                        
+                j += 1
+
+    # type checking
     for token in program.tokens:
-        if (isinstance(token, Function)):
+        if isinstance(token, Function):
             types = []
             variables = {}
             for instruction in list(token.tokens):
@@ -587,6 +670,7 @@ def process_program(program):
                     else:
                         types.append(variables[instruction.name])
                 elif isinstance(instruction, Invoke):
+
                     if instruction.name in program_types:
                         types.pop()
                         types.append(instruction.name)
@@ -596,7 +680,7 @@ def process_program(program):
                         id = instruction.name + "_" + str(instruction.parameter_count)
 
                         if not id in functions:
-                            print("PROCESS: Function " + instruction.name + " with " + str(instruction.parameter_count) + " parameters not defined.")
+                            print("PROCESS: Function " + instruction.name + " with " + str(instruction.parameter_count) + " parameters in " + token.name + " not defined.")
                             return 1
 
                         named_functions = list(functions[id])
@@ -641,13 +725,15 @@ def process_program(program):
     return 0
 
 def is_used(function, functions):
-    if function.name == "main" or (function.name == "String.new" and function.parameters[0] == "any") and (function.name == "Array.new" and function.parameters[0] == "any" and function.parameters[1] == "integer"):
+    if function.name == "main" or (function.name == "String.new" and function.parameters[0] == "any") or (function.name == "Function.new" and function.parameters[0] == "any") or (function.name == "Array.new" and function.parameters[0] == "any" and function.parameters[1] == "integer"):
         return True
 
     for other_function in functions:
         if isinstance(other_function, Function) and not other_function.name == function.name:
             for instruction in other_function.tokens:
                 if isinstance(instruction, Invoke) and instruction.name == function.name and (other_function.name == "main" or is_used(other_function, functions)):
+                    return True
+                elif isinstance(instruction, Retrieve) and isinstance(instruction.data, list) and instruction.name == function.name and (other_function.name == "main" or is_used(other_function, functions)):
                     return True
         
     return False

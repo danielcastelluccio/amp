@@ -7,9 +7,9 @@ fn main() {
 };
 
 fn print_test(test: Test) {
-    if (Test.TEST1(test)) {
+    if (test.TEST1()) {
         println("is TEST1");
-    } else if (Test.TEST2(test)) {
+    } else if (test.TEST2()) {
         println("is TEST2");
     } else {
         println("is TEST3? could be another thing");

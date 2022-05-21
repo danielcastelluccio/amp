@@ -2,9 +2,9 @@ use "std.amp";
 
 fn main(arguments: Array) {
     let i = 0;
-    while (less(i, Array.length(arguments))) {
-        let argument = String(Array.get(arguments, i));
-        println(concatenate(argument, concatenate(", size: ", integer_to_string(String.length(argument)))));
+    while (less(i, arguments.length())) {
+        let argument = String(arguments.get(i));
+        println(concatenate(argument, concatenate(", size: ", integer_to_string(argument.length()))));
         i = integer(add(i, 1));
     };
 };

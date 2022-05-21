@@ -1,5 +1,5 @@
 fn print(string: String) {
-    print_size(String.pointer(string), String.length(string));
+    print_size(string.pointer(), string.length());
 };
 
 fn println(string: String) {

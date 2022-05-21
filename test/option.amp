@@ -3,11 +3,11 @@ use "std.amp";
 fn main() {
     let option = Option.empty();
 
-    println(boolean_to_string(Option.is_value(option)));
+    println(boolean_to_string(option.is_value()));
 
     option = Option.of("Hello Option!");
-    if (Option.is_value(option)) {
-        println(String(Option.data(option)));
+    if (option.is_value()) {
+        println(String(option.data()));
     } else {
         println("not a thing (this should never print with this code)");
     };

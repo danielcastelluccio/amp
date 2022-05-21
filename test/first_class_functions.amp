@@ -2,15 +2,16 @@ use "std.amp";
 
 fn main() {
     let parameters = Array.new(1);
-    Array.set(parameters, 0, "Welcome child!");
+    parameters.set(0, "Welcome child!");
 
     let functions = Array.new(2);
-    Array.set(functions, 0, test);
-    Array.set(functions, 1, test2);
+    functions.set(0, test);
+    functions.set(1, test2);
 
     let i = 0;
     while (less(i, Array.length(functions))) {
-        println(String(Function.call(Function(Array.get(functions, i)), parameters)));
+        let function = Function(Array.get(functions, i));
+        println(String(function.call(parameters)));
         i = integer(add(i, 1));
     };
 };

@@ -2,22 +2,22 @@ use "std.amp";
 
 fn main() {
     let list = LinkedList.new();
-    LinkedList.append(list, 5);
-    LinkedList.append(list, 3);
-    LinkedList.append(list, 2);
-    LinkedList.append(list, 1);
-    LinkedList.append(list, 4);
-    LinkedList.insert(list, 0, 4);
-    LinkedList.insert(list, 2, 4);
-    LinkedList.remove(list, 1);
+    list.append(5);
+    list.append(3);
+    list.append(2);
+    list.append(1);
+    list.append(4);
+    list.insert(0, 4);
+    list.insert(2, 4);
+    list.remove(1);
     print_int_list(list);
-    println(concatenate("List size: ", integer_to_string(LinkedList.size(list))));
+    println(concatenate("List size: ", integer_to_string(list.size())));
 };
 
 fn print_int_list(list: LinkedList) {
-    let node = LinkedList.head(list);
-    while (not_equal(LinkedList_Node.next(node), null())) {
-        node = LinkedList_Node.next(node);
-        println(integer_to_string(integer(LinkedList_Node.data(node))));
+    let node = list.head();
+    while (not_equal(node.next(), null())) {
+        node = node.next();
+        println(integer_to_string(integer(node.data())));
     };
 };

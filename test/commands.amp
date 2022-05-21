@@ -2,16 +2,16 @@ use "std.amp";
 
 fn main() {
     let array = Array.new(1);
-    Array.set(array, 0, "/bin/ls");
+    array.set(0, "/bin/ls");
 
     execute_command("/bin/ls", array, true);
 
     println("after first!");
 
     let list = LinkedList.new();
-    LinkedList.append(list, "/bin/ls");
-    LinkedList.append(list, "-l");
-    array = LinkedList.to_array(list);
+    list.append("/bin/ls");
+    list.append("-l");
+    array = list.to_array();
     
     execute_command("/bin/ls", array, true);
 
