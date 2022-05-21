@@ -2,7 +2,7 @@ use "std.amp";
 
 fn main(arguments: Array) {
     let i = 0;
-    while (less(i, arguments.length())) {
+    while (i < arguments.length()) {
         let argument = String(arguments.get(i));
         println(argument + ", size: " + integer_to_string(argument.length()));
         i = i + 1;

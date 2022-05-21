@@ -220,8 +220,8 @@ def parse(contents, type, extra):
                 instructions.append(Declare("instance", name))
                 instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(8 * len(items)))
-                instructions.append(Invoke("add", 2, []))
-                instructions.append(Invoke("get_8", 1, []))
+                instructions.append(Invoke("@add", 2, []))
+                instructions.append(Invoke("@get_8", 1, []))
                 instructions.append(Invoke(item.split(":")[1].strip(), 1, []))
                 instructions.append(Return(True))
 
@@ -238,10 +238,10 @@ def parse(contents, type, extra):
                 instructions.append(Declare(item_name, item.split(":")[1].strip()))
                 instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(8 * len(items)))
-                instructions.append(Invoke("add", 2, []))
+                instructions.append(Invoke("@add", 2, []))
                 instructions.append(Retrieve(item_name, None))
                 instructions.append(Invoke("integer", 1, []))
-                instructions.append(Invoke("set_8", 2, []))
+                instructions.append(Invoke("@set_8", 2, []))
                 instructions.append(Return(False))
 
                 locals.append(item_name)
@@ -263,7 +263,7 @@ def parse(contents, type, extra):
         instructions.append(Declare("instance", name))
 
         instructions.append(Constant(8 * len(items)))
-        instructions.append(Invoke("allocate", 1, []))
+        instructions.append(Invoke("@allocate", 1, []))
         instructions.append(Invoke(name, 1, []))
         instructions.append(Assign("instance"))
 
@@ -271,10 +271,10 @@ def parse(contents, type, extra):
             instructions.append(Constant(8 * items_list.index(item)))
             instructions.append(Invoke("any", 1, []))
             instructions.append(Retrieve("instance", None))
-            instructions.append(Invoke("add", 2, []))
+            instructions.append(Invoke("@add", 2, []))
             instructions.append(Retrieve(item, None))
             instructions.append(Invoke("integer", 1, []))
-            instructions.append(Invoke("set_8", 2, []))
+            instructions.append(Invoke("@set_8", 2, []))
 
         instructions.append(Retrieve("instance", None))
         instructions.append(Return(True))
@@ -316,7 +316,7 @@ def parse(contents, type, extra):
                 instructions.append(Declare("instance", name))
                 instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(len(items_list)))
-                instructions.append(Invoke("equal", 2, []))
+                instructions.append(Invoke("@equal", 2, []))
                 instructions.append(Return(True))
 
                 locals.append("instance")
@@ -495,49 +495,49 @@ def parse_statement(contents, extra):
             after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("add", 2, []))
+            instructions.append(Invoke("_+", 2, []))
         elif special_sign == "*":
             before = contents[0 : special_index].strip()
             after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.extend(parse_statement(after, extra + instructions))
-            instructions.append(Invoke("multiply", 2, []))
+            instructions.append(Invoke("_*", 2, []))
         elif special_sign == "/":
             before = contents[0 : special_index].strip()
             after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("divide", 2, []))
+            instructions.append(Invoke("_/", 2, []))
         elif special_sign == "%":
             before = contents[0 : special_index].strip()
             after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("modulo", 2, []))
+            instructions.append(Invoke("_%", 2, []))
         elif special_sign == "==":
             before = contents[0 : special_index].strip()
             after = contents[special_index + 2 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("equal", 2, []))
+            instructions.append(Invoke("_==", 2, []))
         elif special_sign == "!=":
             before = contents[0 : special_index].strip()
             after = contents[special_index + 2 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("not_equal", 2, []))
+            instructions.append(Invoke("_!=", 2, []))
         elif special_sign == "<":
             before = contents[0 : special_index].strip()
             after = contents[special_index + 2 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("less", 2, []))
+            instructions.append(Invoke("_<", 2, []))
         elif special_sign == ">":
             before = contents[0 : special_index].strip()
             after = contents[special_index + 2 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("greater", 2, []))
+            instructions.append(Invoke("_>", 2, []))
         elif "(" in contents and contents.endswith(")"):
             max = 0
             index_thing = -1
@@ -601,26 +601,26 @@ def parse_statement(contents, extra):
     return instructions
     
 internals = [
-    Function("print_size", [], [], ["any", "integer"], "none"),
-    Function("add", [], [], ["any", "any"], "any"),
-    Function("get_8", [], [], ["any"], "integer"),
-    Function("set_8", [], [], ["integer", "any"], "none"),
-    Function("allocate", [], [], ["integer"], "any"),
-    Function("error_size", [], [], ["any", "integer"], "none"),
-    Function("read_size", [], [], ["any", "integer"], "none"),
-    Function("get_1", [], [], ["any"], "integer"),
-    Function("equal", [], [], ["any", "any"], "boolean"),
-    Function("copy", [], [], ["any", "any", "integer"], "none"),
-    Function("greater", [], [], ["integer", "integer"], "boolean"),
-    Function("modulo", [], [], ["integer", "integer"], "integer"),
-    Function("divide", [], [], ["integer", "integer"], "integer"),
-    Function("set_1", [], [], ["integer", "any"], "none"),
-    Function("not", [], [], ["boolean"], "boolean"),
-    Function("multiply", [], [], ["integer", "integer"], "integer"),
-    Function("less", [], [], ["integer", "integer"], "boolean"),
-    Function("exit", [], [], [], "none"),
-    Function("execute", [], [], ["any", "any", "boolean"], "integer"),
-    Function("call_function", [], [], ["any", "any", "integer"], "any")
+    Function("@print_size", [], [], ["any", "integer"], "none"),
+    Function("@add", [], [], ["any", "any"], "any"),
+    Function("@get_8", [], [], ["any"], "integer"),
+    Function("@set_8", [], [], ["integer", "any"], "none"),
+    Function("@allocate", [], [], ["integer"], "any"),
+    Function("@error_size", [], [], ["any", "integer"], "none"),
+    Function("@read_size", [], [], ["any", "integer"], "none"),
+    Function("@get_1", [], [], ["any"], "integer"),
+    Function("@equal", [], [], ["any", "any"], "boolean"),
+    Function("@copy", [], [], ["any", "any", "integer"], "none"),
+    Function("@greater", [], [], ["integer", "integer"], "boolean"),
+    Function("@modulo", [], [], ["integer", "integer"], "integer"),
+    Function("@divide", [], [], ["integer", "integer"], "integer"),
+    Function("@set_1", [], [], ["integer", "any"], "none"),
+    Function("@not", [], [], ["boolean"], "boolean"),
+    Function("@multiply", [], [], ["integer", "integer"], "integer"),
+    Function("@less", [], [], ["integer", "integer"], "boolean"),
+    Function("@exit", [], [], [], "none"),
+    Function("@execute", [], [], ["any", "any", "boolean"], "integer"),
+    Function("@call_function", [], [], ["any", "any", "integer"], "any")
 ]
 
 def process_program(program):
@@ -707,12 +707,6 @@ def process_program(program):
 
                             for i in range(0, instruction.parameter_count):
                                 given_type = types.pop()
-
-                                for function2 in named_functions:
-                                    if not is_type(given_type, function2.parameters[i]):
-                                        named_functions.remove(function2)
-
-                                function2 = named_functions[0]
 
                             instruction.parameters = function2.parameters
                             if not function2.return_ == "none":
@@ -802,6 +796,8 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 named_functions = list(functions[id])
                 function2 = named_functions[0]
 
+                cached_types = []
+
                 i = 0
                 while i < instruction.parameter_count:
                     if len(types) == 0:
@@ -809,20 +805,36 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                         return 1
 
                     given_type = types.pop()
+                    cached_types.append(given_type)
 
                     for function3 in named_functions:
                         if not is_type(given_type, function3.parameters[i]):
                             named_functions.remove(function3)
 
+                    if len(named_functions) == 0:
+                        print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given " + given_type + ".")
+                        return 1
+
                     function2 = named_functions[0]
 
-                    if not is_type(given_type, function2.parameters[i]):
-                        named_functions.remove(function2)
-                        if len(named_functions) == 0:
-                            print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given " + given_type + ".")
-                            return 1
+                    #if not is_type(given_type, function2.parameters[i]):
+                        #named_functions.remove(function2)
+                        #if len(named_functions) == 0:
+                            #print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given " + given_type + ".")
+                            #return 1
                     
                     i += 1
+                    
+                cached_types = cached_types[::-1]
+                    
+                if len(named_functions) > 1:
+                    for i in range(0, instruction.parameter_count):
+                        given_type = cached_types.pop()
+                        for function3 in named_functions:
+                            if not given_type == function3.parameters[i]:
+                                named_functions.remove(function3)
+                                
+                function2 = named_functions[0]
 
                 instruction.parameters = function2.parameters
                 if not function2.return_ == "none":
@@ -881,7 +893,7 @@ def create_linux_binary(program, file_name_base):
     
     asm_program = AsmProgram([], [])
 
-    print_size = AsmFunction("print_size_any~integer", [])
+    print_size = AsmFunction("@print_size_any~integer", [])
     print_size.instructions.append("push rbp")
     print_size.instructions.append("mov rbp, rsp")
     print_size.instructions.append("mov rdx, [rbp+24]")
@@ -894,7 +906,7 @@ def create_linux_binary(program, file_name_base):
     print_size.instructions.append("ret")
     asm_program.functions.append(print_size)
 
-    error_size = AsmFunction("error_size_any~integer", [])
+    error_size = AsmFunction("@error_size_any~integer", [])
     error_size.instructions.append("push rbp")
     error_size.instructions.append("mov rbp, rsp")
     error_size.instructions.append("mov rdx, [rbp+24]")
@@ -916,7 +928,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("mul rdx")
     _start.instructions.append("push rcx")
     _start.instructions.append("push rax")
-    _start.instructions.append("call allocate_integer")
+    _start.instructions.append("call @allocate_integer")
     _start.instructions.append("add rsp, 8")
     _start.instructions.append("pop rcx")
     _start.instructions.append("mov rax, 0")
@@ -960,7 +972,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("syscall")
     asm_program.functions.append(_start)
 
-    add = AsmFunction("add_any~any", [])
+    add = AsmFunction("@add_any~any", [])
     add.instructions.append("push rbp")
     add.instructions.append("mov rbp, rsp")
     add.instructions.append("mov r8, [rbp+16]")
@@ -970,7 +982,7 @@ def create_linux_binary(program, file_name_base):
     add.instructions.append("ret")
     asm_program.functions.append(add)
 
-    multiply = AsmFunction("multiply_integer~integer", [])
+    multiply = AsmFunction("@multiply_integer~integer", [])
     multiply.instructions.append("push rbp")
     multiply.instructions.append("mov rbp, rsp")
     multiply.instructions.append("mov rax, [rbp+16]")
@@ -982,7 +994,7 @@ def create_linux_binary(program, file_name_base):
     multiply.instructions.append("ret")
     asm_program.functions.append(multiply)
 
-    subtract = AsmFunction("subtract_integer~integer", [])
+    subtract = AsmFunction("@subtract_integer~integer", [])
     subtract.instructions.append("push rbp")
     subtract.instructions.append("mov rbp, rsp")
     subtract.instructions.append("mov r8, [rbp+16]")
@@ -992,7 +1004,7 @@ def create_linux_binary(program, file_name_base):
     subtract.instructions.append("ret")
     asm_program.functions.append(subtract)
 
-    divide = AsmFunction("divide_integer~integer", [])
+    divide = AsmFunction("@divide_integer~integer", [])
     divide.instructions.append("push rbp")
     divide.instructions.append("mov rbp, rsp")
     divide.instructions.append("mov rax, [rbp+16]")
@@ -1004,7 +1016,7 @@ def create_linux_binary(program, file_name_base):
     divide.instructions.append("ret")
     asm_program.functions.append(divide)
 
-    modulo = AsmFunction("modulo_integer~integer", [])
+    modulo = AsmFunction("@modulo_integer~integer", [])
     modulo.instructions.append("push rbp")
     modulo.instructions.append("mov rbp, rsp")
     modulo.instructions.append("mov rax, [rbp+16]")
@@ -1016,7 +1028,7 @@ def create_linux_binary(program, file_name_base):
     modulo.instructions.append("ret")
     asm_program.functions.append(modulo)
 
-    allocate = AsmFunction("allocate_integer", [])
+    allocate = AsmFunction("@allocate_integer", [])
     allocate.instructions.append("push rbp")
     allocate.instructions.append("mov rbp, rsp")
     allocate.instructions.append("mov rax, [index]")
@@ -1030,7 +1042,7 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("ret")
     asm_program.functions.append(allocate)
 
-    copy = AsmFunction("copy_any~any~integer", [])
+    copy = AsmFunction("@copy_any~any~integer", [])
     copy.instructions.append("push rbp")
     copy.instructions.append("mov rbp, rsp")
     copy.instructions.append("mov rsi, [rbp+16]")
@@ -1042,7 +1054,7 @@ def create_linux_binary(program, file_name_base):
     copy.instructions.append("ret")
     asm_program.functions.append(copy)
 
-    or_ = AsmFunction("or_boolean~boolean", [])
+    or_ = AsmFunction("@or_boolean~boolean", [])
     or_.instructions.append("push rbp")
     or_.instructions.append("mov rbp, rsp")
     or_.instructions.append("mov r8, [rbp+16]")
@@ -1052,7 +1064,7 @@ def create_linux_binary(program, file_name_base):
     or_.instructions.append("ret")
     asm_program.functions.append(or_)
 
-    and_ = AsmFunction("and_boolean~boolean", [])
+    and_ = AsmFunction("@and_boolean~boolean", [])
     and_.instructions.append("push rbp")
     and_.instructions.append("mov rbp, rsp")
     and_.instructions.append("mov r8, [rbp+16]")
@@ -1062,7 +1074,7 @@ def create_linux_binary(program, file_name_base):
     and_.instructions.append("ret")
     asm_program.functions.append(and_)
 
-    not_ = AsmFunction("not_boolean", [])
+    not_ = AsmFunction("@not_boolean", [])
     not_.instructions.append("push rbp")
     not_.instructions.append("mov rbp, rsp")
     not_.instructions.append("mov r8, [rbp+16]")
@@ -1072,7 +1084,7 @@ def create_linux_binary(program, file_name_base):
     not_.instructions.append("ret")
     asm_program.functions.append(not_)
 
-    equal = AsmFunction("equal_any~any", [])
+    equal = AsmFunction("@equal_any~any", [])
     equal.instructions.append("push rbp")
     equal.instructions.append("mov rbp, rsp")
     equal.instructions.append("mov r8, [rbp+16]")
@@ -1090,7 +1102,7 @@ def create_linux_binary(program, file_name_base):
     equal.instructions.append("ret")
     asm_program.functions.append(equal)
 
-    less = AsmFunction("less_integer~integer", [])
+    less = AsmFunction("@less_integer~integer", [])
     less.instructions.append("push rbp")
     less.instructions.append("mov rbp, rsp")
     less.instructions.append("mov r8, [rbp+16]")
@@ -1108,7 +1120,7 @@ def create_linux_binary(program, file_name_base):
     less.instructions.append("ret")
     asm_program.functions.append(less)
 
-    greater = AsmFunction("greater_integer~integer", [])
+    greater = AsmFunction("@greater_integer~integer", [])
     greater.instructions.append("push rbp")
     greater.instructions.append("mov rbp, rsp")
     greater.instructions.append("mov r8, [rbp+16]")
@@ -1126,7 +1138,7 @@ def create_linux_binary(program, file_name_base):
     greater.instructions.append("ret")
     asm_program.functions.append(greater)
 
-    set_1 = AsmFunction("set_1_integer~any", [])
+    set_1 = AsmFunction("@set_1_integer~any", [])
     set_1.instructions.append("push rbp")
     set_1.instructions.append("mov rbp, rsp")
     set_1.instructions.append("mov r8, [rbp+16]")
@@ -1137,7 +1149,7 @@ def create_linux_binary(program, file_name_base):
     set_1.instructions.append("ret")
     asm_program.functions.append(set_1)
 
-    set_8 = AsmFunction("set_8_integer~any", [])
+    set_8 = AsmFunction("@set_8_integer~any", [])
     set_8.instructions.append("push rbp")
     set_8.instructions.append("mov rbp, rsp")
     set_8.instructions.append("mov r8, [rbp+16]")
@@ -1148,7 +1160,7 @@ def create_linux_binary(program, file_name_base):
     set_8.instructions.append("ret")
     asm_program.functions.append(set_8)
 
-    get = AsmFunction("get_1_any", [])
+    get = AsmFunction("@get_1_any", [])
     get.instructions.append("push rbp")
     get.instructions.append("mov rbp, rsp")
     get.instructions.append("mov r9, [rbp+16]")
@@ -1158,7 +1170,7 @@ def create_linux_binary(program, file_name_base):
     get.instructions.append("ret")
     asm_program.functions.append(get)
 
-    get = AsmFunction("get_8_any", [])
+    get = AsmFunction("@get_8_any", [])
     get.instructions.append("push rbp")
     get.instructions.append("mov rbp, rsp")
     get.instructions.append("mov r9, [rbp+16]")
@@ -1168,7 +1180,7 @@ def create_linux_binary(program, file_name_base):
     get.instructions.append("ret")
     asm_program.functions.append(get)
 
-    read_size = AsmFunction("read_size_any~integer", [])
+    read_size = AsmFunction("@read_size_any~integer", [])
     read_size.instructions.append("push rbp")
     read_size.instructions.append("mov rbp, rsp")
     read_size.instructions.append("mov rdx, [rbp+24]")
@@ -1181,13 +1193,13 @@ def create_linux_binary(program, file_name_base):
     read_size.instructions.append("ret")
     asm_program.functions.append(read_size)
 
-    exit = AsmFunction("exit_", [])
+    exit = AsmFunction("@exit_", [])
     exit.instructions.append("mov rax, 60")
     exit.instructions.append("xor rdi, rdi")
     exit.instructions.append("syscall")
     asm_program.functions.append(exit)
 
-    execute = AsmFunction("execute_any~any~boolean", [])
+    execute = AsmFunction("@execute_any~any~boolean", [])
     execute.instructions.append("push rbp")
     execute.instructions.append("mov rbp, rsp")
     execute.instructions.append("mov rax, 57")
@@ -1217,7 +1229,7 @@ def create_linux_binary(program, file_name_base):
     execute.instructions.append("ret")
     asm_program.functions.append(execute)
 
-    call_function = AsmFunction("call_function_any~any~integer", [])
+    call_function = AsmFunction("@call_function_any~any~integer", [])
     call_function.instructions.append("push rbp")
     call_function.instructions.append("mov rbp, rsp")
     call_function.instructions.append("mov rax, 8")
@@ -1250,10 +1262,21 @@ def create_linux_binary(program, file_name_base):
             asm_program.functions.remove(function)
 
     index_thing = 0
+    
+    def get_asm_name(name):
+        bad = "+=%/*<>!"
+        new_name = ""
+        for letter in name:
+            if letter in bad:
+                new_name += str(ord(letter))
+            else:
+                new_name += letter
+        return new_name
+
 
     for token in program.tokens:
         if isinstance(token, Function):
-            asm_function = AsmFunction("main" if token.name == "main" else token.name + "_" + "~".join(token.parameters), [])
+            asm_function = AsmFunction("main" if token.name == "main" else get_asm_name(token.name) + "_" + "~".join(token.parameters), [])
             
             asm_function.instructions.append("push rbp")
             asm_function.instructions.append("mov rbp, rsp")
@@ -1296,7 +1319,7 @@ def create_linux_binary(program, file_name_base):
 
                         asm_program.data.append(AsmData(name, put_string))
                 elif isinstance(instruction, Invoke):
-                    asm_function.instructions.append("call " + instruction.name + "_" + "~".join(instruction.parameters))
+                    asm_function.instructions.append("call " + get_asm_name(instruction.name) + "_" + "~".join(instruction.parameters))
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
                     asm_function.instructions.append("push r8")
                 elif isinstance(instruction, Assign):
