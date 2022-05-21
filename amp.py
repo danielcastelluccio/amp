@@ -332,8 +332,7 @@ def parse(contents, type, extra):
         return parse_statement(contents, extra)
         
 def parse_statement(contents, extra):
-    #print(contents)
-    contents = contents.lstrip()
+    contents = contents.strip()
     instructions = []
 
     global if_id
@@ -450,6 +449,7 @@ def parse_statement(contents, extra):
     else:
         special_sign = ""
         current_parenthesis = 0
+        last_character = ""
         for character in contents:
             if character == "(":
                 current_parenthesis += 1
@@ -463,8 +463,18 @@ def parse_statement(contents, extra):
                 special_sign = "/"
             elif character == "%" and current_parenthesis == 0:
                 special_sign = "%"
-                
-        if "=" in contents:
+            elif character == "=" and last_character == "=" and current_parenthesis == 0:
+                special_sign = "=="
+            elif character == "=" and last_character == "!" and current_parenthesis == 0:
+                special_sign = "!="
+            elif character == "<" and current_parenthesis == 0:
+                special_sign = "<"
+            elif character == ">" and current_parenthesis == 0:
+                special_sign = ">"
+            
+            last_character = character
+            
+        if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!":
                 name = contents.split(" ")[0]
                 expression = contents[contents.index("=") + 1 : len(contents)]
                 expression = expression.lstrip()
@@ -494,6 +504,30 @@ def parse_statement(contents, extra):
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("modulo", 2, []))
+        elif special_sign == "==":
+            before = contents[0 : contents.index("==")].strip()
+            after = contents[contents.index("==") + 2 : len(contents)].strip()
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("equal", 2, []))
+        elif special_sign == "!=":
+            before = contents[0 : contents.index("!=")].strip()
+            after = contents[contents.index("!=") + 2 : len(contents)].strip()
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("not_equal", 2, []))
+        elif special_sign == "<":
+            before = contents[0 : contents.index("<")].strip()
+            after = contents[contents.index("<") + 2 : len(contents)].strip()
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("less", 2, []))
+        elif special_sign == ">":
+            before = contents[0 : contents.index(">")].strip()
+            after = contents[contents.index(">") + 2 : len(contents)].strip()
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("greater", 2, []))
         elif "(" in contents and contents.endswith(")"):
             max = 0
             index_thing = -1

@@ -34,7 +34,7 @@ fn to_null_terminated_string(string: String): any {
 fn to_null_terminated_array(array: Array): any {
     let new_array = Array.new(array.length());
     let i = 0;
-    while (less(i, new_array.length())) {
+    while (i < new_array.length()) {
         new_array.set(i, to_null_terminated_string(String(array.get(i))));
         i = i + 1;
     };
@@ -46,7 +46,7 @@ fn length(string: any): integer {
     let i = 0;
 
     while (true) {
-        if (equal(get_1(location), 0)) {
+        if (get_1(location) == 0) {
             return i;
         };
         location = String(add(location, 1));
@@ -67,11 +67,11 @@ fn concatenate(string1: String, string2: String): String {
 
 fn integer_to_string(integer: integer): String {
     let string = "";
-    if (equal(integer, 0)) {
+    if (integer == 0) {
         string = "0";
     };
 
-    while (greater(integer, 0)) {
+    while (integer > 0) {
         let modulo = integer % 10;
         integer = integer / 10;
         string = concatenate(String.new(store(modulo + 48)), string);
@@ -80,7 +80,7 @@ fn integer_to_string(integer: integer): String {
 };
 
 fn boolean_to_string(boolean: boolean): String {
-    if (equal(boolean, 1)) {
+    if (boolean == 1) {
         return "true";
     };
     return "false";
@@ -131,13 +131,13 @@ fn String.new(pointer: any): String {
 };
 
 fn String.equal(string1: String, string2: String) {
-    if (not_equal(string1.length(), string2.length())) {
+    if (string1.length() != string2.length()) {
         return false;
     };
 
     let i = 0;
-    while (less(i, string1.length())) {
-        if (not_equal(get_1(string1.pointer() + i), get_1(string2.pointer() + i))) {
+    while (i < string1.length()) {
+        if (get_1(string1.pointer() + i) != get_1(string2.pointer() + i)) {
             return false;
         };
 
@@ -161,7 +161,7 @@ fn LinkedList.new(): LinkedList {
 
 fn LinkedList.append(linked_list: LinkedList, data: any) {
     let node = linked_list.head();
-    while (not_equal(node.next(), null())) {
+    while (node.next() != null()) {
         node = node.next();
     };
 
@@ -173,7 +173,7 @@ fn LinkedList.insert(linked_list: LinkedList, index: integer, data: any) {
     let node = linked_list.head();
 
     let i: integer = 0;
-    while (less(i, index)) {
+    while (i < index) {
         node = node.next();
         i = i + 1;
     };
@@ -187,7 +187,7 @@ fn LinkedList.remove(linked_list: LinkedList, index: integer) {
     let node = linked_list.head();
 
     let i: integer = 0;
-    while (less(i, index)) {
+    while (i < index) {
         node = node.next();
         i = i + 1;
     };
@@ -200,7 +200,7 @@ fn LinkedList.get(linked_list: LinkedList, index: integer): any {
     let node = linked_list.head();
     let i: integer = 0;
 
-    while (less(i, index + 1)) {
+    while (i < (index + 1)) {
         node = node.next();
         i = i + 1;
     };
@@ -212,7 +212,7 @@ fn LinkedList.size(linked_list: LinkedList): integer {
     let node = linked_list.head();
     let i = 0;
 
-    while (not_equal(node.next(), null())) {
+    while (node.next() != null()) {
         node = node.next();
         i = i + 1;
     };
@@ -226,7 +226,7 @@ fn LinkedList.to_array(linked_list: LinkedList): Array {
     let i = 0;
     let node = linked_list.head().next();
 
-    while (less(i, size)) {
+    while (i < size) {
         array.set(i, node.data());
         i = i + 1;
         node = node.next();

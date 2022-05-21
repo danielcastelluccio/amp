@@ -1,6 +1,7 @@
 use "std.amp";
 
 fn main() {
-    let test = 4 / 1;
-    println(integer_to_string(test));
+    if (true == true) {
+        println("test");
+    };
 };
