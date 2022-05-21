@@ -269,6 +269,7 @@ def parse(contents, type, extra):
 
         for item in items:
             instructions.append(Constant(8 * items_list.index(item)))
+            instructions.append(Invoke("any", 1, []))
             instructions.append(Retrieve("instance", None))
             instructions.append(Invoke("add", 2, []))
             instructions.append(Retrieve(item, None))
@@ -448,29 +449,38 @@ def parse_statement(contents, extra):
         instructions.append(EndWhile(id1, id2))
     else:
         special_sign = ""
+        special_index = -1
         current_parenthesis = 0
         last_character = ""
-        for character in contents:
+        for index, character in enumerate(contents):
             if character == "(":
                 current_parenthesis += 1
             elif character == ")":
                 current_parenthesis -= 1
             elif character == "+" and current_parenthesis == 0:
                 special_sign = "+"
+                special_index = index
             elif character == "*" and current_parenthesis == 0:
                 special_sign = "*"
+                special_index = index
             elif character == "/" and current_parenthesis == 0:
                 special_sign = "/"
+                special_index = index
             elif character == "%" and current_parenthesis == 0:
                 special_sign = "%"
+                special_index = index
             elif character == "=" and last_character == "=" and current_parenthesis == 0:
                 special_sign = "=="
+                special_index = index - 1
             elif character == "=" and last_character == "!" and current_parenthesis == 0:
                 special_sign = "!="
+                special_index = index - 1
             elif character == "<" and current_parenthesis == 0:
                 special_sign = "<"
+                special_index = index
             elif character == ">" and current_parenthesis == 0:
                 special_sign = ">"
+                special_index = index
             
             last_character = character
             
@@ -481,50 +491,50 @@ def parse_statement(contents, extra):
                 instructions.extend(parse_statement(expression, extra + instructions))
                 instructions.append(Assign(name))
         elif special_sign == "+":
-            before = contents[0 : contents.index("+")].strip()
-            after = contents[contents.index("+") + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(before, extra + instructions))
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("add", 2, []))
         elif special_sign == "*":
-            before = contents[0 : contents.index("*")].strip()
-            after = contents[contents.index("*") + 1 : len(contents)].strip()
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.append(Invoke("multiply", 2, []))
         elif special_sign == "/":
-            before = contents[0 : contents.index("/")].strip()
-            after = contents[contents.index("/") + 1 : len(contents)].strip()
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("divide", 2, []))
         elif special_sign == "%":
-            before = contents[0 : contents.index("%")].strip()
-            after = contents[contents.index("%") + 1 : len(contents)].strip()
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("modulo", 2, []))
         elif special_sign == "==":
-            before = contents[0 : contents.index("==")].strip()
-            after = contents[contents.index("==") + 2 : len(contents)].strip()
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 2 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("equal", 2, []))
         elif special_sign == "!=":
-            before = contents[0 : contents.index("!=")].strip()
-            after = contents[contents.index("!=") + 2 : len(contents)].strip()
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 2 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("not_equal", 2, []))
         elif special_sign == "<":
-            before = contents[0 : contents.index("<")].strip()
-            after = contents[contents.index("<") + 2 : len(contents)].strip()
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 2 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("less", 2, []))
         elif special_sign == ">":
-            before = contents[0 : contents.index(">")].strip()
-            after = contents[contents.index(">") + 2 : len(contents)].strip()
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 2 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("greater", 2, []))
@@ -614,6 +624,8 @@ internals = [
 ]
 
 def process_program(program):
+    return_value = 0
+    
     functions = {}
     functions2 = {}
     program_types = ["integer", "boolean", "any"]
@@ -711,16 +723,19 @@ def process_program(program):
     # type checking
     for token in program.tokens:
         if isinstance(token, Function):
-            type_check(token, token.tokens, program_types, functions, functions2, True)
+            if type_check(token, token.tokens, program_types, functions, functions2, True) == 1:
+                return_value = 1
 
     for function in list(program.tokens):
         if isinstance(function, Function):
             if not is_used(function, program.tokens):
                 program.tokens.remove(function)
 
-    return 0
+    return return_value
 
 def type_check(function, instructions, program_types, functions, functions2, alter):
+    return_value = 0
+
     types = []
     variables = {}
     for instruction in list(instructions):
@@ -787,7 +802,8 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 named_functions = list(functions[id])
                 function2 = named_functions[0]
 
-                for i in range(0, instruction.parameter_count):
+                i = 0
+                while i < instruction.parameter_count:
                     if len(types) == 0:
                         print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function.parameters[i] + " as a parameter, given nothing.")
                         return 1
@@ -801,8 +817,12 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                     function2 = named_functions[0]
 
                     if not is_type(given_type, function2.parameters[i]):
-                        print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given " + given_type + ".")
-                        return 1
+                        named_functions.remove(function2)
+                        if len(named_functions) == 0:
+                            print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given " + given_type + ".")
+                            return 1
+                    
+                    i += 1
 
                 instruction.parameters = function2.parameters
                 if not function2.return_ == "none":

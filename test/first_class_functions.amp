@@ -16,9 +16,9 @@ fn main() {
 };
 
 fn test(test: String) {
-    return concatenate("Hello from test function! Main function says: ", test);
+    return "Hello from test function! Main function says: " + test;
 };
 
 fn test2(test: String) {
-    return concatenate("Hello from test2 function! Main function says: ", test);
+    return "Hello from test3 function! Main function says: " + test;
 };

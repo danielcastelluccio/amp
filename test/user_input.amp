@@ -3,5 +3,5 @@ use "std.amp";
 fn main() {
     print("Hello, what is your name? ");
     let string = read();
-    print(concatenate("Hello ", string));
+    print("Hello " + string);
 };

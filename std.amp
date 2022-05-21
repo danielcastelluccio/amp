@@ -28,7 +28,7 @@ fn execute_command(file: String, arguments: Array, wait: boolean) {
 };
 
 fn to_null_terminated_string(string: String): any {
-    return concatenate(string, "\0").pointer();
+    return (string + "\0").pointer();
 };
 
 fn to_null_terminated_array(array: Array): any {
@@ -49,14 +49,14 @@ fn length(string: any): integer {
         if (get_1(location) == 0) {
             return i;
         };
-        location = String(add(location, 1));
+        location = location + 1;
         i = i + 1;
     };
 
     return 999;
 };
 
-fn concatenate(string1: String, string2: String): String {
+fn add(string1: String, string2: String): String {
     let string1_length = string1.length();
     let string2_length = string2.length();
     let new_memory = allocate(string1_length + string2_length);
@@ -74,7 +74,7 @@ fn integer_to_string(integer: integer): String {
     while (integer > 0) {
         let modulo = integer % 10;
         integer = integer / 10;
-        string = concatenate(String.new(store(modulo + 48)), string);
+        string = String.new(store(modulo + 48)) + string;
     };
     return string;
 };

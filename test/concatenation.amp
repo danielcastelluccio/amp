@@ -4,7 +4,7 @@ fn main() {
     let string = "";
 
     while (less(string.length(), 4)) {
-        string = concatenate(string, "a");
+        string = string + "a";
         println(string);
     };
 };

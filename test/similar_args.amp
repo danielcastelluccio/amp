@@ -6,9 +6,9 @@ fn main() {
 };
 
 fn test1(value: integer) {
-    println(concatenate("Printing integer: ", integer_to_string(value)));
+    println("Printing integer: " + integer_to_string(value));
 };
 
 fn test1(value: boolean) {
-    println(concatenate("Printing boolean: ", boolean_to_string(value)));
+    println("Printing boolean: " + boolean_to_string(value));
 };
