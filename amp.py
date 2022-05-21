@@ -332,6 +332,7 @@ def parse(contents, type, extra):
         return parse_statement(contents, extra)
         
 def parse_statement(contents, extra):
+    #print(contents)
     contents = contents.lstrip()
     instructions = []
 
@@ -340,7 +341,6 @@ def parse_statement(contents, extra):
     if contents.startswith("let "):
         name = contents.split(" ")[1].replace(":", "")
         type_ = contents.split(" ")[2] if ":" in contents else ""
-        #print(name)
         instructions.append(Declare(name, type_))
 
         if contents.find("=") != -1:
@@ -353,7 +353,7 @@ def parse_statement(contents, extra):
         if return_value_statement:
             instructions.extend(parse_statement(return_value_statement, extra + instructions))
         instructions.append(Return(return_value_statement))
-    elif contents[0].isnumeric() or contents[0] == "-":
+    elif contents.isnumeric():
         instructions.append(Constant(int(contents)))
     elif contents == "true" or contents == "false":
         instructions.append(Constant(contents == "true"))
@@ -448,13 +448,53 @@ def parse_statement(contents, extra):
 
         instructions.append(EndWhile(id1, id2))
     else:
+        special_sign = ""
+        current_parenthesis = 0
+        for character in contents:
+            if character == "(":
+                current_parenthesis += 1
+            elif character == ")":
+                current_parenthesis -= 1
+            elif character == "+" and current_parenthesis == 0:
+                special_sign = "+"
+            elif character == "*" and current_parenthesis == 0:
+                special_sign = "*"
+            elif character == "/" and current_parenthesis == 0:
+                special_sign = "/"
+            elif character == "%" and current_parenthesis == 0:
+                special_sign = "%"
+                
         if "=" in contents:
                 name = contents.split(" ")[0]
                 expression = contents[contents.index("=") + 1 : len(contents)]
                 expression = expression.lstrip()
                 instructions.extend(parse_statement(expression, extra + instructions))
                 instructions.append(Assign(name))
-        elif "(" in contents:
+        elif special_sign == "+":
+            before = contents[0 : contents.index("+")].strip()
+            after = contents[contents.index("+") + 1 : len(contents)].strip()
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.append(Invoke("add", 2, []))
+        elif special_sign == "*":
+            before = contents[0 : contents.index("*")].strip()
+            after = contents[contents.index("*") + 1 : len(contents)].strip()
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.append(Invoke("multiply", 2, []))
+        elif special_sign == "/":
+            before = contents[0 : contents.index("/")].strip()
+            after = contents[contents.index("/") + 1 : len(contents)].strip()
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("divide", 2, []))
+        elif special_sign == "%":
+            before = contents[0 : contents.index("%")].strip()
+            after = contents[contents.index("%") + 1 : len(contents)].strip()
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("modulo", 2, []))
+        elif "(" in contents and contents.endswith(")"):
             max = 0
             index_thing = -1
             for index, character in enumerate(contents):
@@ -467,47 +507,50 @@ def parse_statement(contents, extra):
                     
             
             name = contents[0 : index_thing]
-                
-            arguments_array = []
-            arguments = contents[len(name) + 1 : len(contents) - 1]
+            
+            if name:
+                arguments_array = []
+                arguments = contents[len(name) + 1 : len(contents) - 1]
 
-            current_argument = ""
-            current_parenthesis = 0
-            in_quotations = False
-            for character in arguments:
-                if character == "," and current_parenthesis == 0 and not in_quotations:
+                current_argument = ""
+                current_parenthesis = 0
+                in_quotations = False
+                for character in arguments:
+                    if character == "," and current_parenthesis == 0 and not in_quotations:
+                        arguments_array.append(current_argument)
+                        current_argument = ""
+                    elif character == "\"":
+                        in_quotations = not in_quotations
+                    elif character == "(":
+                        current_parenthesis += 1
+                    elif character == ")":
+                        current_parenthesis -= 1
+
+                    if (not character == " " and not character == ",") or (not current_parenthesis == 0) or (in_quotations):
+                        current_argument += character
+
+                if arguments:
                     arguments_array.append(current_argument)
-                    current_argument = ""
-                elif character == "\"":
-                    in_quotations = not in_quotations
-                elif character == "(":
-                    current_parenthesis += 1
-                elif character == ")":
-                    current_parenthesis -= 1
+                
+                for parameter in arguments_array[::-1]:
+                    if parameter:
+                        instructions.extend(parse_statement(parameter, extra + instructions))
+                
+                if "." in name:
+                    parsed = parse_statement(name[0 : name.rindex(".")], extra + instructions)
+                    if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
+                        for instruction in (extra + instructions):
+                            if isinstance(instruction, Declare):
+                                if instruction.name == parsed[0].name:
+                                    instructions.extend(parsed)
+                                    name = "_." + name[name.rindex(".") + 1 : len(name)]
+                    else:
+                        instructions.extend(parsed)
+                        name = "_." + name[name.rindex(".") + 1 : len(name)]
 
-                if (not character == " " and not character == ",") or (not current_parenthesis == 0) or (in_quotations):
-                    current_argument += character
-
-            if arguments:
-                arguments_array.append(current_argument)
-            
-            for parameter in arguments_array[::-1]:
-                if parameter:
-                    instructions.extend(parse_statement(parameter, extra + instructions))
-            
-            if "." in name:
-                parsed = parse_statement(name[0 : name.rindex(".")], extra + instructions)
-                if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
-                    for instruction in (extra + instructions):
-                        if isinstance(instruction, Declare):
-                            if instruction.name == parsed[0].name:
-                                instructions.extend(parsed)
-                                name = "_." + name[name.rindex(".") + 1 : len(name)]
-                else:
-                    instructions.extend(parsed)
-                    name = "_." + name[name.rindex(".") + 1 : len(name)]
-
-            instructions.append(Invoke(name, len(arguments_array), []))
+                instructions.append(Invoke(name, len(arguments_array), []))
+            else:
+                instructions.extend(parse_statement(contents[1 : len(contents) - 1], extra +  instructions))
         else:
             instructions.append(Retrieve(contents, None))
         

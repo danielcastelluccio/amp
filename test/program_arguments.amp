@@ -5,6 +5,6 @@ fn main(arguments: Array) {
     while (less(i, arguments.length())) {
         let argument = String(arguments.get(i));
         println(concatenate(argument, concatenate(", size: ", integer_to_string(argument.length()))));
-        i = integer(add(i, 1));
+        i = i + 1;
     };
 };

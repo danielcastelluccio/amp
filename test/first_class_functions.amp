@@ -11,7 +11,7 @@ fn main() {
     let i = 0;
     while (less(i, functions.length())) {
         println(String(Function(functions.get(i)).call(parameters)));
-        i = integer(add(i, 1));
+        i = i + 1;
     };
 };
 

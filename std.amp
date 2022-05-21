@@ -36,7 +36,7 @@ fn to_null_terminated_array(array: Array): any {
     let i = 0;
     while (less(i, new_array.length())) {
         new_array.set(i, to_null_terminated_string(String(array.get(i))));
-        i = integer(add(i, 1));
+        i = i + 1;
     };
     return new_array.pointer();
 };
@@ -50,19 +50,19 @@ fn length(string: any): integer {
             return i;
         };
         location = String(add(location, 1));
-        i = integer(add(i, 1));
+        i = i + 1;
     };
 
-    return -1;
+    return 999;
 };
 
 fn concatenate(string1: String, string2: String): String {
     let string1_length = string1.length();
     let string2_length = string2.length();
-    let new_memory = allocate(integer(add(string1_length, string2_length)));
+    let new_memory = allocate(string1_length + string2_length);
     copy(string1.pointer(), new_memory, string1_length);
-    copy(string2.pointer(), add(new_memory, string1_length), string2_length);
-    return String.new(new_memory, integer(add(string1_length, string2_length)));
+    copy(string2.pointer(), new_memory + string1_length, string2_length);
+    return String.new(new_memory, string1_length + string2_length);
 };
 
 fn integer_to_string(integer: integer): String {
@@ -72,9 +72,9 @@ fn integer_to_string(integer: integer): String {
     };
 
     while (greater(integer, 0)) {
-        let modulo = modulo(integer, 10);
-        integer = divide(integer, 10);
-        string = concatenate(String.new(store(integer(add(modulo, 48)))), string);
+        let modulo = integer % 10;
+        integer = integer / 10;
+        string = concatenate(String.new(store(modulo + 48)), string);
     };
     return string;
 };
@@ -102,15 +102,15 @@ struct Array {
 };
 
 fn Array.new(size: integer): Array {
-    return Array.new(allocate(multiply(integer(add(1, size)), 8)), size);
+    return Array.new(allocate((1 + size) * 8), size);
 };
 
 fn Array.set(array: Array, index: integer, value: any) {
-    set_8(integer(value), integer(add(array.pointer(), multiply(index, 8))));
+    set_8(integer(value), array.pointer() + (index * 8));
 };
 
 fn Array.get(array: Array, index: integer): any {
-    return get_8(add(array.pointer(), multiply(index, 8)));
+    return get_8(array.pointer() + (index * 8));
 };
 
 struct Function {
@@ -137,11 +137,11 @@ fn String.equal(string1: String, string2: String) {
 
     let i = 0;
     while (less(i, string1.length())) {
-        if (not_equal(get_1(add(string1.pointer(), i)), get_1(add(string2.pointer(), i)))) {
+        if (not_equal(get_1(string1.pointer() + i), get_1(string2.pointer() + i))) {
             return false;
         };
 
-        i = integer(add(i, 1));
+        i = i + 1;
     };
 
     return true;
@@ -175,7 +175,7 @@ fn LinkedList.insert(linked_list: LinkedList, index: integer, data: any) {
     let i: integer = 0;
     while (less(i, index)) {
         node = node.next();
-        i = integer(add(i, 1));
+        i = i + 1;
     };
 
     let temp_next = node.next();
@@ -189,7 +189,7 @@ fn LinkedList.remove(linked_list: LinkedList, index: integer) {
     let i: integer = 0;
     while (less(i, index)) {
         node = node.next();
-        i = integer(add(i, 1));
+        i = i + 1;
     };
 
     let temp_next_next = node.next().next();
@@ -200,9 +200,9 @@ fn LinkedList.get(linked_list: LinkedList, index: integer): any {
     let node = linked_list.head();
     let i: integer = 0;
 
-    while (less(i, integer(add(index, 1)))) {
+    while (less(i, index + 1)) {
         node = node.next();
-        i = integer(add(i, 1));
+        i = i + 1;
     };
 
     return node.data();
@@ -214,7 +214,7 @@ fn LinkedList.size(linked_list: LinkedList): integer {
 
     while (not_equal(node.next(), null())) {
         node = node.next();
-        i = integer(add(i, 1));
+        i = i + 1;
     };
 
     return i;
@@ -228,7 +228,7 @@ fn LinkedList.to_array(linked_list: LinkedList): Array {
 
     while (less(i, size)) {
         array.set(i, node.data());
-        i = integer(add(i, 1));
+        i = i + 1;
         node = node.next();
     };
 
@@ -254,4 +254,8 @@ fn Option.of(data: any): Option {
 
 fn Option.is_value(option: Option): boolean {
     return not_equal(option.data(), null());
+};
+
+fn add(value1: integer, value2: integer): integer {
+    return integer(add(any(value1), any(value2)));
 };
