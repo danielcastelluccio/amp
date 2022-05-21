@@ -9,9 +9,8 @@ fn main() {
     functions.set(1, test2);
 
     let i = 0;
-    while (less(i, Array.length(functions))) {
-        let function = Function(Array.get(functions, i));
-        println(String(function.call(parameters)));
+    while (less(i, functions.length())) {
+        println(String(Function(functions.get(i)).call(parameters)));
         i = integer(add(i, 1));
     };
 };
