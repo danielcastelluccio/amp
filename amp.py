@@ -356,7 +356,7 @@ def parse_statement(contents, extra):
         instructions.append(Constant(int(contents)))
     elif contents == "true" or contents == "false":
         instructions.append(Constant(contents == "true"))
-    elif contents.startswith("\""):
+    elif contents.startswith("\"") and contents.endswith("\"") and contents.count("\"") == 2:
         instructions.append(Constant(contents[1 : len(contents) - 1]))
     elif contents.startswith("if"):
         instructions.extend(parse_statement(contents[contents.index("(") + 1 : contents[0 : contents.index("{")].rindex(")")], extra + instructions))

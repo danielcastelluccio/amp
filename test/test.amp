@@ -1,7 +1,0 @@
-use "std.amp";
-
-fn main() {
-    if (true == true) {
-        println("test");
-    };
-};

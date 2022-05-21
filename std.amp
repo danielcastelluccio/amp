@@ -130,7 +130,7 @@ fn String.new(pointer: any): String {
     return String.new(pointer, length(pointer));
 };
 
-fn String.equal(string1: String, string2: String) {
+fn equal(string1: String, string2: String): boolean {
     if (string1.length() != string2.length()) {
         return false;
     };

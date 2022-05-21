@@ -1,0 +1,9 @@
+use "std.amp";
+
+fn main() {
+    if ("test" == "test") {
+        println("equal");
+    } else {
+        println("not equal");
+    };
+};
