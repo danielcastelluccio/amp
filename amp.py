@@ -632,8 +632,25 @@ def process_program(program):
                         if not is_type(given_type, token.return_):
                             print("PROCESS: Return in " + token.name + " expects " + token.return_ + ", given " + given_type + ".")
                             return 1
+                        
+    for function in list(program.tokens):
+        if isinstance(function, Function):
+            if not is_used(function, program.tokens):
+                program.tokens.remove(function)
 
     return 0
+
+def is_used(function, functions):
+    if function.name == "main" or (function.name == "String.new" and function.parameters[0] == "any") and (function.name == "Array.new" and function.parameters[0] == "any" and function.parameters[1] == "integer"):
+        return True
+
+    for other_function in functions:
+        if isinstance(other_function, Function) and not other_function.name == function.name:
+            for instruction in other_function.tokens:
+                if isinstance(instruction, Invoke) and instruction.name == function.name and (other_function.name == "main" or is_used(other_function, functions)):
+                    return True
+        
+    return False
 
 def is_type(given, wanted):
     if wanted == "any":
@@ -1016,6 +1033,17 @@ def create_linux_binary(program, file_name_base):
     call_function.instructions.append("pop rbp")
     call_function.instructions.append("ret")
     asm_program.functions.append(call_function)
+    
+    functions = ["_start"]
+    for token in program.tokens:
+        if isinstance(token, Function):
+            for instruction in token.tokens:
+                if isinstance(instruction, Invoke):
+                    functions.append(instruction.name + "_" + "~".join(instruction.parameters))
+                    
+    for function in list(asm_program.functions):
+        if not function.name in functions:
+            asm_program.functions.remove(function)
 
     index_thing = 0
 
