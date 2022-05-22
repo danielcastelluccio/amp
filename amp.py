@@ -484,6 +484,9 @@ def parse_statement(contents, extra):
             
             last_character = character
             
+            if special_index != -1:
+                break
+            
         if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!":
                 name = contents.split(" ")[0]
                 expression = contents[contents.index("=") + 1 : len(contents)]
@@ -831,7 +834,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                     for i in range(0, instruction.parameter_count):
                         given_type = cached_types.pop()
                         for function3 in named_functions:
-                            if not given_type == function3.parameters[i]:
+                            if not given_type == function3.parameters[i] and len(named_functions) > 1:
                                 named_functions.remove(function3)
                                 
                 function2 = named_functions[0]

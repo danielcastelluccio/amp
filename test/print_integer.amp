@@ -1,5 +1,9 @@
 use "std.amp";
 
 fn main() {
-    println(integer_to_string(34 + 35));
+    println("a" + 35 + 34);
+};
+
+fn _+(value1: String, value2: integer): String {
+    return value1 + integer_to_string(value2);
 };
