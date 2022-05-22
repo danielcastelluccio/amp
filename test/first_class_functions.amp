@@ -15,10 +15,10 @@ fn main() {
     };
 };
 
-fn test(test: String) {
+fn test(test: String): String {
     return "Hello from test function! Main function says: " + test;
 };
 
-fn test2(test: String) {
+fn test2(test: String): String {
     return "Hello from test2 function! Main function says: " + test;
 };

@@ -1,0 +1,11 @@
+use "std.amp";
+
+fn main() {
+    let i = 0;
+    while (true) {
+        let thing = integer_to_string(i);
+        println(thing);
+        @free(thing, 16);
+        i = i + 1;
+    };
+};

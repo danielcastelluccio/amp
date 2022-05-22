@@ -623,7 +623,7 @@ internals = [
     Function("@multiply", [], [], ["integer", "integer"], "integer"),
     Function("@less", [], [], ["integer", "integer"], "boolean"),
     Function("@exit", [], [], [], "none"),
-    Function("@execute", [], [], ["any", "any", "boolean"], "integer"),
+    Function("@execute", [], [], ["any", "any", "boolean"], "none"),
     Function("@call_function", [], [], ["any", "any", "integer"], "any")
 ]
 
@@ -646,7 +646,6 @@ def process_program(program):
                         matches = False
                 
                 if matches:
-                    print(str(token.parameters) + " " + str(other_function.parameters))
                     print("PROCESS: " + token.name + " has duplicate definitions.")
                     return 1
 
@@ -854,6 +853,10 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 if not is_type(given_type, function.return_):
                     print("PROCESS: Return in " + function.name + " expects " + function.return_ + ", given " + given_type + ".")
                     return 1
+
+            if not len(types) == 0:
+                print("PROCESS: Return in " + function.name + " has data in stack.")
+                return 1
                 
     if len(types) > 0:
         return types.pop()
@@ -928,7 +931,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("push rbp")
     _start.instructions.append("mov rbp, rsp")
     _start.instructions.append("mov qword [memory], 8")
-    _start.instructions.append("mov qword [memory+16], 16360")
+    _start.instructions.append("mov qword [memory+16], 16376")
     _start.instructions.append("mov rax, [rbp+8]")
     _start.instructions.append("mov rcx, rax")
     _start.instructions.append("mov rdx, 8")
@@ -1060,35 +1063,76 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("allocate_mark:") # used for jumping back if the memory block is not big enough
     allocate.instructions.append("mov rax, memory")
     allocate.instructions.append("add rax, rcx") # now rax stores beginning of new free memory
+
     allocate.instructions.append("mov r11, [rax+8]") # r11 stores the size of the free memory block
+
+    allocate.instructions.append("push rbx")
+    allocate.instructions.append("push rcx")
+    allocate.instructions.append("push r9")
+    allocate.instructions.append("push rax")
+    allocate.instructions.append("push r11")
+    allocate.instructions.append("mov rdi, rbx")
+    #allocate.instructions.append("call print_integer")
+    allocate.instructions.append("pop r11")
+    allocate.instructions.append("pop rax")
+    allocate.instructions.append("pop r9")
+    allocate.instructions.append("pop rcx")
+    allocate.instructions.append("pop rbx")
+
+    allocate.instructions.append("push rbx")
+    allocate.instructions.append("push rcx")
+    allocate.instructions.append("push r9")
+    allocate.instructions.append("push rax")
+    allocate.instructions.append("push r11")
+    allocate.instructions.append("mov rdi, r11")
+    #allocate.instructions.append("call print_integer")
+    allocate.instructions.append("pop r11")
+    allocate.instructions.append("pop rax")
+    allocate.instructions.append("pop r9")
+    allocate.instructions.append("pop rcx")
+    allocate.instructions.append("pop rbx")
+
     allocate.instructions.append("cmp rbx, r11")
-    allocate.instructions.append("jle allocate_done") # now rax stores location where the length of free mem stored
+    allocate.instructions.append("jle allocate_done")
     allocate.instructions.append("mov r9, rcx") # r9 stores the previous location used
     allocate.instructions.append("mov rcx, [rax]")
     allocate.instructions.append("jmp allocate_mark")
     allocate.instructions.append("allocate_done:")
     allocate.instructions.append("mov r10, rcx") # rcx = location
+    #allocate.instructions.append("sub rbx, 16") # the 16 bytes were just for a buffer anyways
     allocate.instructions.append("add r10, rbx") # rbx = size, r10 = location + size
-    allocate.instructions.append("sub rbx, 16") # the 16 bytes were just for a buffer anyways
     allocate.instructions.append("add r9, memory")
+    allocate.instructions.append("sub r11, rbx") # r11 now with new length
+    allocate.instructions.append("cmp r11, 16")
+    allocate.instructions.append("jge not_zero")
+
+    allocate.instructions.append("mov rdi, [rax]")
+    allocate.instructions.append("mov [r9], rdi") # store next in previous location's next
+
+    allocate.instructions.append("jmp done")
+    allocate.instructions.append("not_zero:")
+
     allocate.instructions.append("mov [r9], r10") # store location + size in the previous location's next
     allocate.instructions.append("add r10, memory")
     allocate.instructions.append("mov r9, [rax]")
     allocate.instructions.append("mov qword [r10], r9") # store at location + size = the next location
-    allocate.instructions.append("add rbx, 16") # add the bytes back for length calculations
-    allocate.instructions.append("sub r11, rbx") # r11 now with new length
-    allocate.instructions.append("mov [r10+8], r11") # store next length in location + size + 8
+    allocate.instructions.append("mov [r10+8], r11") # store length in location + size + 8
+
+    allocate.instructions.append("done:")
+    
+    #allocate.instructions.append("add rbx, 16") # add the bytes back for length calculations
+    
     allocate.instructions.append("mov r8, rcx") # move the index of the memory into r8
     allocate.instructions.append("add r8, memory") # make the value an actually relevant memory value
-    allocate.instructions.append("sub rbx, 16") # add the bytes back for length calculations
+    allocate.instructions.append("sub rbx, 16")
     allocate.instructions.append("mov rcx, 0")
     allocate.instructions.append("allocate_zero:")
     allocate.instructions.append("cmp rcx, rbx")
-    allocate.instructions.append("jge allocate_zero_done")
+    allocate.instructions.append("je allocate_zero_done")
     allocate.instructions.append("mov r9, r8")
     allocate.instructions.append("add r9, rcx")
-    allocate.instructions.append("mov qword [r9], 0")
-    allocate.instructions.append("add rcx, 8")
+    allocate.instructions.append("mov byte [r9], 0")
+    allocate.instructions.append("add rcx, 1")
     allocate.instructions.append("jmp allocate_zero")
     allocate.instructions.append("allocate_zero_done:")
     allocate.instructions.append("mov rsp, rbp")
@@ -1096,7 +1140,7 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("ret")
     asm_program.functions.append(allocate)
 
-    # TODO: automatically detect adjacent sections of free memory and combine to create a larger memory chunk (ex: | 8 bytes | 8 bytes | -> | 16 bytes|)
+    # TODO: automatically detect adjacent sections of free memory and combine to create a larger memory chunk (ex: | 8 bytes | 8 bytes | -> | 16 bytes |)
     free = AsmFunction("@free_any~integer", [])
     free.instructions.append("push rbp")
     free.instructions.append("mov rbp, rsp")
@@ -1105,9 +1149,10 @@ def create_linux_binary(program, file_name_base):
     free.instructions.append("mov [rax], rcx") # now we store the head as our next memory slot
     free.instructions.append("mov rbx, [rbp+24]") # length
     free.instructions.append("add rbx, 16")
-    free.instructions.append("mov [rax+8], rbx") # storing length of free space
+    free.instructions.append("mov [rax+8], rbx") # storing length of free space (including the 16 bytes for data storage)
     free.instructions.append("sub rax, memory")
     free.instructions.append("mov [memory], rax") # set new head to our location
+
     free.instructions.append("mov rsp, rbp")
     free.instructions.append("pop rbp")
     free.instructions.append("ret")
@@ -1469,10 +1514,46 @@ def create_linux_binary(program, file_name_base):
 
             stack_index_max = max(stack_index, stack_index_max)
 
-        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8))
+        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8 + 16))
     
         for instruction in function.instructions:
             file.write("   " + instruction + "\n")
+            
+    file.write("""
+    print_integer:
+    mov     r9, -3689348814741910323
+    sub     rsp, 40
+    mov     BYTE [rsp+31], 10
+    lea     rcx, [rsp+30]
+.L2:
+    mov     rax, rdi
+    lea     r8, [rsp+32]
+    mul     r9
+    mov     rax, rdi
+    sub     r8, rcx
+    shr     rdx, 3
+    lea     rsi, [rdx+rdx*4]
+    add     rsi, rsi
+    sub     rax, rsi
+    add     eax, 48
+    mov     BYTE [rcx], al
+    mov     rax, rdi
+    mov     rdi, rdx
+    mov     rdx, rcx
+    sub     rcx, 1
+    cmp     rax, 9
+    ja      .L2
+    lea     rax, [rsp+32]
+    mov     edi, 1
+    sub     rdx, rax
+    xor     eax, eax
+    lea     rsi, [rsp+32+rdx]
+    mov     rdx, r8
+    mov     rax, 1
+    syscall
+    add     rsp, 40
+    ret
+    """)
 
     file.write(inspect.cleandoc("""
         section .data
@@ -1485,7 +1566,6 @@ def create_linux_binary(program, file_name_base):
     file.write(inspect.cleandoc("""
         section .bss
         memory: resb 16384
-        index: resb 8
     """))
 
     file.close()

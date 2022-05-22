@@ -8,4 +8,5 @@ fn main() {
     let test2 = "test2";
     //println(integer_to_string(@cast_integer(test2)));
     println(test2);
+    println(boolean_to_string(@cast_any(test) == @cast_any(test2)));
 };

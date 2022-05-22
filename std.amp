@@ -70,11 +70,17 @@ fn integer_to_string(integer: integer): String {
     if (integer == 0) {
         string = "0";
     };
-
+    
     while (integer > 0) {
         let modulo = integer % 10;
         integer = integer / 10;
-        string = String.new(store(modulo + 48)) + string;
+        let string_old = string;
+        let stored = store(modulo + 48);
+        let prepended_string = String.new(stored, 1);
+        string = prepended_string + string_old;
+        @free(stored, 1);
+        @free(prepended_string, 16);
+        @free(string_old, 16);
     };
     return string;
 };
