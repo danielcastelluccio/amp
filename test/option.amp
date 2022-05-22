@@ -7,7 +7,7 @@ fn main() {
 
     option = Option.of("Hello Option!");
     if (option.is_value()) {
-        println(String(option.data()));
+        println(@cast_String(option.data()));
     } else {
         println("not a thing (this should never print with this code)");
     };

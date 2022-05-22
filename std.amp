@@ -35,7 +35,7 @@ fn to_null_terminated_array(array: Array): any {
     let new_array = Array.new(array.length());
     let i = 0;
     while (i < new_array.length()) {
-        new_array.set(i, to_null_terminated_string(String(array.get(i))));
+        new_array.set(i, to_null_terminated_string(@cast_String(array.get(i))));
         i = i + 1;
     };
     return new_array.pointer();
@@ -106,7 +106,7 @@ fn Array.new(size: integer): Array {
 };
 
 fn Array.set(array: Array, index: integer, value: any) {
-    @set_8(integer(value), array.pointer() + (index * 8));
+    @set_8(@cast_integer(value), array.pointer() + (index * 8));
 };
 
 fn Array.get(array: Array, index: integer): any {
@@ -156,7 +156,7 @@ struct LinkedList {
 };
 
 fn LinkedList.new(): LinkedList {
-    return LinkedList.new(LinkedList_Node.new(null(), LinkedList_Node(null())));
+    return LinkedList.new(LinkedList_Node.new(null(), @cast_LinkedList_Node(null())));
 };
 
 fn LinkedList.append(linked_list: LinkedList, data: any) {
@@ -165,7 +165,7 @@ fn LinkedList.append(linked_list: LinkedList, data: any) {
         node = node.next();
     };
 
-    let new_node = LinkedList_Node.new(data, LinkedList_Node(null()));
+    let new_node = LinkedList_Node.new(data, @cast_LinkedList_Node(null()));
     node.next(new_node);
 };
 
@@ -261,19 +261,19 @@ fn _+(value1: any, value2: any): any {
 };
 
 fn _+(value1: integer, value2: integer): integer {
-    return integer(@add(value1, value2));
+    return @cast_integer(@add(value1, value2));
 };
 
 fn _%(value1: integer, value2: integer): integer {
-    return integer(@modulo(value1, value2));
+    return @cast_integer(@modulo(value1, value2));
 };
 
 fn _/(value1: integer, value2: integer): integer {
-    return integer(@divide(value1, value2));
+    return @cast_integer(@divide(value1, value2));
 };
 
 fn _*(value1: integer, value2: integer): integer {
-    return integer(@multiply(value1, value2));
+    return @cast_integer(@multiply(value1, value2));
 };
 
 fn _<(value1: integer, value2: integer): boolean {

@@ -10,7 +10,7 @@ fn main() {
 
     let i = 0;
     while (i < functions.length()) {
-        println(String(Function(functions.get(i)).call(parameters)));
+        println(@cast_String(@cast_Function(functions.get(i)).call(parameters)));
         i = i + 1;
     };
 };

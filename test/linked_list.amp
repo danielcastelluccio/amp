@@ -12,13 +12,13 @@ fn main() {
     list.remove(1);
     print_int_list(list);
     println("List size: " + integer_to_string(list.size()));
-    println("At 0: " + integer_to_string(integer(list.get(0))));
+    println("At 0: " + integer_to_string(@cast_integer(list.get(0))));
 };
 
 fn print_int_list(list: LinkedList) {
     let node = list.head();
     while (not_equal(node.next(), null())) {
         node = node.next();
-        println(integer_to_string(integer(node.data())));
+        println(integer_to_string(@cast_integer(node.data())));
     };
 };

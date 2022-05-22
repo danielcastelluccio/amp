@@ -222,7 +222,7 @@ def parse(contents, type, extra):
                 instructions.append(Constant(8 * len(items)))
                 instructions.append(Invoke("@add", 2, []))
                 instructions.append(Invoke("@get_8", 1, []))
-                instructions.append(Invoke(item.split(":")[1].strip(), 1, []))
+                instructions.append(Invoke("@cast_" + item.split(":")[1].strip(), 1, []))
                 instructions.append(Return(True))
 
                 locals.append("instance")
@@ -240,7 +240,7 @@ def parse(contents, type, extra):
                 instructions.append(Constant(8 * len(items)))
                 instructions.append(Invoke("@add", 2, []))
                 instructions.append(Retrieve(item_name, None))
-                instructions.append(Invoke("integer", 1, []))
+                instructions.append(Invoke("@cast_integer", 1, []))
                 instructions.append(Invoke("@set_8", 2, []))
                 instructions.append(Return(False))
 
@@ -264,16 +264,16 @@ def parse(contents, type, extra):
 
         instructions.append(Constant(8 * len(items)))
         instructions.append(Invoke("@allocate", 1, []))
-        instructions.append(Invoke(name, 1, []))
+        instructions.append(Invoke("@cast_" + name, 1, []))
         instructions.append(Assign("instance"))
 
         for item in items:
             instructions.append(Constant(8 * items_list.index(item)))
-            instructions.append(Invoke("any", 1, []))
+            instructions.append(Invoke("@cast_any", 1, []))
             instructions.append(Retrieve("instance", None))
             instructions.append(Invoke("@add", 2, []))
             instructions.append(Retrieve(item, None))
-            instructions.append(Invoke("integer", 1, []))
+            instructions.append(Invoke("@cast_integer", 1, []))
             instructions.append(Invoke("@set_8", 2, []))
 
         instructions.append(Retrieve("instance", None))
@@ -303,7 +303,7 @@ def parse(contents, type, extra):
                 locals = []
 
                 instructions.append(Constant(len(items_list)))
-                instructions.append(Invoke(name, 1, []))
+                instructions.append(Invoke("@cast_" + name, 1, []))
                 instructions.append(Return(True))
 
                 function = Function(get_name, instructions, locals, [], name)
@@ -695,9 +695,9 @@ def process_program(program):
                         instruction.name = instruction.name.replace("_.", type_ + ".")
                         instruction.parameter_count += 1
 
-                    if instruction.name in program_types:
+                    if instruction.name.startswith("@cast_") and instruction.name[6 : len(instruction.name)] in program_types:
                         types.pop()
-                        types.append(instruction.name)
+                        types.append(instruction.name[6 : len(instruction.name)])
                     else:
                         id = instruction.name + "_" + str(instruction.parameter_count)
 
@@ -780,9 +780,9 @@ def type_check(function, instructions, program_types, functions, functions2, alt
             else:
                 types.append(variables[instruction.name])
         elif isinstance(instruction, Invoke):
-            if instruction.name in program_types:
+            if instruction.name.startswith("@cast_") and instruction.name[6 : len(instruction.name)] in program_types:
                 types.pop()
-                types.append(instruction.name)
+                types.append(instruction.name[6 : len(instruction.name)])
 
                 if alter:
                     function.tokens.remove(instruction)
