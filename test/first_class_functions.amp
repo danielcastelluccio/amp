@@ -20,5 +20,5 @@ fn test(test: String) {
 };
 
 fn test2(test: String) {
-    return "Hello from test3 function! Main function says: " + test;
+    return "Hello from test2 function! Main function says: " + test;
 };
