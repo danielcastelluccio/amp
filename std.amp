@@ -155,7 +155,7 @@ fn String.new(pointer: any, length: integer): String {
     return String.new(pointer, length, false);
 };
 
-fn String.free(string: String) {
+fn String.free_custom(string: String) {
 	if (@not(string.static())) {
 		@free(string.pointer(), string.length());
 	};

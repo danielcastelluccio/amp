@@ -289,6 +289,38 @@ def parse(contents, type, extra):
         function = Function(name + ".new", instructions, locals, list(items.values()), name)
         tokens.append(function)
 
+        ##################
+
+        instructions = []
+        instructions.append(Constant(len(items_list) * 8))
+        instructions.append(Return(True))
+
+        function = Function(name + ".memory_size", instructions, [], [], "integer")
+        tokens.append(function)
+
+        ###############
+
+        instructions = []
+        locals = []
+
+        instructions.append(Declare("instance", name))
+
+        for item in items:
+            if not (items[item] == "integer" or items[item] == "boolean" or items[item] == "any"):
+                instructions.append(Invoke(items[item] + ".memory_size", 0, []))
+                instructions.append(Retrieve("instance", None))
+                instructions.append(Constant(8 * items_list.index(item)))
+                instructions.append(Invoke("@add", 2, []))
+                instructions.append(Invoke("@get_8", 1, []))
+                instructions.append(Invoke("@free", 2, []))
+
+        instructions.append(Return(False))
+
+        locals.append("instance")
+
+        function = Function(name + ".free", instructions, locals, [name], "none")
+        tokens.append(function)
+
         tokens.append(StructMarker(name))
 
         return tokens
@@ -711,10 +743,16 @@ def process_program(program):
 
                     if instruction.name.startswith("@free"):
                         free_type = types[len(types) - 1]
-                        if free_type + ".free" in functions2:
+                        if not (free_type == "integer" or free_type == "boolean" or free_type == "any"):
                             index = function.tokens.index(instruction)
                             function.tokens.insert(index, Duplicate())
-                            function.tokens.insert(index + 1, Invoke(free_type + ".free", 1, [free_type]))
+                            index += 1
+                            if free_type + ".free_custom" in functions2:
+                                function.tokens.insert(index, Duplicate())
+                                function.tokens.insert(index + 1, Invoke(free_type + ".free_custom", 1, [free_type]))
+                                j += 2
+                                index += 2
+                            function.tokens.insert(index, Invoke(free_type + ".free", 1, [free_type]))
                             j += 2
 
                     if instruction.name.startswith("@cast_") and instruction.name[6 : len(instruction.name)] in program_types:

@@ -1,0 +1,37 @@
+use "std.amp";
+
+fn main() {
+	let string = "test";
+	let structure = StructureThing.new(string); // string "owned" by structure
+	foo(structure); // move ownership of structure into foo
+
+	println(structure.value()); // throw an error because it's not ours anymore
+
+	let string2 = "test";
+	let structure2 = StructureThing.new(string2); // string2 "owned" by structure
+	//foo_borrow(structure2); // does not move ownership, because it accepts a reference
+
+	println(structure2.value()); // no errors because we never gave away our value
+
+	@print_memory();
+	let thing = StructureThing.new("test2" + "");
+	//println(thing.value());
+	@print_memory();
+	@free(thing, 8);
+	@print_memory();
+};
+
+fn foo(structure: StructureThing) {
+	println(structure.value()); (structure.value is marked with & on the structure, which means that it is not moved)
+	//because we got ownership of structure, and it was never moved elsewhere, free at the end of this function
+	//@free(structure, 8);
+};
+
+fn foo_borrow(structure: &StructureThing) {
+	//println(structure.value()); (structure.value is marked with & on the structure, which means that it is not moved)
+	//foo(structure); // an error should be thrown because we only have a reference and it wants a value
+};
+
+struct StructureThing {
+	value: String;
+};
