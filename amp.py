@@ -48,6 +48,10 @@ class Retrieve(Instruction):
 class Constant(Instruction):
     def __init__(self, value):
         self.value = value
+
+class Duplicate(Instruction):
+    def __init__(self):
+        pass
     
 class Invoke(Instruction):
     def __init__(self, name, parameter_count, parameters, return_ = ""):
@@ -705,6 +709,14 @@ def process_program(program):
                         instruction.name = instruction.name.replace("_.", type_ + ".")
                         instruction.parameter_count += 1
 
+                    if instruction.name.startswith("@free"):
+                        free_type = types[len(types) - 1]
+                        if free_type + ".free" in functions2:
+                            index = function.tokens.index(instruction)
+                            function.tokens.insert(index, Duplicate())
+                            function.tokens.insert(index + 1, Invoke(free_type + ".free", 1, [free_type]))
+                            j += 2
+
                     if instruction.name.startswith("@cast_") and instruction.name[6 : len(instruction.name)] in program_types:
                         types.pop()
                         types.append(instruction.name[6 : len(instruction.name)])
@@ -798,6 +810,10 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                     print("PROCESS: Variable " + instruction.name + " in " + function.name + " not found.")
                     return 1
                 types.append(variables[instruction.name])
+        elif isinstance(instruction, Duplicate):
+            top = types.pop()
+            types.append(top)
+            types.append(top)
         elif isinstance(instruction, Invoke):
             if instruction.name.startswith("@cast_") and instruction.name[6 : len(instruction.name)] in program_types:
                 types.pop()
@@ -1135,7 +1151,6 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("ret")
     asm_program.functions.append(allocate)
 
-    # TODO: automatically detect adjacent sections of free memory and combine to create a larger memory chunk (ex: | 8 bytes | 8 bytes | -> | 16 bytes |)
     free = AsmFunction("@free_any~integer", [])
     free.instructions.append("push rbp")
     free.instructions.append("mov rbp, rsp")
@@ -1589,6 +1604,10 @@ def create_linux_binary(program, file_name_base):
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
                     if not instruction.return_ == "none":
                         asm_function.instructions.append("push r8")
+                elif isinstance(instruction, Duplicate):
+                    asm_function.instructions.append("pop r8")
+                    asm_function.instructions.append("push r8")
+                    asm_function.instructions.append("push r8")
                 elif isinstance(instruction, Assign):
                     asm_function.instructions.append("pop r8")
                     index = token.locals.index(instruction.name)

@@ -90,14 +90,9 @@ fn integer_to_string(integer: integer): String {
         let modulo = integer % 10;
         integer = integer / 10;
         let string_old = string;
-        let stored = store(modulo + 48);
-        let prepended_string = String.new(stored, 1);
+        let prepended_string = String.new(store(modulo + 48), 1);
         string = prepended_string + string_old;
-        @free(stored, 1);
         @free(prepended_string, 24);
-        if (iterations > 0) {
-            @free(string_old.pointer(), string_old.length());
-        };
         @free(string_old, 24);
         iterations = iterations + 1;
     };
@@ -158,6 +153,12 @@ fn String.new(pointer: any): String {
 
 fn String.new(pointer: any, length: integer): String {
     return String.new(pointer, length, false);
+};
+
+fn String.free(string: String) {
+	if (@not(string.static())) {
+		@free(string.pointer(), string.length());
+	};
 };
 
 fn _==(string1: String, string2: String): boolean {
