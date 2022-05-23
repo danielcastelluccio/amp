@@ -1060,6 +1060,7 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("push rbp")
     allocate.instructions.append("mov rbp, rsp")
     allocate.instructions.append("mov rbx, [rbp+16]") # rbx = allocated size
+    allocate.instructions.append("mov r10, rbx") # rbx = allocated size
     
     allocate.instructions.append("xor rdx, rdx") # hacky solution bc buggyness happens when it's not a multiple of 8
     allocate.instructions.append("mov rax, rbx")
@@ -1067,12 +1068,11 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("div r9")
     allocate.instructions.append("cmp rdx, 0")
     allocate.instructions.append("je allocate_skip_filter")
-    allocate.instructions.append("mov rax, rdx")
     allocate.instructions.append("inc rax")
     allocate.instructions.append("mul r9")
     allocate.instructions.append("mov rbx, rax")
     allocate.instructions.append("allocate_skip_filter:")
-
+    
     allocate.instructions.append("add rbx, 16") # add some padding which will be used for freeing later
     allocate.instructions.append("mov rcx, [memory]") # move the pointer to the first free value into rcx
     allocate.instructions.append("mov r9, 0")
@@ -1148,7 +1148,6 @@ def create_linux_binary(program, file_name_base):
     free.instructions.append("div r10")
     free.instructions.append("cmp rdx, 0")
     free.instructions.append("je free_skip_filter")
-    free.instructions.append("mov rax, rdx")
     free.instructions.append("inc rax")
     free.instructions.append("mul r10")
     free.instructions.append("mov rbx, rax")
@@ -1609,8 +1608,6 @@ def create_linux_binary(program, file_name_base):
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
                     if not instruction.return_ == "none":
                         asm_function.instructions.append("push r8")
-                    else:
-                        print(instruction.name + " " + str(instruction.parameters))
                 elif isinstance(instruction, Assign):
                     asm_function.instructions.append("pop r8")
                     index = token.locals.index(instruction.name)
