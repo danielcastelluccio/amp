@@ -4,7 +4,9 @@ fn print(string: String) {
 
 fn println(string: String) {
     print(string);
-    print("\n");
+    let new_line = "\n";
+    print(new_line);
+    @free(new_line, 16);
 };
 
 fn error(string: String) {
@@ -66,11 +68,14 @@ fn _+(string1: String, string2: String): String {
 };
 
 fn integer_to_string(integer: integer): String {
-    let string = "";
+    let string: String;
     if (integer == 0) {
         string = "0";
+    } else {
+        string = "";
     };
     
+    let iterations = 0;
     while (integer > 0) {
         let modulo = integer % 10;
         integer = integer / 10;
@@ -80,7 +85,11 @@ fn integer_to_string(integer: integer): String {
         string = prepended_string + string_old;
         @free(stored, 1);
         @free(prepended_string, 16);
+        if (iterations > 0) {
+            @free(string_old.pointer(), string_old.length());
+        };
         @free(string_old, 16);
+        iterations = iterations + 1;
     };
     return string;
 };

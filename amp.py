@@ -50,10 +50,11 @@ class Constant(Instruction):
         self.value = value
     
 class Invoke(Instruction):
-    def __init__(self, name, parameter_count, parameters):
+    def __init__(self, name, parameter_count, parameters, return_ = ""):
         self.name = name
         self.parameter_count = parameter_count
         self.parameters = parameters
+        self.return_ = return_
     
 class Return(Instruction):
     def __init__(self, is_value):
@@ -610,6 +611,7 @@ internals = [
     Function("@set_8", [], [], ["integer", "any"], "none"),
     Function("@allocate", [], [], ["integer"], "any"),
     Function("@free", [], [], ["any", "integer"], "none"),
+    Function("@print_memory", [], [], [], "none"),
     Function("@error_size", [], [], ["any", "integer"], "none"),
     Function("@read_size", [], [], ["any", "integer"], "none"),
     Function("@get_1", [], [], ["any"], "integer"),
@@ -686,13 +688,17 @@ def process_program(program):
                     variables[instruction.name] = instruction.type
                 elif isinstance(instruction, Assign):
                     given_type = types.pop()
-                    if variables[instruction.name] == "":
-                        variables[instruction.name] = given_type
+                    if instruction.name in variables:
+                        if variables[instruction.name] == "":
+                            variables[instruction.name] = given_type
                 elif isinstance(instruction, Retrieve):
                     if instruction.name in functions2 and not instruction.name in variables:
                         types.append("Function")
                     else:
-                        types.append(variables[instruction.name])
+                        if not instruction.name in variables:
+                            types.append("unknown")
+                        else:
+                            types.append(variables[instruction.name])
                 elif isinstance(instruction, Invoke):
                     if instruction.name.startswith("_."):
                         type_ = types[len(types) - 1]
@@ -710,7 +716,8 @@ def process_program(program):
                             function2 = named_functions[0]
 
                             for i in range(0, instruction.parameter_count):
-                                given_type = types.pop()
+                                if len(types) > 0:
+                                    given_type = types.pop()
 
                             instruction.parameters = function2.parameters
                             if not function2.return_ == "none":
@@ -771,6 +778,11 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 return 1
             
             given_type = types.pop()
+
+            if not instruction.name in variables:
+                print("PROCESS: Variable " + instruction.name + " in " + function.name + " not found.")
+                return 1
+
             if variables[instruction.name] == "":
                 variables[instruction.name] = given_type
 
@@ -782,6 +794,9 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 types.append("Function")
                 instruction.data = functions2[instruction.name].parameters
             else:
+                if not instruction.name in variables:
+                    print("PROCESS: Variable " + instruction.name + " in " + function.name + " not found.")
+                    return 1
                 types.append(variables[instruction.name])
         elif isinstance(instruction, Invoke):
             if instruction.name.startswith("@cast_") and instruction.name[6 : len(instruction.name)] in program_types:
@@ -841,6 +856,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 function2 = named_functions[0]
 
                 instruction.parameters = function2.parameters
+                instruction.return_ = function2.return_
                 if not function2.return_ == "none":
                     types.append(function2.return_)
         elif isinstance(instruction, Return):
@@ -1040,23 +1056,23 @@ def create_linux_binary(program, file_name_base):
     modulo.instructions.append("ret")
     asm_program.functions.append(modulo)
 
-#    allocate = AsmFunction("@allocate_integer", [])
-#    allocate.instructions.append("push rbp")
-#    allocate.instructions.append("mov rbp, rsp")
-#    allocate.instructions.append("mov rax, [index]")
-#    allocate.instructions.append("mov rbx, rax")
-#    allocate.instructions.append("add rbx, [rbp+16]")
-#    allocate.instructions.append("mov [index], rbx")
-#    allocate.instructions.append("mov r8, memory")
-#    allocate.instructions.append("add r8, rax")
-#    allocate.instructions.append("mov rsp, rbp")
-#    allocate.instructions.append("pop rbp")
-#    allocate.instructions.append("ret")
-#    asm_program.functions.append(allocate)
     allocate = AsmFunction("@allocate_integer", [])
     allocate.instructions.append("push rbp")
     allocate.instructions.append("mov rbp, rsp")
     allocate.instructions.append("mov rbx, [rbp+16]") # rbx = allocated size
+    
+    allocate.instructions.append("xor rdx, rdx") # hacky solution bc buggyness happens when it's not a multiple of 8
+    allocate.instructions.append("mov rax, rbx")
+    allocate.instructions.append("mov r9, 8")
+    allocate.instructions.append("div r9")
+    allocate.instructions.append("cmp rdx, 0")
+    allocate.instructions.append("je allocate_skip_filter")
+    allocate.instructions.append("mov rax, rdx")
+    allocate.instructions.append("inc rax")
+    allocate.instructions.append("mul r9")
+    allocate.instructions.append("mov rbx, rax")
+    allocate.instructions.append("allocate_skip_filter:")
+
     allocate.instructions.append("add rbx, 16") # add some padding which will be used for freeing later
     allocate.instructions.append("mov rcx, [memory]") # move the pointer to the first free value into rcx
     allocate.instructions.append("mov r9, 0")
@@ -1065,32 +1081,6 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("add rax, rcx") # now rax stores beginning of new free memory
 
     allocate.instructions.append("mov r11, [rax+8]") # r11 stores the size of the free memory block
-
-    allocate.instructions.append("push rbx")
-    allocate.instructions.append("push rcx")
-    allocate.instructions.append("push r9")
-    allocate.instructions.append("push rax")
-    allocate.instructions.append("push r11")
-    allocate.instructions.append("mov rdi, rbx")
-    #allocate.instructions.append("call print_integer")
-    allocate.instructions.append("pop r11")
-    allocate.instructions.append("pop rax")
-    allocate.instructions.append("pop r9")
-    allocate.instructions.append("pop rcx")
-    allocate.instructions.append("pop rbx")
-
-    allocate.instructions.append("push rbx")
-    allocate.instructions.append("push rcx")
-    allocate.instructions.append("push r9")
-    allocate.instructions.append("push rax")
-    allocate.instructions.append("push r11")
-    allocate.instructions.append("mov rdi, r11")
-    #allocate.instructions.append("call print_integer")
-    allocate.instructions.append("pop r11")
-    allocate.instructions.append("pop rax")
-    allocate.instructions.append("pop r9")
-    allocate.instructions.append("pop rcx")
-    allocate.instructions.append("pop rbx")
 
     allocate.instructions.append("cmp rbx, r11")
     allocate.instructions.append("jle allocate_done")
@@ -1145,18 +1135,195 @@ def create_linux_binary(program, file_name_base):
     free.instructions.append("push rbp")
     free.instructions.append("mov rbp, rsp")
     free.instructions.append("mov rax, [rbp+16]") # rax is the pointer to freed memory
+    free.instructions.append("mov r9, rax") # r9 = freed_head
     free.instructions.append("mov rcx, [memory]") # rcx stores the pointed head (before free)
     free.instructions.append("mov [rax], rcx") # now we store the head as our next memory slot
     free.instructions.append("mov rbx, [rbp+24]") # length
+    
+    free.instructions.append("push rax")
+
+    free.instructions.append("xor rdx, rdx") # hacky solution bc buggyness happens when it's not a multiple of 8
+    free.instructions.append("mov rax, rbx")
+    free.instructions.append("mov r10, 8")
+    free.instructions.append("div r10")
+    free.instructions.append("cmp rdx, 0")
+    free.instructions.append("je free_skip_filter")
+    free.instructions.append("mov rax, rdx")
+    free.instructions.append("inc rax")
+    free.instructions.append("mul r10")
+    free.instructions.append("mov rbx, rax")
+    free.instructions.append("free_skip_filter:")
+
+    free.instructions.append("pop rax")
+    
     free.instructions.append("add rbx, 16")
     free.instructions.append("mov [rax+8], rbx") # storing length of free space (including the 16 bytes for data storage)
     free.instructions.append("sub rax, memory")
     free.instructions.append("mov [memory], rax") # set new head to our location
+    
+    free.instructions.append("add rax, memory")
+    free.instructions.append("add rax, rbx") # rax = freed_tail
+    free.instructions.append("mov rcx, 0") # rcx = previous_current_check
+    free.instructions.append("mov rdx, [memory]") # rdx = current_check
+    free.instructions.append("free_loop:")
+    
+    free.instructions.append("cmp rdx, 0")
+    free.instructions.append("je free_done")
+    free.instructions.append("mov rbx, rdx")
+    free.instructions.append("add rbx, memory")
 
+    free.instructions.append("cmp rbx, rax") # if (current_check == freed_tail)
+
+    free.instructions.append("jne free_done_if")
+
+    free.instructions.append("mov r10, [rax+8]") # add length of the second segment to this segment's length
+    free.instructions.append("add [r9+8], r10")
+
+    free.instructions.append("push rdx")
+    free.instructions.append("push rbx")
+    free.instructions.append("push rcx")
+
+    free.instructions.append("add rcx, memory")
+    free.instructions.append("add rdx, memory")
+    free.instructions.append("mov rbx, [rdx]")
+    free.instructions.append("mov [rcx], rbx")
+
+    free.instructions.append("pop rcx")
+    free.instructions.append("pop rbx")
+    free.instructions.append("pop rdx")
+
+    free.instructions.append("jmp free_done_if2")
+
+    free.instructions.append("free_done_if:")
+
+    free.instructions.append("mov r12, rbx")
+    free.instructions.append("add r12, [rbx+8]")
+    free.instructions.append("cmp r12, r9") # if (current_tail == freed_head)
+    free.instructions.append("jne free_done_if2")
+    
+    free.instructions.append("mov r10, [r9+8]") # add this segments length to the length of the segment before
+    free.instructions.append("add [rbx+8], r10")
+    
+    free.instructions.append("push rcx")
+    free.instructions.append("push r11")
+    free.instructions.append("push r12")
+
+    free.instructions.append("mov r11, 0")
+    free.instructions.append("before_loop:")
+    free.instructions.append("add r11, memory")
+    free.instructions.append("mov r12, [r11]")
+    free.instructions.append("sub r11, memory")
+    free.instructions.append("add r12, memory")
+    
+    free.instructions.append("cmp r12, r9")
+    free.instructions.append("jne not_pointing")
+
+    free.instructions.append("mov rcx, [r12]")
+    free.instructions.append("mov [r11+memory], rcx")
+
+    free.instructions.append("not_pointing:")
+
+    free.instructions.append("add r11, memory")
+    free.instructions.append("mov r11, [r11]")
+    free.instructions.append("cmp r11, 0")
+    free.instructions.append("je end_before_loop")
+    free.instructions.append("jmp before_loop")
+    free.instructions.append("end_before_loop:")
+    free.instructions.append("mov r9, rbx")
+    free.instructions.append("pop r12")
+    free.instructions.append("pop r11")
+    free.instructions.append("pop rcx")
+
+    free.instructions.append("free_done_if2:")
+
+    free.instructions.append("mov rcx, rdx")
+    free.instructions.append("add rdx, memory")
+    free.instructions.append("mov rdx, [rdx]")
+    free.instructions.append("jmp free_loop")
+
+    free.instructions.append("free_done:")
     free.instructions.append("mov rsp, rbp")
     free.instructions.append("pop rbp")
     free.instructions.append("ret")
     asm_program.functions.append(free)
+
+    print_memory = AsmFunction("@print_memory_", [])
+    print_memory.instructions.append("push rbp")
+    print_memory.instructions.append("mov rbp, rsp")
+    print_memory.instructions.append("add rbp, 8")
+
+    print_memory.instructions.append("mov rdi, rbp")
+    print_memory.instructions.append("call print_integer")
+
+    print_memory.instructions.append("mov rax, [memory]")
+
+    print_memory.instructions.append("push rbx")
+    print_memory.instructions.append("push rcx")
+    print_memory.instructions.append("push r9")
+    print_memory.instructions.append("push rax")
+    print_memory.instructions.append("push r11")
+    print_memory.instructions.append("mov rdi, rax")
+    #print_memory.instructions.append("call print_integer")
+    print_memory.instructions.append("pop r11")
+    print_memory.instructions.append("pop rax")
+    print_memory.instructions.append("pop r9")
+    print_memory.instructions.append("pop rcx")
+    print_memory.instructions.append("pop rbx")
+    
+    print_memory.instructions.append("loop_thing:")
+
+    print_memory.instructions.append("add rax, memory")
+
+    print_memory.instructions.append("push rbx")
+    print_memory.instructions.append("push rcx")
+    print_memory.instructions.append("push r9")
+    print_memory.instructions.append("push rax")
+    print_memory.instructions.append("push r11")
+    print_memory.instructions.append("mov rdi, [rax]")
+    #print_memory.instructions.append("call print_integer")
+    print_memory.instructions.append("pop r11")
+    print_memory.instructions.append("pop rax")
+    print_memory.instructions.append("pop r9")
+    print_memory.instructions.append("pop rcx")
+    print_memory.instructions.append("pop rbx")
+    
+    print_memory.instructions.append("push rbx")
+    print_memory.instructions.append("push rcx")
+    print_memory.instructions.append("push r9")
+    print_memory.instructions.append("push rax")
+    print_memory.instructions.append("push r11")
+    print_memory.instructions.append("mov rdi, rax")
+    print_memory.instructions.append("sub rdi, memory")
+    print_memory.instructions.append("call print_integer_space")
+    print_memory.instructions.append("pop r11")
+    print_memory.instructions.append("pop rax")
+    print_memory.instructions.append("pop r9")
+    print_memory.instructions.append("pop rcx")
+    print_memory.instructions.append("pop rbx")
+
+    print_memory.instructions.append("push rbx")
+    print_memory.instructions.append("push rcx")
+    print_memory.instructions.append("push r9")
+    print_memory.instructions.append("push rax")
+    print_memory.instructions.append("push r11")
+    print_memory.instructions.append("mov rdi, [rax+8]")
+    print_memory.instructions.append("call print_integer")
+    print_memory.instructions.append("pop r11")
+    print_memory.instructions.append("pop rax")
+    print_memory.instructions.append("pop r9")
+    print_memory.instructions.append("pop rcx")
+    print_memory.instructions.append("pop rbx")
+
+    print_memory.instructions.append("mov rax, [rax]")
+    print_memory.instructions.append("cmp rax, 0")
+    print_memory.instructions.append("je loop_done")
+    print_memory.instructions.append("jmp loop_thing")
+    print_memory.instructions.append("loop_done:")
+    print_memory.instructions.append("sub rbp, 8")
+    print_memory.instructions.append("mov rsp, rbp")
+    print_memory.instructions.append("pop rbp")
+    print_memory.instructions.append("ret")
+    asm_program.functions.append(print_memory)
 
     copy = AsmFunction("@copy_any~any~integer", [])
     copy.instructions.append("push rbp")
@@ -1440,7 +1607,10 @@ def create_linux_binary(program, file_name_base):
                 elif isinstance(instruction, Invoke):
                     asm_function.instructions.append("call " + get_asm_name(instruction.name) + "_" + "~".join(instruction.parameters))
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
-                    asm_function.instructions.append("push r8")
+                    if not instruction.return_ == "none":
+                        asm_function.instructions.append("push r8")
+                    else:
+                        print(instruction.name + " " + str(instruction.parameters))
                 elif isinstance(instruction, Assign):
                     asm_function.instructions.append("pop r8")
                     index = token.locals.index(instruction.name)
@@ -1513,13 +1683,46 @@ def create_linux_binary(program, file_name_base):
                 stack_index -= int(int(instruction.split(" ")[2]) / 8)
 
             stack_index_max = max(stack_index, stack_index_max)
-
-        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8 + 16))
+        
+        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8 * 2))
     
         for instruction in function.instructions:
             file.write("   " + instruction + "\n")
             
     file.write("""
+    print_integer_space:
+    mov     r9, -3689348814741910323
+    sub     rsp, 40
+    mov     BYTE [rsp+31], 32
+    lea     rcx, [rsp+30]
+.L2:
+    mov     rax, rdi
+    lea     r8, [rsp+32]
+    mul     r9
+    mov     rax, rdi
+    sub     r8, rcx
+    shr     rdx, 3
+    lea     rsi, [rdx+rdx*4]
+    add     rsi, rsi
+    sub     rax, rsi
+    add     eax, 48
+    mov     BYTE [rcx], al
+    mov     rax, rdi
+    mov     rdi, rdx
+    mov     rdx, rcx
+    sub     rcx, 1
+    cmp     rax, 9
+    ja      .L2
+    lea     rax, [rsp+32]
+    mov     edi, 1
+    sub     rdx, rax
+    xor     eax, eax
+    lea     rsi, [rsp+32+rdx]
+    mov     rdx, r8
+    mov     rax, 1
+    syscall
+    add     rsp, 40
+    ret
     print_integer:
     mov     r9, -3689348814741910323
     sub     rsp, 40
