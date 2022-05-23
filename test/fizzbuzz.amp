@@ -3,7 +3,7 @@ use "std.amp";
 fn main() {
     let i = 0;
 
-    while (i < 1000) {
+    while (i < 100) {
         i = i + 1;
         let fizzbuzz = fizzbuzz(i);
         println(fizzbuzz);
