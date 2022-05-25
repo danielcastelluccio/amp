@@ -919,8 +919,21 @@ def process_program(program):
 
                         stack -= 1
 
-                    if instruction.return_:
+                    if not instruction.return_ == "none" and instruction.return_ and not instruction.return_[0] == "&":
                         stack += 1
+                        id = "_" + str(index_thing)
+                        type = instruction.return_
+
+                        function.tokens.insert(function.tokens.index(instruction) + 1, Duplicate())
+                        function.tokens.insert(function.tokens.index(instruction) + 2, Declare(id, type))
+                        function.tokens.insert(function.tokens.index(instruction) + 3, Assign(id))
+                        function.locals.append(id)
+
+                        values[id] = type
+                        
+                        value_usages[stack] = id
+                        
+                        index_thing += 1
 
                     #stack -= instruction.parameter_count
                 elif isinstance(instruction, Return):
