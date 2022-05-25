@@ -1,0 +1,13 @@
+use "std.amp";
+
+fn main() {
+	@print_memory();
+	test(false);
+	@print_memory();
+};
+
+fn test(value: boolean) {
+	if (value) {
+		let test = "test";
+	};
+};

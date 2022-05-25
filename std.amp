@@ -1,12 +1,11 @@
-fn print(string: String) {
+fn print(string: &String) {
     @print_size(string.pointer(), string.length());
 };
 
-fn println(string: String) {
+fn println(string: &String) {
     print(string);
     let new_line = "\n";
     print(new_line);
-    @free(new_line, 24);
 };
 
 fn error(string: String) {
@@ -29,21 +28,21 @@ fn execute_command(file: String, arguments: Array, wait: boolean) {
     print("");
 };
 
-fn to_null_terminated_string(string: String): any {
-    return (string + "\0").pointer();
+fn to_null_terminated_string(string: &String): any {
+    return (string + "\0").pointer_consume();
 };
 
 fn to_null_terminated_array(array: Array): any {
     let new_array = Array.new(array.length());
     let i = 0;
     while (i < new_array.length()) {
-        new_array.set(i, to_null_terminated_string(@cast_String(array.get(i))));
+        new_array.set(i, to_null_terminated_string(@cast_&String(array.get(i))));
         i = i + 1;
     };
-    return new_array.pointer();
+    return new_array.pointer_consume();
 };
 
-fn length(string: any): integer {
+fn length(string: &any): integer {
     let location = string;
     let i = 0;
 
@@ -58,17 +57,7 @@ fn length(string: any): integer {
     return 999;
 };
 
-fn concat(string1: String, string2: String): String {
-    let string1_length = string1.length();
-    let string2_length = string2.length();
-    println(integer_to_string(string1_length + string2_length));
-    let new_memory = @allocate(string1_length + string2_length);
-    @copy(string1.pointer(), new_memory, string1_length);
-    @copy(string2.pointer(), new_memory + string1_length, string2_length);
-    return String.new(new_memory, string1_length + string2_length);
-};
-
-fn _+(string1: String, string2: String): String {
+fn _+(string1: &String, string2: &String): String {
     let string1_length = string1.length();
     let string2_length = string2.length();
     let new_memory = @allocate(string1_length + string2_length);
@@ -92,10 +81,9 @@ fn integer_to_string(integer: integer): String {
         let string_old = string;
         let prepended_string = String.new(store(modulo + 48), 1);
         string = prepended_string + string_old;
-        @free(prepended_string, 24);
-        @free(string_old, 24);
         iterations = iterations + 1;
     };
+
     return string;
 };
 
@@ -112,7 +100,7 @@ fn store(value: integer): any {
     return new_memory;
 };
 
-fn not_equal(value1: any, value2: any): boolean {
+fn not_equal(value1: &any, value2: &any): boolean {
     return @not(@equal(value1, value2));  
 };
 
@@ -125,11 +113,11 @@ fn Array.new(size: integer): Array {
     return Array.new(@allocate((1 + size) * 8), size);
 };
 
-fn Array.set(array: Array, index: integer, value: any) {
+fn Array.set(array: &Array, index: integer, value: any) {
     @set_8(@cast_integer(value), array.pointer() + (index * 8));
 };
 
-fn Array.get(array: Array, index: integer): any {
+fn Array.get(array: &Array, index: integer): &any {
     return @get_8(array.pointer() + (index * 8));
 };
 
@@ -137,7 +125,7 @@ struct Function {
     pointer: any;
 };
 
-fn Function.call(function: Function, parameters: Array): any {
+fn Function.call(function: &Function, parameters: &Array): any {
     return @call_function(function.pointer(), parameters.pointer(), parameters.length());
 };
 
@@ -155,7 +143,7 @@ fn String.new(pointer: any, length: integer): String {
     return String.new(pointer, length, false);
 };
 
-fn String.free_custom(string: String) {
+fn String.free_custom(string: &String) {
 	if (@not(string.static())) {
 		@free(string.pointer(), string.length());
 	};
@@ -187,64 +175,64 @@ struct LinkedList {
 };
 
 fn LinkedList.new(): LinkedList {
-    return LinkedList.new(LinkedList_Node.new(null(), @cast_LinkedList_Node(null())));
+    return LinkedList.new(LinkedList_Node.new(null(), null()));
 };
 
-fn LinkedList.append(linked_list: LinkedList, data: any) {
-    let node = linked_list.head();
+fn LinkedList.append(linked_list: &LinkedList, data: any) {
+    let node: &LinkedList_Node = linked_list.head();
     while (node.next() != null()) {
-        node = node.next();
+        node = @cast_&LinkedList_Node(node.next());
     };
 
-    let new_node = LinkedList_Node.new(data, @cast_LinkedList_Node(null()));
+    let new_node = LinkedList_Node.new(data, null());
     node.next(new_node);
 };
 
-fn LinkedList.insert(linked_list: LinkedList, index: integer, data: any) {
-    let node = linked_list.head();
+fn LinkedList.insert(linked_list: &LinkedList, index: integer, data: any) {
+    let node: &LinkedList_Node = linked_list.head();
 
-    let i: integer = 0;
+    let i = 0;
     while (i < index) {
-        node = node.next();
+        node = @cast_&LinkedList_Node(node.next());
         i = i + 1;
     };
 
     let temp_next = node.next();
-    let new_node = LinkedList_Node.new(data, temp_next);
+    let new_node = LinkedList_Node.new(data, @cast_any(temp_next));
     node.next(new_node);
 };
 
-fn LinkedList.remove(linked_list: LinkedList, index: integer) {
-    let node = linked_list.head();
+fn LinkedList.remove(linked_list: &LinkedList, index: integer) {
+    let node: &LinkedList_Node = linked_list.head();
 
     let i: integer = 0;
     while (i < index) {
-        node = node.next();
+        node = @cast_&LinkedList_Node(node.next());
         i = i + 1;
     };
 
-    let temp_next_next = node.next().next();
-    node.next(temp_next_next);
+    let temp_next_next = @cast_&LinkedList_Node(@cast_any(node.next())).next();
+    node.next(@cast_any(temp_next_next));
 };
 
-fn LinkedList.get(linked_list: LinkedList, index: integer): any {
+fn LinkedList.get(linked_list: &LinkedList, index: integer): &any {
     let node = linked_list.head();
-    let i: integer = 0;
+    let i = 0;
 
     while (i < (index + 1)) {
-        node = node.next();
+        node = @cast_&LinkedList_Node(node.next());
         i = i + 1;
     };
 
     return node.data();
 };
 
-fn LinkedList.size(linked_list: LinkedList): integer {
+fn LinkedList.size(linked_list: &LinkedList): integer {
     let node = linked_list.head();
     let i = 0;
 
     while (node.next() != null()) {
-        node = node.next();
+        node = @cast_&LinkedList_Node(node.next());
         i = i + 1;
     };
 
@@ -255,12 +243,14 @@ fn LinkedList.to_array(linked_list: LinkedList): Array {
     let size = linked_list.size();
     let array = Array.new(size);
     let i = 0;
-    let node = linked_list.head().next();
+    let node = @cast_LinkedList_Node(linked_list.head_consume());
 
     while (i < size) {
-        array.set(i, node.data());
+		let prev_node: &LinkedList_Node = node;
+        node = @cast_LinkedList_Node(@cast_any(node.next_consume()));
+		let next = prev_node.next();
+        array.set(i, node.data_consume());
         i = i + 1;
-        node = node.next();
     };
 
     return array;
@@ -268,7 +258,7 @@ fn LinkedList.to_array(linked_list: LinkedList): Array {
 
 struct LinkedList_Node {
     data: any;
-    next: LinkedList_Node;
+    next: any;
 };
 
 struct Option {
@@ -283,7 +273,7 @@ fn Option.of(data: any): Option {
     return Option.new(data);
 };
 
-fn Option.is_value(option: Option): boolean {
+fn Option.is_value(option: &Option): boolean {
     return not_equal(option.data(), null());
 };
 
@@ -319,6 +309,6 @@ fn _==(value1: any, value2: any): boolean {
     return @equal(value1, value2);
 };
 
-fn _!=(value1: any, value2: any): boolean {
+fn _!=(value1: &any, value2: &any): boolean {
     return not_equal(value1, value2);
 };

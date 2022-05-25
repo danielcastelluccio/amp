@@ -1,0 +1,19 @@
+use "std.amp";
+
+fn main() {
+	test();
+};
+
+fn test() {
+	let thing = "test";
+	value_not_stealer(thing);
+	println(thing);
+};
+
+fn value_stealer(string: String) {
+
+};
+
+fn value_not_stealer(string: &String) {
+
+};

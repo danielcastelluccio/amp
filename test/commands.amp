@@ -1,5 +1,9 @@
 use "std.amp";
 
+fn main2() {
+    execute_command("/bin/ls", Array.new(0), true);
+};
+
 fn main() {
     let array = Array.new(1);
     array.set(0, "/bin/ls");

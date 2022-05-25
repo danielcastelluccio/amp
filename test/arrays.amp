@@ -4,6 +4,6 @@ fn main() {
     let array = Array.new(2);
     array.set(0, "Hello ");
     array.set(1, "World!");
-    println(@cast_String(array.get(0)) + @cast_String(array.get(1)));
+    println(@cast_&String(array.get(0)) + @cast_&String(array.get(1)));
     println("Array Length: " + integer_to_string(@cast_integer(array.length())));
 };

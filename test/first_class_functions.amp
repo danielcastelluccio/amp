@@ -10,15 +10,15 @@ fn main() {
 
     let i = 0;
     while (i < functions.length()) {
-        println(@cast_String(@cast_Function(functions.get(i)).call(parameters)));
+		println(@cast_String(@cast_&Function(functions.get(1)).call(parameters)));
         i = i + 1;
     };
 };
 
-fn test(test: String): String {
+fn test(test: &String): String {
     return "Hello from test function! Main function says: " + test;
 };
 
-fn test2(test: String): String {
+fn test2(test: &String): String {
     return "Hello from test2 function! Main function says: " + test;
 };

@@ -3,7 +3,7 @@ use "std.amp";
 fn main(arguments: Array) {
     let i = 0;
     while (i < arguments.length()) {
-        let argument = @cast_String(arguments.get(i));
+        let argument = @cast_&String(arguments.get(i));
         println(argument + ", size: " + integer_to_string(argument.length()));
         i = i + 1;
     };

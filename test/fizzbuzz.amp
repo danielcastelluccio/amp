@@ -7,7 +7,6 @@ fn main() {
         i = i + 1;
         let fizzbuzz = fizzbuzz(i);
         println(fizzbuzz);
-        @free(fizzbuzz, 24);
     };
 };
 

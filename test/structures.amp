@@ -19,7 +19,7 @@ struct IntPair {
     int2: integer;
 };
 
-fn IntPair.reset(pair: IntPair) {
-    IntPair.int1(pair, 0);
-    IntPair.int2(pair, 0);
+fn IntPair.reset(pair: &IntPair) {
+	pair.int1(0);
+	pair.int2(0);
 };
