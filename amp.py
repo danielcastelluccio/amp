@@ -23,6 +23,10 @@ class Function(Token):
 class StructMarker(Token):
     def __init__(self, name):
         self.name = name
+
+class EnumMarker(Token):
+    def __init__(self, name):
+        self.name = name
         
 class Use(Token):
     def __init__(self, file):
@@ -395,7 +399,28 @@ def parse(contents, type, extra):
 
                 items_list.append(item)
 
-        tokens.append(StructMarker(name))
+        instructions = []
+        instructions.append(Constant(8))
+        instructions.append(Return(True))
+
+        function = Function(name + ".memory_size", instructions, [], [], "integer")
+        tokens.append(function)
+
+        ###############
+
+        instructions = []
+        locals = []
+
+        instructions.append(Declare("instance", "&" + name))
+
+        instructions.append(Return(False))
+
+        locals.append("instance")
+
+        function = Function(name + ".free", instructions, locals, ["&" + name], "none")
+        tokens.append(function)
+
+        tokens.append(EnumMarker(name))
 
         return tokens
     elif type == "Statement":
@@ -703,6 +728,7 @@ def process_program(program):
     functions = {}
     functions2 = {}
     program_types = ["integer", "boolean", "any"]
+    program_enums = []
 
     for token in program.tokens:
         if isinstance(token, Function):
@@ -723,6 +749,9 @@ def process_program(program):
             functions2[token.name] = token
         elif isinstance(token, StructMarker):
             program_types.append(token.name)
+        elif isinstance(token, EnumMarker):
+            program_types.append(token.name)
+            program_enums.append(token.name)
     
     for function in internals:
         id = function.name + "_" + str(len(function.parameters))
@@ -890,7 +919,7 @@ def process_program(program):
 
                         index = function.tokens.index(instruction)
                         for variable in owned_variables:
-                            if not variables[variable] in primitives and not variables[variable][0] == "&":
+                            if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
                                 name = function.name
                                 if owned_variable_scopes[variable] == id:
                                     #function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], "integer"))
@@ -949,7 +978,7 @@ def process_program(program):
 
                                 del variable_usages[usage]
 
-                        if stack in value_usages and parameter[0] == "&" and not values[value_usages[stack]] in primitives:
+                        if stack in value_usages and parameter[0] == "&" and not values[value_usages[stack]] in primitives and not values[value_usages[stack]] in program_enums:
                             #print(function.name + " " + values[value_usages[stack]])
                             function.tokens.insert(post_method_index, Invoke(values[value_usages[stack]] + ".memory_size", 0, [], "integer"))
                             function.tokens.insert(post_method_index + 1, Retrieve(value_usages[stack], None))
