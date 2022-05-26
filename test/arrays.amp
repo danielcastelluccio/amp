@@ -1,7 +1,7 @@
 use "std.amp";
 
 fn main() {
-    let array = Array.new(2);
+    let array = Array.new(2, String.memory_size());
     array.set(0, "Hello ");
     array.set(1, "World!");
     println(@cast_&String(array.get(0)) + @cast_&String(array.get(1)));

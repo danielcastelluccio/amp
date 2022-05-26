@@ -4,8 +4,7 @@ fn print(string: &String) {
 
 fn println(string: &String) {
     print(string);
-    let new_line = "\n";
-    print(new_line);
+    print("\n");
 };
 
 fn error(string: String) {
@@ -33,7 +32,7 @@ fn to_null_terminated_string(string: &String): any {
 };
 
 fn to_null_terminated_array(array: Array): any {
-    let new_array = Array.new(array.length());
+    let new_array = Array.new(@allocate((array.length() + 1) * 8), array.length());
     let i = 0;
     while (i < new_array.length()) {
         new_array.set(i, to_null_terminated_string(@cast_&String(array.get(i))));
@@ -67,21 +66,16 @@ fn _+(string1: &String, string2: &String): String {
 };
 
 fn integer_to_string(integer: integer): String {
-    let string: String;
+    let string = "";
     if (integer == 0) {
         string = "0";
-    } else {
-        string = "";
     };
     
-    let iterations = 0;
     while (integer > 0) {
         let modulo = integer % 10;
         integer = integer / 10;
-        let string_old = string;
         let prepended_string = String.new(store(modulo + 48), 1);
-        string = prepended_string + string_old;
-        iterations = iterations + 1;
+        string = prepended_string + string;
     };
 
     return string;
@@ -107,10 +101,19 @@ fn not_equal(value1: &any, value2: &any): boolean {
 struct Array {
     pointer: any;
     length: integer;
+	item_size: integer;
+};
+
+fn Array.new(pointer: any, length: integer): Array {
+    return Array.new(pointer, length, 0);
 };
 
 fn Array.new(size: integer): Array {
-    return Array.new(@allocate((1 + size) * 8), size);
+    return Array.new(@allocate(size * 8), size);
+};
+
+fn Array.new(size: integer, memory_size: integer): Array {
+    return Array.new(@allocate(size * 8), size, memory_size);
 };
 
 fn Array.set(array: &Array, index: integer, value: any) {
@@ -119,6 +122,17 @@ fn Array.set(array: &Array, index: integer, value: any) {
 
 fn Array.get(array: &Array, index: integer): &any {
     return @get_8(array.pointer() + (index * 8));
+};
+
+fn Array.free_custom(array: &Array) {
+	if (array.item_size() > 0) {
+		let i = 0;
+		while (i < array.length()) {
+			@free(array.get(i), array.item_size());
+			i = i + 1;
+		};
+	};
+	@free(array.pointer(), array.length() * 8);
 };
 
 struct Function {
@@ -171,7 +185,7 @@ fn null(): any {
 };
 
 struct LinkedList {
-    head: LinkedList_Node;
+    head: any;
 };
 
 fn LinkedList.new(): LinkedList {
@@ -179,7 +193,7 @@ fn LinkedList.new(): LinkedList {
 };
 
 fn LinkedList.append(linked_list: &LinkedList, data: any) {
-    let node: &LinkedList_Node = linked_list.head();
+    let node = @cast_&LinkedList_Node(linked_list.head());
     while (node.next() != null()) {
         node = @cast_&LinkedList_Node(node.next());
     };
@@ -189,7 +203,7 @@ fn LinkedList.append(linked_list: &LinkedList, data: any) {
 };
 
 fn LinkedList.insert(linked_list: &LinkedList, index: integer, data: any) {
-    let node: &LinkedList_Node = linked_list.head();
+    let node = @cast_&LinkedList_Node(linked_list.head());
 
     let i = 0;
     while (i < index) {
@@ -203,7 +217,7 @@ fn LinkedList.insert(linked_list: &LinkedList, index: integer, data: any) {
 };
 
 fn LinkedList.remove(linked_list: &LinkedList, index: integer) {
-    let node: &LinkedList_Node = linked_list.head();
+    let node = @cast_&LinkedList_Node(linked_list.head());
 
     let i: integer = 0;
     while (i < index) {
@@ -216,7 +230,7 @@ fn LinkedList.remove(linked_list: &LinkedList, index: integer) {
 };
 
 fn LinkedList.get(linked_list: &LinkedList, index: integer): &any {
-    let node = linked_list.head();
+    let node = @cast_&LinkedList_Node(linked_list.head());
     let i = 0;
 
     while (i < (index + 1)) {
@@ -228,7 +242,7 @@ fn LinkedList.get(linked_list: &LinkedList, index: integer): &any {
 };
 
 fn LinkedList.size(linked_list: &LinkedList): integer {
-    let node = linked_list.head();
+    let node = @cast_&LinkedList_Node(linked_list.head());
     let i = 0;
 
     while (node.next() != null()) {
@@ -249,7 +263,7 @@ fn LinkedList.to_array(linked_list: LinkedList): Array {
 		let prev_node: &LinkedList_Node = node;
         node = @cast_LinkedList_Node(@cast_any(node.next_consume()));
 		let next = prev_node.next();
-        array.set(i, node.data_consume());
+        array.set(i, @cast_any(node.data()));
         i = i + 1;
     };
 

@@ -177,6 +177,8 @@ def parse(contents, type, extra):
         parameters = []
         for argument in arguments_array[::-1]:
             if argument:
+                #print(name)
+                #print(argument)
                 instructions.append(Declare(argument.split(":")[0], argument.split(":")[1].strip()))
 
         for argument in arguments_array:
@@ -247,27 +249,6 @@ def parse(contents, type, extra):
                 function = Function(get_name, instructions, locals, ["&" + name], item_type)
                 tokens.append(function)
 
-                get_consume_name = name + "." + item_name + "_consume"
-                instructions = []
-                locals = []
-                
-                item_type = item.split(":")[1].strip()
-
-                instructions.append(Declare("instance", "&" + name))
-                instructions.append(Retrieve("instance", None))
-                instructions.append(Constant(8 * len(items)))
-                instructions.append(Invoke("@add", 2, []))
-                instructions.append(Invoke("@get_8", 1, []))
-                instructions.append(Invoke("@cast_" + item_type, 1, []))
-                instructions.append(Return(True))
-
-                locals.append("instance")
-                
-                #print(item_type)
-
-                function = Function(get_consume_name, instructions, locals, [name], item_type)
-                tokens.append(function)
-
                 set_name = name + "." + item_name
                 instructions = []
                 locals = []
@@ -292,6 +273,44 @@ def parse(contents, type, extra):
 
                 items[item.split(":")[0]] = item.split(":")[1].strip()
                 items_list.append(item.split(":")[0])
+
+        for item in items:
+            get_consume_name = name + "." + item + "_consume"
+            instructions = []
+            locals = []
+                
+            item_type = items[item]
+
+            instructions.append(Declare("instance", "&" + name))
+            instructions.append(Retrieve("instance", None))
+            instructions.append(Constant(8 * items_list.index(item)))
+            instructions.append(Invoke("@add", 2, []))
+            instructions.append(Invoke("@get_8", 1, []))
+            instructions.append(Invoke("@cast_" + item_type, 1, []))
+
+
+            for item2 in items:
+                if not item == item2 and not items[item2] in primitives:
+                    instructions.append(Invoke(items[item2] + ".memory_size", 0, [], "integer"))
+                    instructions.append(Retrieve("instance", None))
+                    instructions.append(Constant(8 * items_list.index(item2)))
+                    instructions.append(Invoke("@add", 2, []))
+                    instructions.append(Invoke("@get_8", 1, []))
+                    instructions.append(Invoke("@cast_" + items[item2], 1, []))
+                    instructions.append(Invoke("@free", 2, []))
+
+            instructions.append(Invoke(name + ".memory_size", 0, [], "integer"))
+            instructions.append(Retrieve("instance", None))
+            instructions.append(Invoke("@cast_any", 1, []))
+            instructions.append(Invoke("@free", 2, []))
+
+            instructions.append(Return(True))
+
+            locals.append("instance")
+                
+            function = Function(get_consume_name, instructions, locals, [name], item_type)
+            tokens.append(function)
+
 
         instructions = []
         locals = []
@@ -437,11 +456,10 @@ def parse_statement(contents, extra):
         type_ = contents.split(" ")[2] if ":" in contents else ""
         instructions.append(Declare(name, type_))
 
-        if contents.find("=") != -1:
-            expression = contents[contents.index("=") + 1 : len(contents)]
-            expression = expression.lstrip()
-            instructions.extend(parse_statement(expression, extra + instructions))
-            instructions.append(Assign(name))
+        expression = contents[contents.index("=") + 1 : len(contents)]
+        expression = expression.lstrip()
+        instructions.extend(parse_statement(expression, extra + instructions))
+        instructions.append(Assign(name))
     elif contents.startswith("return ") or contents == "return":
         return_value_statement = contents[7 : len(contents)]
         if return_value_statement:
@@ -875,7 +893,9 @@ def process_program(program):
                     index_thing += 1
                 elif isinstance(instruction, Declare):
                     variables[instruction.name] = instruction.type
-                    owned_variables.add(instruction.name)
+                    if function.locals.index(instruction.name) < len(function.parameters):
+                        owned_variables.add(instruction.name)
+
                     if not len(scopes) == 0:
                         owned_variable_scopes[instruction.name] = scopes[len(scopes) - 1]
                     else:
@@ -884,8 +904,17 @@ def process_program(program):
                     if function.locals.index(instruction.name) < len(function.parameters):
                         variable_loops[instruction.name] = ""
                 elif isinstance(instruction, Assign):
-                    if not variables[instruction.name] in primitives:
-                        owned_variables.add(instruction.name)
+                    #if not variables[instruction.name] in primitives or variables[instruction.name] == "any":
+                    if instruction.name in owned_variables and not variables[instruction.name] in primitives and not variables[instruction.name][0] == "&":
+                        index = function.tokens.index(instruction)
+                        function.tokens.insert(index, Invoke(variables[instruction.name] + ".memory_size", 0, [], "integer"))
+                        function.tokens.insert(index + 1, Retrieve(instruction.name, None))
+                        function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
+
+                        #print(function.name + " " + instruction.name + " " + variables[instruction.name])
+
+                    owned_variables.add(instruction.name)
+
                     stack -= 1
 
                     if len(loops) > 0:
@@ -901,9 +930,25 @@ def process_program(program):
                         variable_loops[instruction.name] = ""
                 elif isinstance(instruction, StartWhile):
                     stack -= 1
+                    scopes.append("while_" + str(instruction.id1))
                     loops.append(str(instruction.id1))
                 elif isinstance(instruction, EndWhile):
                     loops.pop()
+
+                    id = "while_" + str(instruction.id1)
+                    if len(scopes) > 0 and id == scopes[len(scopes) - 1]:
+                        scopes.pop()
+
+                        index = function.tokens.index(instruction)
+                        for variable in owned_variables:
+                            if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
+                                name = function.name
+                                if owned_variable_scopes[variable] == id:
+                                    function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], "integer"))
+                                    function.tokens.insert(index + 1, Retrieve(variable, None))
+                                    function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
+                                    index += 3
+
                 elif isinstance(instruction, CheckIf):
                     if instruction.checking:
                         stack -= 1
@@ -922,9 +967,9 @@ def process_program(program):
                             if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
                                 name = function.name
                                 if owned_variable_scopes[variable] == id:
-                                    #function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], "integer"))
-                                    #function.tokens.insert(index + 1, Retrieve(variable, None))
-                                    #function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
+                                    function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], "integer"))
+                                    function.tokens.insert(index + 1, Retrieve(variable, None))
+                                    function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
                                     index += 3
                     pass
                 elif isinstance(instruction, Retrieve):
@@ -1021,7 +1066,8 @@ def process_program(program):
                         if not variables[variable] in primitives and not variables[variable][0] == "&":
                             name = function.name
                             if owned_variable_scopes[variable] == "":
-                                #print(function.name + " " + variable)
+                                #if name == "integer_to_string":
+                                    #print(function.name + " " + variable)
                                 function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], "integer"))
                                 function.tokens.insert(index + 1, Retrieve(variable, None))
                                 function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
@@ -1387,7 +1433,9 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("call Array.new_any~integer")
     _start.instructions.append("add rsp, 16")
     _start.instructions.append("push r8")
+    _start.instructions.append("call @print_memory_")
     _start.instructions.append("call main")
+    _start.instructions.append("call @print_memory_")
     _start.instructions.append("mov rax, 60")
     _start.instructions.append("xor rdi, rdi")
     _start.instructions.append("syscall")
@@ -1979,7 +2027,7 @@ def create_linux_binary(program, file_name_base):
     call_function.instructions.append("ret")
     asm_program.functions.append(call_function)
     
-    functions = ["_start"]
+    functions = ["_start", "@print_memory_"]
     for token in program.tokens:
         if isinstance(token, Function):
             for instruction in token.tokens:
@@ -2130,7 +2178,7 @@ def create_linux_binary(program, file_name_base):
 
             stack_index_max = max(stack_index, stack_index_max)
         
-        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8 * 4))
+        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8 * 8))
     
         for instruction in function.instructions:
             file.write("   " + instruction + "\n")
