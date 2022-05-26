@@ -1,12 +1,6 @@
 use "std.amp";
 
 fn main() {
-	@print_memory();
-    test();
-	@print_memory();
-};
-
-fn test() {
     println("a" + 35 + 34);
 };
 

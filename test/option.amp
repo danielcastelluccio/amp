@@ -5,7 +5,7 @@ fn main() {
 
     println(boolean_to_string(option.is_value()));
 
-    option = Option.of("Hello Option!");
+    option = Option.of("Hello Option!", String.memory_size());
     if (option.is_value()) {
         println(@cast_&String(option.data()));
     } else {

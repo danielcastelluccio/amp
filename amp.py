@@ -572,6 +572,9 @@ def parse_statement(contents, extra):
             elif character == "+" and current_parenthesis == 0:
                 special_sign = "+"
                 special_index = index
+            elif character == "-" and current_parenthesis == 0:
+                special_sign = "-"
+                special_index = index
             elif character == "*" and current_parenthesis == 0:
                 special_sign = "*"
                 special_index = index
@@ -611,6 +614,12 @@ def parse_statement(contents, extra):
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("_+", 2, []))
+        elif special_sign == "-":
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 1 : len(contents)].strip()
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("_-", 2, []))
         elif special_sign == "*":
             before = contents[0 : special_index].strip()
             after = contents[special_index + 1 : len(contents)].strip()
@@ -718,6 +727,7 @@ def parse_statement(contents, extra):
 internals = [
     Function("@print_size", [], [], ["&any", "integer"], "none"),
     Function("@add", [], [], ["&any", "&any"], "any"),
+    Function("@subtract", [], [], ["&any", "&any"], "any"),
     Function("@get_8", [], [], ["any"], "integer"),
     Function("@set_8", [], [], ["integer", "any"], "none"),
     Function("@allocate", [], [], ["integer"], "any"),
@@ -733,10 +743,11 @@ internals = [
     Function("@divide", [], [], ["integer", "integer"], "integer"),
     Function("@set_1", [], [], ["integer", "any"], "none"),
     Function("@not", [], [], ["boolean"], "boolean"),
+    Function("@and", [], [], ["boolean", "boolean"], "boolean"),
     Function("@multiply", [], [], ["integer", "integer"], "integer"),
     Function("@less", [], [], ["integer", "integer"], "boolean"),
     Function("@exit", [], [], [], "none"),
-    Function("@execute", [], [], ["any", "any", "boolean"], "none"),
+    Function("@execute", [], [], ["&any", "&any", "boolean"], "none"),
     Function("@call_function", [], [], ["&any", "&any", "integer"], "any")
 ]
 
@@ -1066,8 +1077,6 @@ def process_program(program):
                         if not variables[variable] in primitives and not variables[variable][0] == "&":
                             name = function.name
                             if owned_variable_scopes[variable] == "":
-                                #if name == "integer_to_string":
-                                    #print(function.name + " " + variable)
                                 function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], "integer"))
                                 function.tokens.insert(index + 1, Retrieve(variable, None))
                                 function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
@@ -1388,6 +1397,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("mov qword [memory], 8")
     _start.instructions.append("mov qword [memory+16], 16376")
     _start.instructions.append("mov rax, [rbp+8]")
+    _start.instructions.append("sub rax, 1")
     _start.instructions.append("mov rcx, rax")
     _start.instructions.append("mov rdx, 8")
     _start.instructions.append("mul rdx")
@@ -1397,7 +1407,6 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("add rsp, 8")
     _start.instructions.append("pop rcx")
     _start.instructions.append("mov rax, 0")
-    _start.instructions.append("dec rcx")
     _start.instructions.append("arguments_loop:")
     _start.instructions.append("cmp rax, rcx")
     _start.instructions.append("je arguments_loop_end")
@@ -1428,14 +1437,17 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("inc rax")
     _start.instructions.append("jmp arguments_loop")
     _start.instructions.append("arguments_loop_end:")
-    _start.instructions.append("push rcx")
+    _start.instructions.append("mov r11, r8")
+    _start.instructions.append("call String.memory_size_")
     _start.instructions.append("push r8")
-    _start.instructions.append("call Array.new_any~integer")
+    _start.instructions.append("push rcx")
+    _start.instructions.append("push r11")
+    _start.instructions.append("call Array.new_any~integer~integer")
     _start.instructions.append("add rsp, 16")
     _start.instructions.append("push r8")
-    _start.instructions.append("call @print_memory_")
+    #_start.instructions.append("call @print_memory_")
     _start.instructions.append("call main")
-    _start.instructions.append("call @print_memory_")
+    #_start.instructions.append("call @print_memory_")
     _start.instructions.append("mov rax, 60")
     _start.instructions.append("xor rdi, rdi")
     _start.instructions.append("syscall")
@@ -1463,7 +1475,7 @@ def create_linux_binary(program, file_name_base):
     multiply.instructions.append("ret")
     asm_program.functions.append(multiply)
 
-    subtract = AsmFunction("@subtract_integer~integer", [])
+    subtract = AsmFunction("@subtract_any~any", [])
     subtract.instructions.append("push rbp")
     subtract.instructions.append("mov rbp, rsp")
     subtract.instructions.append("mov r8, [rbp+16]")
@@ -1526,8 +1538,11 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("add rax, rcx") # now rax stores beginning of new free memory
 
     allocate.instructions.append("mov r11, [rax+8]") # r11 stores the size of the free memory block
+    allocate.instructions.append("mov r12, rbx")
+    allocate.instructions.append("add r12, 16")
 
-    allocate.instructions.append("cmp rbx, r11")
+    allocate.instructions.append("cmp r12, r11")
+
     allocate.instructions.append("jle allocate_done")
     allocate.instructions.append("mov r9, rcx") # r9 stores the previous location used
     allocate.instructions.append("mov rcx, [rax]")
@@ -1566,8 +1581,8 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("je allocate_zero_done")
     allocate.instructions.append("mov r9, r8")
     allocate.instructions.append("add r9, rcx")
-    allocate.instructions.append("mov byte [r9], 0")
-    allocate.instructions.append("add rcx, 1")
+    allocate.instructions.append("mov qword [r9], 0")
+    allocate.instructions.append("add rcx, 8")
     allocate.instructions.append("jmp allocate_zero")
     allocate.instructions.append("allocate_zero_done:")
 
@@ -1618,38 +1633,6 @@ def create_linux_binary(program, file_name_base):
     free.instructions.append("push rbp")
     free.instructions.append("mov rbp, rsp")
 
-    free.instructions.append("push rax")
-    free.instructions.append("push r9")
-    free.instructions.append("push rcx")
-    free.instructions.append("push rbx")
-    free.instructions.append("mov rdi, 9999999999999")
-    #free.instructions.append("call print_integer_space")
-    free.instructions.append("pop rbx")
-    free.instructions.append("pop rcx")
-    free.instructions.append("pop r9")
-    free.instructions.append("pop rax")
-    free.instructions.append("push rax")
-    free.instructions.append("push r9")
-    free.instructions.append("push rcx")
-    free.instructions.append("push rbx")
-    free.instructions.append("mov rdi, [rbp+16]")
-    free.instructions.append("sub rdi, memory")
-    #free.instructions.append("call print_integer_space")
-    free.instructions.append("pop rbx")
-    free.instructions.append("pop rcx")
-    free.instructions.append("pop r9")
-    free.instructions.append("pop rax")
-    free.instructions.append("push rax")
-    free.instructions.append("push r9")
-    free.instructions.append("push rcx")
-    free.instructions.append("push rbx")
-    free.instructions.append("mov rdi, [rbp+24]")
-    #free.instructions.append("call print_integer")
-    free.instructions.append("pop rbx")
-    free.instructions.append("pop rcx")
-    free.instructions.append("pop r9")
-    free.instructions.append("pop rax")
-
     free.instructions.append("mov rax, [rbp+16]") # rax is the pointer to freed memory
     free.instructions.append("mov r9, rax") # r9 = freed_head
     free.instructions.append("mov rcx, [memory]") # rcx stores the pointed head (before free)
@@ -1670,6 +1653,38 @@ def create_linux_binary(program, file_name_base):
     free.instructions.append("mov rbx, rax")
     free.instructions.append("free_skip_filter:")
 
+    free.instructions.append("pop rax")
+
+    free.instructions.append("push rax")
+    free.instructions.append("push r9")
+    free.instructions.append("push rcx")
+    free.instructions.append("push rbx")
+    free.instructions.append("mov rdi, 9999999999999")
+    #free.instructions.append("call print_integer_space")
+    free.instructions.append("pop rbx")
+    free.instructions.append("pop rcx")
+    free.instructions.append("pop r9")
+    free.instructions.append("pop rax")
+    free.instructions.append("push rax")
+    free.instructions.append("push r9")
+    free.instructions.append("push rcx")
+    free.instructions.append("push rbx")
+    free.instructions.append("mov rdi, r9")
+    free.instructions.append("sub rdi, memory")
+    #free.instructions.append("call print_integer_space")
+    free.instructions.append("pop rbx")
+    free.instructions.append("pop rcx")
+    free.instructions.append("pop r9")
+    free.instructions.append("pop rax")
+    free.instructions.append("push rax")
+    free.instructions.append("push r9")
+    free.instructions.append("push rcx")
+    free.instructions.append("push rbx")
+    free.instructions.append("mov rdi, rbx")
+    #free.instructions.append("call print_integer")
+    free.instructions.append("pop rbx")
+    free.instructions.append("pop rcx")
+    free.instructions.append("pop r9")
     free.instructions.append("pop rax")
 
 
@@ -2041,7 +2056,7 @@ def create_linux_binary(program, file_name_base):
     index_thing = 0
     
     def get_asm_name(name):
-        bad = "+=%/*<>!"
+        bad = "+=%/*<>!-"
         new_name = ""
         for letter in name:
             if letter in bad:
@@ -2178,7 +2193,7 @@ def create_linux_binary(program, file_name_base):
 
             stack_index_max = max(stack_index, stack_index_max)
         
-        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8 * 8))
+        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8 * 16))
     
         for instruction in function.instructions:
             file.write("   " + instruction + "\n")

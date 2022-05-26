@@ -19,26 +19,29 @@ fn errorln(string: String) {
 fn read(): String {
     let string = @allocate(128);
     @read_size(string, 128);
-    return String.new(string);
+    return String.new(string, 128);
 };
 
 fn execute_command(file: String, arguments: Array, wait: boolean) {
-    @execute(to_null_terminated_string(file), to_null_terminated_array(arguments), wait);
+	let null_terminated_file = file + "\0";
+	let arguments_new = Array.new(arguments.length() + 1);
+	let i = 0;
+	while (i < arguments.length()) {
+		let thing = @cast_&String(arguments.get(i)) + "\0";
+		arguments_new.set(i, @cast_any(thing.pointer_consume()));
+		i = i + 1;
+	};
+
+	@execute(null_terminated_file.pointer(), arguments_new.pointer(), wait);
+
+	let i = 0;
+	while (i < arguments_new.length() - 1) {
+		let argument = arguments_new.get(i);
+		@free(argument, length(argument) + 1);
+		i = i + 1;
+	};
+
     print("");
-};
-
-fn to_null_terminated_string(string: &String): any {
-    return (string + "\0").pointer_consume();
-};
-
-fn to_null_terminated_array(array: Array): any {
-    let new_array = Array.new(@allocate((array.length() + 1) * 8), array.length());
-    let i = 0;
-    while (i < new_array.length()) {
-        new_array.set(i, to_null_terminated_string(@cast_&String(array.get(i))));
-        i = i + 1;
-    };
-    return new_array.pointer_consume();
 };
 
 fn length(string: &any): integer {
@@ -75,7 +78,7 @@ fn integer_to_string(integer: integer): String {
         let modulo = integer % 10;
         integer = integer / 10;
         let prepended_string = String.new(store(modulo + 48), 1);
-        string = prepended_string + string;
+        string = prepended_string +string;
     };
 
     return string;
@@ -128,7 +131,9 @@ fn Array.free_custom(array: &Array) {
 	if (array.item_size() > 0) {
 		let i = 0;
 		while (i < array.length()) {
-			@free(array.get(i), array.item_size());
+			if (@not(array.get(i) == 0)) {
+				@free(array.get(i), array.item_size());
+			};
 			i = i + 1;
 		};
 	};
@@ -186,10 +191,15 @@ fn null(): any {
 
 struct LinkedList {
     head: any;
+	item_size: integer;
+};
+
+fn LinkedList.new(item_size: integer): LinkedList {
+	return LinkedList.new(LinkedList_Node.new(null(), null(), item_size), item_size);
 };
 
 fn LinkedList.new(): LinkedList {
-    return LinkedList.new(LinkedList_Node.new(null(), null()));
+    return LinkedList.new(0);
 };
 
 fn LinkedList.append(linked_list: &LinkedList, data: any) {
@@ -198,7 +208,7 @@ fn LinkedList.append(linked_list: &LinkedList, data: any) {
         node = @cast_&LinkedList_Node(node.next());
     };
 
-    let new_node = LinkedList_Node.new(data, null());
+    let new_node = LinkedList_Node.new(data, null(), linked_list.item_size());
     node.next(new_node);
 };
 
@@ -212,7 +222,7 @@ fn LinkedList.insert(linked_list: &LinkedList, index: integer, data: any) {
     };
 
     let temp_next = node.next();
-    let new_node = LinkedList_Node.new(data, @cast_any(temp_next));
+    let new_node = LinkedList_Node.new(data, @cast_any(temp_next), linked_list.item_size());
     node.next(new_node);
 };
 
@@ -225,7 +235,9 @@ fn LinkedList.remove(linked_list: &LinkedList, index: integer) {
         i = i + 1;
     };
 
-    let temp_next_next = @cast_&LinkedList_Node(@cast_any(node.next())).next();
+    let temp_next_next = @cast_&LinkedList_Node(node.next()).next();
+	@cast_&LinkedList_Node(node.next()).free_custom();
+	@free(node.next(), LinkedList_Node.memory_size());
     node.next(@cast_any(temp_next_next));
 };
 
@@ -270,25 +282,55 @@ fn LinkedList.to_array(linked_list: LinkedList): Array {
     return array;
 };
 
+fn LinkedList.free_custom(list: &LinkedList) {
+	let node = list.head();
+	while (node != 0) {
+		let new_node = @cast_&LinkedList_Node(node).next();
+		@cast_&LinkedList_Node(node).free_custom();
+		@free(node, LinkedList_Node.memory_size());
+		node = new_node;
+	};
+};
+
 struct LinkedList_Node {
     data: any;
     next: any;
+	item_size: integer;
+};
+
+fn LinkedList_Node.free_custom(node: &LinkedList_Node) {
+	if (node.item_size() != 0) {
+		@free(node.data(), node.item_size());
+	};
 };
 
 struct Option {
     data: any;
+	item_size: integer;
 };
 
 fn Option.empty(): Option {
-    return Option.new(null());
+    return Option.new(null(), 0);
 };
 
 fn Option.of(data: any): Option {
-    return Option.new(data);
+    return Option.of(data, 0);
+};
+
+fn Option.of(data: any, item_size: integer): Option {
+    return Option.new(data, item_size);
 };
 
 fn Option.is_value(option: &Option): boolean {
     return not_equal(option.data(), null());
+};
+
+fn Option.free_custom(option: &Option) {
+	let test = option.data() != null();
+	let test2 = option.item_size() > 0;
+	if (@and(test, test2)) {
+		@free(option.data(), option.item_size());
+	};
 };
 
 fn _+(value1: any, value2: any): any {
@@ -297,6 +339,14 @@ fn _+(value1: any, value2: any): any {
 
 fn _+(value1: integer, value2: integer): integer {
     return @cast_integer(@add(value1, value2));
+};
+
+fn _-(value1: any, value2: any): any {
+    return @subtract(value1, value2);
+};
+
+fn _-(value1: integer, value2: integer): integer {
+    return @cast_integer(@subtract(value1, value2));
 };
 
 fn _%(value1: integer, value2: integer): integer {

@@ -16,7 +16,7 @@ fn main() {
 };
 
 fn print_int_list(list: &LinkedList) {
-    let node = list.head();
+    let node = @cast_&LinkedList_Node(list.head());
     while (not_equal(node.next(), null())) {
         node = @cast_&LinkedList_Node(node.next());
         println(integer_to_string(@cast_integer(node.data())));
