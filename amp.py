@@ -814,6 +814,11 @@ def process_program(program):
 
             stack = 0
             index_thing = 0
+
+            loops = []
+            variable_loops = {}
+            loop_errors = {}
+
             for instruction in list(function.tokens):
                 recently_added_usage = ""
                 is_cast = False
@@ -846,12 +851,30 @@ def process_program(program):
                         owned_variable_scopes[instruction.name] = scopes[len(scopes) - 1]
                     else:
                         owned_variable_scopes[instruction.name] = ""
+
+                    if function.locals.index(instruction.name) < len(function.parameters):
+                        variable_loops[instruction.name] = ""
                 elif isinstance(instruction, Assign):
                     if not variables[instruction.name] in primitives:
                         owned_variables.add(instruction.name)
                     stack -= 1
+
+                    if len(loops) > 0:
+                        variable_loops[instruction.name] = loops[len(loops) - 1]
+
+                        current_loop = ""
+                        if len(loops) > 0:
+                            current_loop = loops[len(loops) - 1]
+
+                        if instruction.name in loop_errors and loop_errors[instruction.name] == current_loop:
+                            del loop_errors[instruction.name]
+                    else:
+                        variable_loops[instruction.name] = ""
                 elif isinstance(instruction, StartWhile):
                     stack -= 1
+                    loops.append(str(instruction.id1))
+                elif isinstance(instruction, EndWhile):
+                    loops.pop()
                 elif isinstance(instruction, CheckIf):
                     if instruction.checking:
                         stack -= 1
@@ -885,8 +908,9 @@ def process_program(program):
                         if not instruction.name in owned_variables:
                             print("PROCESS: Variable " + instruction.name + " in " + function.name + " used while not owned.")
                             return 1
+
                     else:
-                        id = "_" + str(index_thing)
+                        #id = "_" + str(index_thing)
 
                         #function.tokens.insert(function.tokens.index(instruction) + 1, Duplicate())
                         #function.tokens.insert(function.tokens.index(instruction) + 2, Declare(id, "Function"))
@@ -903,11 +927,27 @@ def process_program(program):
                         is_cast = True
                         
                     post_method_index = function.tokens.index(instruction) + 1
+                    #print(instruction.name)
+                    #if function.name == "main":
+                        #print(str(stack) + " " + instruction.name)
+
                     for parameter in instruction.parameters:
-                        for usage in variable_usages:
+
+                        for usage in dict(variable_usages):
+                            #if function.name == "main":
+                                #print(usage + " " + str(variable_usages[usage]) + " " + str(stack) + " " + instruction.name)
                             if variable_usages[usage] == stack:
                                 if not (parameter[0] == "&" or variables[usage] in primitives):
                                     owned_variables.remove(usage)
+
+                                    current_loop = ""
+                                    if len(loops) > 0:
+                                        current_loop = loops[len(loops) - 1]
+
+                                    if not variable_loops[usage] == current_loop:
+                                        loop_errors[usage] = current_loop
+
+                                del variable_usages[usage]
 
                         if stack in value_usages and parameter[0] == "&" and not values[value_usages[stack]] in primitives:
                             #print(function.name + " " + values[value_usages[stack]])
@@ -919,21 +959,23 @@ def process_program(program):
 
                         stack -= 1
 
-                    if not instruction.return_ == "none" and instruction.return_ and not instruction.return_[0] == "&":
+                    if not instruction.return_ == "none" and instruction.return_:
                         stack += 1
-                        id = "_" + str(index_thing)
-                        type = instruction.return_
 
-                        function.tokens.insert(function.tokens.index(instruction) + 1, Duplicate())
-                        function.tokens.insert(function.tokens.index(instruction) + 2, Declare(id, type))
-                        function.tokens.insert(function.tokens.index(instruction) + 3, Assign(id))
-                        function.locals.append(id)
+                        if not instruction.return_[0] == "&":
+                            id = "_" + str(index_thing)
+                            type = instruction.return_
 
-                        values[id] = type
-                        
-                        value_usages[stack] = id
-                        
-                        index_thing += 1
+                            function.tokens.insert(function.tokens.index(instruction) + 1, Duplicate())
+                            function.tokens.insert(function.tokens.index(instruction) + 2, Declare(id, type))
+                            function.tokens.insert(function.tokens.index(instruction) + 3, Assign(id))
+                            function.locals.append(id)
+
+                            values[id] = type
+                            
+                            value_usages[stack] = id
+                            
+                            index_thing += 1
 
                     #stack -= instruction.parameter_count
                 elif isinstance(instruction, Return):
@@ -963,13 +1005,17 @@ def process_program(program):
                     for variable in temp_vars:
                         owned_variables.add(variable)
 
-                for usage in dict(variable_usages):
-                    if variable_usages[usage] >= stack and not recently_added_usage == usage and not is_cast:
-                        del variable_usages[usage]
+                #for usage in dict(variable_usages):
+                    #if variable_usages[usage] >= stack and not recently_added_usage == usage and not is_cast:
+                        #del variable_usages[usage]
 
                 for stack_index in dict(value_usages):
                     if stack_index > stack:
                         del value_usages[stack_index]
+
+            for error in loop_errors:
+                print("PROCESS: Variable " + error + " in " + function.name + " used while not owned (due to a loop).")
+                return 1
 
     for function in program.tokens:
         if isinstance(function, Function):
@@ -1054,6 +1100,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
 
     types = []
     variables = {}
+
     for instruction in list(instructions):
         if isinstance(instruction, Constant):
             if isinstance(instruction.value, bool):
@@ -1101,6 +1148,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + variables[instruction.name] + ", given " + given_type + ".")
                 return 1
         elif isinstance(instruction, Retrieve):
+
             if instruction.name in functions2 and not instruction.name in variables:
                 types.append("Function")
                 instruction.data = functions2[instruction.name].parameters

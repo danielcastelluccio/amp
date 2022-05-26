@@ -125,7 +125,7 @@ struct Function {
     pointer: any;
 };
 
-fn Function.call(function: &Function, parameters: &Array): any {
+fn Function.call(function: &Function, parameters: Array): any {
     return @call_function(function.pointer(), parameters.pointer(), parameters.length());
 };
 
@@ -245,7 +245,7 @@ fn LinkedList.to_array(linked_list: LinkedList): Array {
     let i = 0;
     let node = @cast_LinkedList_Node(linked_list.head_consume());
 
-    while (i < size) {
+    while (node.next() != 0) {
 		let prev_node: &LinkedList_Node = node;
         node = @cast_LinkedList_Node(@cast_any(node.next_consume()));
 		let next = prev_node.next();
