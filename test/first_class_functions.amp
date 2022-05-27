@@ -1,16 +1,16 @@
 use "std.amp";
 
 fn main() {
-    let functions = Array.new(2);
-    functions.set(0, test);
-    functions.set(1, test2);
+    let functions = Array(2);
+    functions[0] = test;
+    functions[1] = test2;
 
     let i = 0;
     while (i < functions.length()) {
-    	let parameters = Array.new(1);
-    	parameters.set(0, "Welcome child!");
+    	let parameters = Array(1);
+    	parameters[0] = "Welcome child!";
 
-		println(@cast_String(@cast_&Function(functions.get(i)).call(parameters)));
+		println(@cast_String(@cast_&Function(functions[i]).call(parameters)));
         i = i + 1;
     };
 };

@@ -340,7 +340,7 @@ def parse(contents, type, extra):
 
         locals.append("instance")
 
-        function = Function(name + ".new", instructions, locals, list(items.values()), [name])
+        function = Function(name, instructions, locals, list(items.values()), [name])
         tokens.append(function)
 
         ##################
@@ -595,6 +595,8 @@ def parse_statement(contents, extra):
     else:
         special_sign = ""
         special_index = -1
+        special_index2 = -1
+        special_index3 = -1
         current_parenthesis = 0
         last_character = ""
         for index, character in enumerate(contents):
@@ -602,19 +604,19 @@ def parse_statement(contents, extra):
                 current_parenthesis += 1
             elif character == ")":
                 current_parenthesis -= 1
-            elif character == "+" and current_parenthesis == 0:
+            elif character == "+" and current_parenthesis == 0 and special_index == -1:
                 special_sign = "+"
                 special_index = index
-            elif character == "-" and current_parenthesis == 0:
+            elif character == "-" and current_parenthesis == 0 and special_index == -1:
                 special_sign = "-"
                 special_index = index
-            elif character == "*" and current_parenthesis == 0:
+            elif character == "*" and current_parenthesis == 0 and special_index == -1:
                 special_sign = "*"
                 special_index = index
-            elif character == "/" and current_parenthesis == 0:
+            elif character == "/" and current_parenthesis == 0 and special_index == -1:
                 special_sign = "/"
                 special_index = index
-            elif character == "%" and current_parenthesis == 0:
+            elif character == "%" and current_parenthesis == 0 and special_index == -1:
                 special_sign = "%"
                 special_index = index
             elif character == "=" and last_character == "=" and current_parenthesis == 0:
@@ -623,19 +625,25 @@ def parse_statement(contents, extra):
             elif character == "=" and last_character == "!" and current_parenthesis == 0:
                 special_sign = "!="
                 special_index = index - 1
-            elif character == "<" and current_parenthesis == 0:
+            elif character == "<" and current_parenthesis == 0 and special_index == -1:
                 special_sign = "<"
                 special_index = index
-            elif character == ">" and current_parenthesis == 0:
+            elif character == ">" and current_parenthesis == 0 and special_index == -1:
                 special_sign = ">"
                 special_index = index
+            elif character == "[" and current_parenthesis == 0 and special_index == -1:
+                special_sign = "[]"
+                special_index = index
+            elif character == "]" and current_parenthesis == 0:
+                special_index2 = index
+            elif character == "=" and current_parenthesis == 0 and special_sign == "[]":
+                if not last_character == "=":
+                    special_sign = "[]="
+                    special_index3 = index
             
             last_character = character
             
-            if special_index != -1:
-                break
-            
-        if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!":
+        if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!" and not special_sign == "[]=":
                 name = contents.split(" ")[0]
                 expression = contents[contents.index("=") + 1 : len(contents)]
                 expression = expression.lstrip()
@@ -695,6 +703,20 @@ def parse_statement(contents, extra):
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("_>", 2, []))
+        elif special_sign == "[]":
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 1 : special_index2].strip()
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("_[]", 2, []))
+        elif special_sign == "[]=":
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 1 : special_index2].strip()
+            after2 = contents[special_index3 + 1 : len(contents)].strip()
+            instructions.extend(parse_statement(after2, extra + instructions))
+            instructions.extend(parse_statement(after, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("_[]=", 3, []))
         elif "(" in contents and contents.endswith(")"):
             max = 0
             index_thing = -1
@@ -846,7 +868,11 @@ def process_program(program):
                 elif isinstance(instruction, Declare):
                     variables[instruction.name] = instruction
                 elif isinstance(instruction, Assign):
-                    given_type = types.pop()
+                    if len(types) > 0:
+                        given_type = types.pop()
+                    else:
+                        given_type = "unknown"
+
                     if instruction.name in variables:
                         if variables[instruction.name].type == "":
                             variables[instruction.name].type = given_type
@@ -861,7 +887,7 @@ def process_program(program):
                 elif isinstance(instruction, Invoke):
                     if instruction.name.startswith("_."):
                         type_ = types[len(types) - 1]
-                        if type_[0] == "&":
+                        if len(type_) > 0 and type_[0] == "&":
                             type_ = type_[1::]
                         instruction.name = instruction.name.replace("_.", type_ + ".")
                         instruction.parameter_count += 1
@@ -893,6 +919,9 @@ def process_program(program):
         if isinstance(token, Function):
             if type_check(token, token.tokens, program_types, functions, functions2, True) == 1:
                 return_value = 1
+
+    if return_value == 1:
+        return 1
 
     for function in program.tokens:
         if isinstance(function, Function):
@@ -1309,6 +1338,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 id = instruction.name + "_" + str(instruction.parameter_count)
 
                 if not id in functions:
+                    #print(id)
                     print("PROCESS: Function " + instruction.name + " with " + str(instruction.parameter_count) + " parameters in " + function.name + " not defined.")
                     return 1
 
@@ -1376,7 +1406,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
     
 
 def is_used(function, functions):
-    if function.name == "main" or (function.name == "String.new" and function.parameters[0] == "any") or (function.name == "Function.new" and function.parameters[0] == "any") or (function.name == "Array.new" and function.parameters[0] == "any" and function.parameters[1] == "integer") or function.name == "String.memory_size":
+    if function.name == "main" or (function.name == "String" and function.parameters[0] == "any") or (function.name == "Function" and function.parameters[0] == "any") or (function.name == "Array" and function.parameters[0] == "any" and function.parameters[1] == "integer") or function.name == "String.memory_size":
         return True
 
     for other_function in functions:
@@ -1477,7 +1507,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("push rdx")
     _start.instructions.append("push rbx")
     _start.instructions.append("push r9")
-    _start.instructions.append("call String.new_any")
+    _start.instructions.append("call String_any")
     _start.instructions.append("add rsp, 8")
     _start.instructions.append("pop rbx")
     _start.instructions.append("pop rdx")
@@ -1494,7 +1524,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("push r8")
     _start.instructions.append("push rcx")
     _start.instructions.append("push r11")
-    _start.instructions.append("call Array.new_any~integer~integer")
+    _start.instructions.append("call Array_any~integer~integer")
     _start.instructions.append("add rsp, 16")
     _start.instructions.append("push r8")
     #_start.instructions.append("call @print_memory_")
@@ -2108,7 +2138,7 @@ def create_linux_binary(program, file_name_base):
     index_thing = 0
     
     def get_asm_name(name):
-        bad = "+=%/*<>!-"
+        bad = "+=%/*<>!-[]"
         new_name = ""
         for letter in name:
             if letter in bad:
@@ -2155,7 +2185,7 @@ def create_linux_binary(program, file_name_base):
                         asm_function.instructions.append("push 1")
                         asm_function.instructions.append("push " + str(0 if not put_string else len(put_string.split(","))))
                         asm_function.instructions.append("push qword " + name)
-                        asm_function.instructions.append("call String.new_any~integer~boolean")
+                        asm_function.instructions.append("call String_any~integer~boolean")
                         asm_function.instructions.append("add rsp, 24")
                         asm_function.instructions.append("push r8")
 
@@ -2182,7 +2212,7 @@ def create_linux_binary(program, file_name_base):
                 elif isinstance(instruction, Retrieve):
                     if isinstance(instruction.data, list) and not instruction.name in token.locals:
                         asm_function.instructions.append("push " + instruction.name + "_" + "~".join(instruction.data).replace("&", ""))
-                        asm_function.instructions.append("call Function.new_any")
+                        asm_function.instructions.append("call Function_any")
                         asm_function.instructions.append("add rsp, 8")
                         asm_function.instructions.append("push r8")
                     else:

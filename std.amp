@@ -19,16 +19,16 @@ fn errorln(string: String) {
 fn read(): String {
     let string = @allocate(128);
     @read_size(string, 128);
-    return String.new(string, 128);
+    return String(string, 128);
 };
 
 fn execute_command(file: String, arguments: Array, wait: boolean) {
 	let null_terminated_file = file + "\0";
-	let arguments_new = Array.new(arguments.length() + 1);
+	let arguments_new = Array(arguments.length() + 1);
 	let i = 0;
 	while (i < arguments.length()) {
-		let thing = @cast_&String(arguments.get(i)) + "\0";
-		arguments_new.set(i, @cast_any(thing.pointer_consume()));
+		let thing = @cast_&String(arguments[i]) + "\0";
+		arguments_new[i] = @cast_any(thing.pointer_consume());
 		i = i + 1;
 	};
 
@@ -36,7 +36,7 @@ fn execute_command(file: String, arguments: Array, wait: boolean) {
 
 	let i = 0;
 	while (i < arguments_new.length() - 1) {
-		let argument = arguments_new.get(i);
+		let argument = arguments_new[i];
 		@free(argument, length(argument) + 1);
 		i = i + 1;
 	};
@@ -65,7 +65,7 @@ fn _+(string1: &String, string2: &String): String {
     let new_memory = @allocate(string1_length + string2_length);
     @copy(string1.pointer(), new_memory, string1_length);
     @copy(string2.pointer(), new_memory + string1_length, string2_length);
-    return String.new(new_memory, string1_length + string2_length);
+    return String(new_memory, string1_length + string2_length);
 };
 
 fn integer_to_string(integer: integer): String {
@@ -77,7 +77,7 @@ fn integer_to_string(integer: integer): String {
     while (integer > 0) {
         let modulo = integer % 10;
         integer = integer / 10;
-        let prepended_string = String.new(store(modulo + 48), 1);
+        let prepended_string = String(store(modulo + 48), 1);
         string = prepended_string +string;
     };
 
@@ -107,23 +107,23 @@ struct Array {
 	item_size: integer;
 };
 
-fn Array.new(pointer: any, length: integer): Array {
-    return Array.new(pointer, length, 0);
+fn Array(pointer: any, length: integer): Array {
+    return Array(pointer, length, 0);
 };
 
-fn Array.new(size: integer): Array {
-    return Array.new(@allocate(size * 8), size);
+fn Array(size: integer): Array {
+    return Array(@allocate(size * 8), size);
 };
 
-fn Array.new(size: integer, memory_size: integer): Array {
-    return Array.new(@allocate(size * 8), size, memory_size);
+fn Array(size: integer, memory_size: integer): Array {
+    return Array(@allocate(size * 8), size, memory_size);
 };
 
-fn Array.set(array: &Array, index: integer, value: any) {
+fn _[]=(array: &Array, index: integer, value: any) {
     @set_8(@cast_integer(value), array.pointer() + (index * 8));
 };
 
-fn Array.get(array: &Array, index: integer): &any {
+fn _[](array: &Array, index: integer): &any {
     return @get_8(array.pointer() + (index * 8));
 };
 
@@ -131,8 +131,8 @@ fn Array.free_custom(array: &Array) {
 	if (array.item_size() > 0) {
 		let i = 0;
 		while (i < array.length()) {
-			if (@not(array.get(i) == 0)) {
-				@free(array.get(i), array.item_size());
+			if (@not(array[i] == 0)) {
+				@free(array[i], array.item_size());
 			};
 			i = i + 1;
 		};
@@ -154,12 +154,12 @@ struct String {
     static: boolean;
 };
 
-fn String.new(pointer: any): String {
-    return String.new(pointer, length(pointer), false);
+fn String(pointer: any): String {
+    return String(pointer, length(pointer), false);
 };
 
-fn String.new(pointer: any, length: integer): String {
-    return String.new(pointer, length, false);
+fn String(pointer: any, length: integer): String {
+    return String(pointer, length, false);
 };
 
 fn String.free_custom(string: &String) {
@@ -194,12 +194,12 @@ struct LinkedList {
 	item_size: integer;
 };
 
-fn LinkedList.new(item_size: integer): LinkedList {
-	return LinkedList.new(LinkedList_Node.new(null(), null(), item_size), item_size);
+fn LinkedList(item_size: integer): LinkedList {
+	return LinkedList(LinkedList_Node(null(), null(), item_size), item_size);
 };
 
-fn LinkedList.new(): LinkedList {
-    return LinkedList.new(0);
+fn LinkedList(): LinkedList {
+    return LinkedList(0);
 };
 
 fn LinkedList.append(linked_list: &LinkedList, data: any) {
@@ -208,7 +208,7 @@ fn LinkedList.append(linked_list: &LinkedList, data: any) {
         node = @cast_&LinkedList_Node(node.next());
     };
 
-    let new_node = LinkedList_Node.new(data, null(), linked_list.item_size());
+    let new_node = LinkedList_Node(data, null(), linked_list.item_size());
     node.next(new_node);
 };
 
@@ -222,7 +222,7 @@ fn LinkedList.insert(linked_list: &LinkedList, index: integer, data: any) {
     };
 
     let temp_next = node.next();
-    let new_node = LinkedList_Node.new(data, @cast_any(temp_next), linked_list.item_size());
+    let new_node = LinkedList_Node(data, @cast_any(temp_next), linked_list.item_size());
     node.next(new_node);
 };
 
@@ -241,7 +241,7 @@ fn LinkedList.remove(linked_list: &LinkedList, index: integer) {
     node.next(@cast_any(temp_next_next));
 };
 
-fn LinkedList.get(linked_list: &LinkedList, index: integer): &any {
+fn _[](linked_list: &LinkedList, index: integer): &any {
     let node = @cast_&LinkedList_Node(linked_list.head());
     let i = 0;
 
@@ -267,7 +267,7 @@ fn LinkedList.size(linked_list: &LinkedList): integer {
 
 fn LinkedList.to_array(linked_list: LinkedList): Array {
     let size = linked_list.size();
-    let array = Array.new(size);
+    let array = Array(size);
     let i = 0;
     let node = @cast_LinkedList_Node(linked_list.head_consume());
 
@@ -275,7 +275,7 @@ fn LinkedList.to_array(linked_list: LinkedList): Array {
 		let prev_node: &LinkedList_Node = node;
         node = @cast_LinkedList_Node(@cast_any(node.next_consume()));
 		let next = prev_node.next();
-        array.set(i, @cast_any(node.data()));
+        array[i] = @cast_any(node.data());
         i = i + 1;
     };
 
@@ -310,7 +310,7 @@ struct Option {
 };
 
 fn Option.empty(): Option {
-    return Option.new(null(), 0);
+    return Option(null(), 0);
 };
 
 fn Option.of(data: any): Option {
@@ -318,7 +318,7 @@ fn Option.of(data: any): Option {
 };
 
 fn Option.of(data: any, item_size: integer): Option {
-    return Option.new(data, item_size);
+    return Option(data, item_size);
 };
 
 fn Option.is_value(option: &Option): boolean {

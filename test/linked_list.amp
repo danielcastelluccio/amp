@@ -1,7 +1,7 @@
 use "std.amp";
 
 fn main() {
-    let list = LinkedList.new();
+    let list = LinkedList();
     list.append(5);
     list.append(3);
     list.append(2);
@@ -12,7 +12,7 @@ fn main() {
     list.remove(1);
     print_int_list(list);
     println("List size: " + integer_to_string(list.size()));
-    println("At 0: " + integer_to_string(@cast_integer(list.get(0))));
+    println("At 0: " + integer_to_string(@cast_integer(list[0])));
 };
 
 fn print_int_list(list: &LinkedList) {

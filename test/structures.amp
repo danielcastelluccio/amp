@@ -1,7 +1,7 @@
 use "std.amp";
 
 fn main() {
-    let pair = IntPair.new(1, 2);
+    let pair = IntPair(1, 2);
     println(integer_to_string(pair.int1()));
     println(integer_to_string(pair.int2()));
 

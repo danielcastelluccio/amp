@@ -5,16 +5,16 @@ fn main2() {
 };
 
 fn main() {
-    let array = Array.new(1, String.memory_size());
-    array.set(0, "/bin/ls");
+    let array = Array(1, String.memory_size());
+    array[0] = "/bin/ls";
 
     execute_command("/bin/ls", array, true);
 
     println("after first!");
 
-	array = Array.new(2, String.memory_size());
-	array.set(0, "/bin/ls");
-	array.set(1, "-l");
+	array = Array(2, String.memory_size());
+	array[0] = "/bin/ls";
+	array[1] = "-l";
 
     execute_command("/bin/ls", array, true);
 

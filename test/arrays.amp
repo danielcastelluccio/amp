@@ -1,9 +1,9 @@
 use "std.amp";
 
 fn main() {
-    let array = Array.new(2, String.memory_size());
-    array.set(0, "Hello ");
-    array.set(1, "World!");
-    println(@cast_&String(array.get(0)) + @cast_&String(array.get(1)));
+    let array = Array(2, String.memory_size());
+    array[0] = "Hello ";
+    array[1] = "World!";
+    println(@cast_&String(array[0]) + @cast_&String(array[1]));
     println("Array Length: " + integer_to_string(@cast_integer(array.length())));
 };
