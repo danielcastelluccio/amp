@@ -1,5 +1,9 @@
 use "std.amp";
 
+fn main2() {
+	let test = length("test".pointer());
+};
+
 fn main() {
     let array = Array.new(1, String.memory_size());
     array.set(0, "/bin/ls");

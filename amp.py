@@ -65,8 +65,8 @@ class Invoke(Instruction):
         self.return_ = return_
     
 class Return(Instruction):
-    def __init__(self, is_value):
-        self.is_value = is_value
+    def __init__(self, value_count):
+        self.value_count= value_count
 
 class PreCheckIf(Instruction):
     def __init__(self, id):
@@ -204,11 +204,11 @@ def parse(contents, type, extra):
                 locals.append(instruction.name)
 
         if len(instructions) == 0 or not isinstance(instructions[-1], Return):
-            instructions.append(Return(False))
+            instructions.append(Return(0))
 
         return_ = arguments_old[arguments_old.rindex(":") + 1 : len(arguments_old)] if ":" in arguments_old[arguments_old.rindex(")") : len(arguments_old)] else ""
 
-        return [Function(name, instructions, locals, parameters, return_.strip() if return_.strip() else "none")]
+        return [Function(name, instructions, locals, parameters, return_.strip().split(",") if return_.strip() else [])]
     elif type == "Use":
         use = contents[contents.index(" ") + 1 : len(contents)]
         use = use[1 : len(use) - 1]
@@ -237,7 +237,7 @@ def parse(contents, type, extra):
                 instructions.append(Invoke("@add", 2, []))
                 instructions.append(Invoke("@get_8", 1, []))
                 instructions.append(Invoke("@cast_" + item_type, 1, []))
-                instructions.append(Return(True))
+                instructions.append(Return(1))
 
                 if not item_type in primitives or item_type == "any":
                     item_type = "&" + item_type;
@@ -246,7 +246,7 @@ def parse(contents, type, extra):
                 
                 #print(item_type)
 
-                function = Function(get_name, instructions, locals, ["&" + name], item_type)
+                function = Function(get_name, instructions, locals, ["&" + name], [item_type])
                 tokens.append(function)
 
                 set_name = name + "." + item_name
@@ -261,14 +261,14 @@ def parse(contents, type, extra):
                 instructions.append(Retrieve(item_name, None))
                 instructions.append(Invoke("@cast_integer", 1, []))
                 instructions.append(Invoke("@set_8", 2, []))
-                instructions.append(Return(False))
+                instructions.append(Return(0))
 
                 locals.append(item_name)
                 locals.append("instance")
 
                 #print(item.split(":")[1].strip())
 
-                function = Function(set_name, instructions, locals, ["&" + name, item.split(":")[1].strip()], "none")
+                function = Function(set_name, instructions, locals, ["&" + name, item.split(":")[1].strip()], [])
                 tokens.append(function)
 
                 items[item.split(":")[0]] = item.split(":")[1].strip()
@@ -304,11 +304,11 @@ def parse(contents, type, extra):
             instructions.append(Invoke("@cast_any", 1, []))
             instructions.append(Invoke("@free", 2, []))
 
-            instructions.append(Return(True))
+            instructions.append(Return(1))
 
             locals.append("instance")
                 
-            function = Function(get_consume_name, instructions, locals, [name], item_type)
+            function = Function(get_consume_name, instructions, locals, [name], [item_type])
             tokens.append(function)
 
 
@@ -336,20 +336,20 @@ def parse(contents, type, extra):
             instructions.append(Invoke("@set_8", 2, []))
 
         instructions.append(Retrieve("instance", None))
-        instructions.append(Return(True))
+        instructions.append(Return(1))
 
         locals.append("instance")
 
-        function = Function(name + ".new", instructions, locals, list(items.values()), name)
+        function = Function(name + ".new", instructions, locals, list(items.values()), [name])
         tokens.append(function)
 
         ##################
 
         instructions = []
         instructions.append(Constant(len(items_list) * 8))
-        instructions.append(Return(True))
+        instructions.append(Return(1))
 
-        function = Function(name + ".memory_size", instructions, [], [], "integer")
+        function = Function(name + ".memory_size", instructions, [], [], ["integer"])
         tokens.append(function)
 
         ###############
@@ -369,11 +369,11 @@ def parse(contents, type, extra):
                 instructions.append(Invoke("@cast_" + items[item], 1, []))
                 instructions.append(Invoke("@free", 2, []))
 
-        instructions.append(Return(False))
+        instructions.append(Return(0))
 
         locals.append("instance")
 
-        function = Function(name + ".free", instructions, locals, ["&" + name], "none")
+        function = Function(name + ".free", instructions, locals, ["&" + name], [])
         tokens.append(function)
 
         tokens.append(StructMarker(name))
@@ -396,9 +396,9 @@ def parse(contents, type, extra):
 
                 instructions.append(Constant(len(items_list)))
                 instructions.append(Invoke("@cast_" + name, 1, []))
-                instructions.append(Return(True))
+                instructions.append(Return(1))
 
-                function = Function(get_name, instructions, locals, [], name)
+                function = Function(get_name, instructions, locals, [], [name])
                 tokens.append(function)
 
                 check_name = name + "." + item
@@ -409,20 +409,20 @@ def parse(contents, type, extra):
                 instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(len(items_list)))
                 instructions.append(Invoke("@equal", 2, []))
-                instructions.append(Return(True))
+                instructions.append(Return(1))
 
                 locals.append("instance")
 
-                function = Function(check_name, instructions, locals, ["&" + name], "boolean")
+                function = Function(check_name, instructions, locals, ["&" + name], ["boolean"])
                 tokens.append(function)
 
                 items_list.append(item)
 
         instructions = []
         instructions.append(Constant(8))
-        instructions.append(Return(True))
+        instructions.append(Return(1))
 
-        function = Function(name + ".memory_size", instructions, [], [], "integer")
+        function = Function(name + ".memory_size", instructions, [], [], ["integer"])
         tokens.append(function)
 
         ###############
@@ -432,11 +432,11 @@ def parse(contents, type, extra):
 
         instructions.append(Declare("instance", "&" + name))
 
-        instructions.append(Return(False))
+        instructions.append(Return(0))
 
         locals.append("instance")
 
-        function = Function(name + ".free", instructions, locals, ["&" + name], "none")
+        function = Function(name + ".free", instructions, locals, ["&" + name], [])
         tokens.append(function)
 
         tokens.append(EnumMarker(name))
@@ -464,7 +464,7 @@ def parse_statement(contents, extra):
         return_value_statement = contents[7 : len(contents)]
         if return_value_statement:
             instructions.extend(parse_statement(return_value_statement, extra + instructions))
-        instructions.append(Return(return_value_statement))
+        instructions.append(Return(1 if return_value_statement else 0))
     elif contents.isnumeric():
         instructions.append(Constant(int(contents)))
     elif contents == "true" or contents == "false":
@@ -725,30 +725,30 @@ def parse_statement(contents, extra):
     return instructions
     
 internals = [
-    Function("@print_size", [], [], ["&any", "integer"], "none"),
-    Function("@add", [], [], ["&any", "&any"], "any"),
-    Function("@subtract", [], [], ["&any", "&any"], "any"),
-    Function("@get_8", [], [], ["any"], "integer"),
-    Function("@set_8", [], [], ["integer", "any"], "none"),
-    Function("@allocate", [], [], ["integer"], "any"),
-    Function("@free", [], [], ["&any", "integer"], "none"),
-    Function("@print_memory", [], [], [], "none"),
-    Function("@error_size", [], [], ["&any", "integer"], "none"),
-    Function("@read_size", [], [], ["any", "integer"], "none"),
-    Function("@get_1", [], [], ["&any"], "integer"),
-    Function("@equal", [], [], ["&any", "&any"], "boolean"),
-    Function("@copy", [], [], ["&any", "&any", "integer"], "none"),
-    Function("@greater", [], [], ["integer", "integer"], "boolean"),
-    Function("@modulo", [], [], ["integer", "integer"], "integer"),
-    Function("@divide", [], [], ["integer", "integer"], "integer"),
-    Function("@set_1", [], [], ["integer", "any"], "none"),
-    Function("@not", [], [], ["boolean"], "boolean"),
-    Function("@and", [], [], ["boolean", "boolean"], "boolean"),
-    Function("@multiply", [], [], ["integer", "integer"], "integer"),
-    Function("@less", [], [], ["integer", "integer"], "boolean"),
-    Function("@exit", [], [], [], "none"),
-    Function("@execute", [], [], ["&any", "&any", "boolean"], "none"),
-    Function("@call_function", [], [], ["&any", "&any", "integer"], "any")
+    Function("@print_size", [], [], ["&any", "integer"], []),
+    Function("@add", [], [], ["&any", "&any"], ["any"]),
+    Function("@subtract", [], [], ["&any", "&any"], ["any"]),
+    Function("@get_8", [], [], ["any"], ["integer"]),
+    Function("@set_8", [], [], ["integer", "any"], []),
+    Function("@allocate", [], [], ["integer"], ["any"]),
+    Function("@free", [], [], ["&any", "integer"], []),
+    Function("@print_memory", [], [], [], []),
+    Function("@error_size", [], [], ["&any", "integer"], []),
+    Function("@read_size", [], [], ["any", "integer"], []),
+    Function("@get_1", [], [], ["&any"], ["integer"]),
+    Function("@equal", [], [], ["&any", "&any"], ["boolean"]),
+    Function("@copy", [], [], ["&any", "&any", "integer"], []),
+    Function("@greater", [], [], ["integer", "integer"], ["boolean"]),
+    Function("@modulo", [], [], ["integer", "integer"], ["integer"]),
+    Function("@divide", [], [], ["integer", "integer"], ["integer"]),
+    Function("@set_1", [], [], ["integer", "any"], []),
+    Function("@not", [], [], ["boolean"], ["boolean"]),
+    Function("@and", [], [], ["boolean", "boolean"], ["boolean"]),
+    Function("@multiply", [], [], ["integer", "integer"], ["integer"]),
+    Function("@less", [], [], ["integer", "integer"], ["boolean"]),
+    Function("@exit", [], [], [], []),
+    Function("@execute", [], [], ["&any", "&any", "boolean"], []),
+    Function("@call_function", [], [], ["&any", "&any", "integer"], ["any"])
 ]
 
 def process_program(program):
@@ -849,8 +849,9 @@ def process_program(program):
                                     given_type = types.pop()
 
                             instruction.parameters = function2.parameters
-                            if not function2.return_ == "none":
-                                types.append(function2.return_)
+                            if len(function2.return_) > 0:
+                                for type in function2.return_:
+                                    types.append(type)
                         
                 j += 1
 
@@ -918,9 +919,9 @@ def process_program(program):
                     #if not variables[instruction.name] in primitives or variables[instruction.name] == "any":
                     if instruction.name in owned_variables and not variables[instruction.name] in primitives and not variables[instruction.name][0] == "&":
                         index = function.tokens.index(instruction)
-                        function.tokens.insert(index, Invoke(variables[instruction.name] + ".memory_size", 0, [], "integer"))
+                        function.tokens.insert(index, Invoke(variables[instruction.name] + ".memory_size", 0, [], ["integer"]))
                         function.tokens.insert(index + 1, Retrieve(instruction.name, None))
-                        function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
+                        function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
 
                         #print(function.name + " " + instruction.name + " " + variables[instruction.name])
 
@@ -955,9 +956,9 @@ def process_program(program):
                             if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
                                 name = function.name
                                 if owned_variable_scopes[variable] == id:
-                                    function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], "integer"))
+                                    function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], ["integer"]))
                                     function.tokens.insert(index + 1, Retrieve(variable, None))
-                                    function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
+                                    function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                     index += 3
 
                 elif isinstance(instruction, CheckIf):
@@ -978,9 +979,9 @@ def process_program(program):
                             if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
                                 name = function.name
                                 if owned_variable_scopes[variable] == id:
-                                    function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], "integer"))
+                                    function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], ["integer"]))
                                     function.tokens.insert(index + 1, Retrieve(variable, None))
-                                    function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
+                                    function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                     index += 3
                     pass
                 elif isinstance(instruction, Retrieve):
@@ -1019,8 +1020,6 @@ def process_program(program):
                     for parameter in instruction.parameters:
 
                         for usage in dict(variable_usages):
-                            #if function.name == "main":
-                                #print(usage + " " + str(variable_usages[usage]) + " " + str(stack) + " " + instruction.name)
                             if variable_usages[usage] == stack:
                                 if not (parameter[0] == "&" or variables[usage] in primitives):
                                     owned_variables.remove(usage)
@@ -1034,35 +1033,38 @@ def process_program(program):
 
                                 del variable_usages[usage]
 
+                        if stack in value_usages:
+                            del value_usages[stack]
+
                         if stack in value_usages and parameter[0] == "&" and not values[value_usages[stack]] in primitives and not values[value_usages[stack]] in program_enums:
-                            #print(function.name + " " + values[value_usages[stack]])
-                            function.tokens.insert(post_method_index, Invoke(values[value_usages[stack]] + ".memory_size", 0, [], "integer"))
+                            print(function.name + " " + str(stack) + " " + value_usages[stack] + " " + instruction.name)
+                            function.tokens.insert(post_method_index, Invoke(values[value_usages[stack]] + ".memory_size", 0, [], ["integer"]))
                             function.tokens.insert(post_method_index + 1, Retrieve(value_usages[stack], None))
-                            function.tokens.insert(post_method_index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
+                            function.tokens.insert(post_method_index + 2, Invoke("@free", 2, ["any", "integer"], []))
 
                             post_method_index += 3
 
                         stack -= 1
 
-                    if not instruction.return_ == "none" and instruction.return_:
-                        stack += 1
+                    if len(instruction.return_) > 0:
+                        for return_type in instruction.return_:
+                            stack += 1
 
-                        if not instruction.return_[0] == "&":
-                            id = "_" + str(index_thing)
-                            type = instruction.return_
+                            if not return_type[0] == "&":
+                                id = "_" + str(index_thing)
+                                type = return_type
 
-                            function.tokens.insert(function.tokens.index(instruction) + 1, Duplicate())
-                            function.tokens.insert(function.tokens.index(instruction) + 2, Declare(id, type))
-                            function.tokens.insert(function.tokens.index(instruction) + 3, Assign(id))
-                            function.locals.append(id)
+                                function.tokens.insert(function.tokens.index(instruction) + 1, Duplicate())
+                                function.tokens.insert(function.tokens.index(instruction) + 2, Declare(id, type))
+                                function.tokens.insert(function.tokens.index(instruction) + 3, Assign(id))
+                                function.locals.append(id)
 
-                            values[id] = type
-                            
-                            value_usages[stack] = id
-                            
-                            index_thing += 1
+                                values[id] = type
+                                
+                                value_usages[stack] = id
+                                
+                                index_thing += 1
 
-                    #stack -= instruction.parameter_count
                 elif isinstance(instruction, Return):
                     temp_vars = []
                     for usage in variable_usages:
@@ -1077,9 +1079,9 @@ def process_program(program):
                         if not variables[variable] in primitives and not variables[variable][0] == "&":
                             name = function.name
                             if owned_variable_scopes[variable] == "":
-                                function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], "integer"))
+                                function.tokens.insert(index, Invoke(variables[variable] + ".memory_size", 0, [], ["integer"]))
                                 function.tokens.insert(index + 1, Retrieve(variable, None))
-                                function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], "none"))
+                                function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                 index += 3
                                 pass
                             else:
@@ -1093,9 +1095,9 @@ def process_program(program):
                     #if variable_usages[usage] >= stack and not recently_added_usage == usage and not is_cast:
                         #del variable_usages[usage]
 
-                for stack_index in dict(value_usages):
-                    if stack_index > stack:
-                        del value_usages[stack_index]
+                #for stack_index in dict(value_usages):
+                    #if stack_index > stack:
+                        #del value_usages[stack_index]
 
             for error in loop_errors:
                 print("PROCESS: Variable " + error + " in " + function.name + " used while not owned (due to a loop).")
@@ -1155,14 +1157,15 @@ def process_program(program):
                             index += 1
                             if free_type + ".free_custom" in functions2:
                                 function.tokens.insert(index, Duplicate())
-                                function.tokens.insert(index + 1, Invoke(free_type + ".free_custom", 1, [free_type], "none"))
+                                function.tokens.insert(index + 1, Invoke(free_type + ".free_custom", 1, [free_type], []))
                                 j += 2
                                 index += 2
-                            function.tokens.insert(index, Invoke(free_type + ".free", 1, [free_type], "none"))
+                            function.tokens.insert(index, Invoke(free_type + ".free", 1, [free_type], []))
                             j += 2
                             #print(name)
-                    elif not instruction.return_ == "none":
-                        types.append(instruction.return_)
+                    elif len(instruction.return_) > 0:
+                        for return_type in instruction.return_:
+                            types.append(return_type)
 
                 elif isinstance(instruction, Return):
                     pass
@@ -1302,17 +1305,19 @@ def type_check(function, instructions, program_types, functions, functions2, alt
 
                 instruction.parameters = function2.parameters
                 instruction.return_ = function2.return_
-                if not function2.return_ == "none":
-                    types.append(function2.return_)
+
+                if len(function2.return_) > 0:
+                    for type in function2.return_:
+                        types.append(type)
         elif isinstance(instruction, Return):
-            if not function.return_ == "none":
+            for return_type in function.return_:
                 if len(types) == 0:
-                    print("PROCESS: Return in " + function.name + " expects " + function.return_ + ", given nothing.")
+                    print("PROCESS: Return in " + function.name + " expects " + return_type + ", given nothing.")
                     return 1
 
                 given_type = types.pop()
-                if not is_type(given_type, function.return_):
-                    print("PROCESS: Return in " + function.name + " expects " + function.return_ + ", given " + given_type + ".")
+                if not is_type(given_type, return_type):
+                    print("PROCESS: Return in " + function.name + " expects " + return_type + ", given " + given_type + ".")
                     return 1
 
             if not len(types) == 0:
@@ -1324,7 +1329,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
     
 
 def is_used(function, functions):
-    if function.name == "main" or (function.name == "String.new" and function.parameters[0] == "any") or (function.name == "Function.new" and function.parameters[0] == "any") or (function.name == "Array.new" and function.parameters[0] == "any" and function.parameters[1] == "integer"):
+    if function.name == "main" or (function.name == "String.new" and function.parameters[0] == "any") or (function.name == "Function.new" and function.parameters[0] == "any") or (function.name == "Array.new" and function.parameters[0] == "any" and function.parameters[1] == "integer") or function.name == "String.memory_size":
         return True
 
     for other_function in functions:
@@ -2027,10 +2032,10 @@ def create_linux_binary(program, file_name_base):
     call_function.instructions.append("mov rax, 8")
     call_function.instructions.append("xor rdx, rdx")
     call_function.instructions.append("mul qword [rbp+32]")
-    call_function.instructions.append("sub rsp, rax")
+    call_function.instructions.append("add rax, [rbp+24]")
     call_function.instructions.append("mov rdx, [rbp+24]")
     call_function.instructions.append("_call_function_not_done:")
-    call_function.instructions.append("cmp qword [rdx], 0")
+    call_function.instructions.append("cmp rdx, rax")
     call_function.instructions.append("je _call_function_done")
     call_function.instructions.append("push qword [rdx]")
     call_function.instructions.append("add rdx, 8")
@@ -2114,7 +2119,7 @@ def create_linux_binary(program, file_name_base):
                 elif isinstance(instruction, Invoke) and not instruction.name.startswith("@cast_"):
                     asm_function.instructions.append("call " + get_asm_name(instruction.name) + "_" + "~".join(instruction.parameters).replace("&", ""))
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
-                    if not instruction.return_ == "none":
+                    for return_type in instruction.return_:
                         asm_function.instructions.append("push r8")
                 elif isinstance(instruction, Duplicate):
                     asm_function.instructions.append("pop r8")
@@ -2138,8 +2143,8 @@ def create_linux_binary(program, file_name_base):
                             index -= 2
                         asm_function.instructions.append("push qword [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * len(token.parameters)) + "]")
                 elif isinstance(instruction, Return):
-                    if instruction.is_value:
-                         asm_function.instructions.append("pop r8")
+                    for _ in range(0, instruction.value_count):
+                        asm_function.instructions.append("pop r8")
 
                     asm_function.instructions.append("mov rsp, rbp")
                     asm_function.instructions.append("pop rbp")
