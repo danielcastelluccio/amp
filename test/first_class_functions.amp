@@ -6,7 +6,7 @@ fn main() {
     functions[1] = test2;
 
     let i = 0;
-    while (i < functions.length()) {
+    while (i < functions.length) {
     	let parameters = Array(1);
     	parameters[0] = "Welcome child!";
 

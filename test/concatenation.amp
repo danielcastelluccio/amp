@@ -3,7 +3,7 @@ use "std.amp";
 fn main() {
     let string = "";
 
-    while (string.length() < 4) {
+    while (string.length < 4) {
         string = string + "a";
         println(string);
     };

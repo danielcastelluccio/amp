@@ -2,16 +2,16 @@ use "std.amp";
 
 fn main() {
     let pair = IntPair(1, 2);
-    println(integer_to_string(pair.int1()));
-    println(integer_to_string(pair.int2()));
+    println(integer_to_string(pair.int1));
+    println(integer_to_string(pair.int2));
 
-    pair.int2(4);
-    println(integer_to_string(pair.int2()));
+    pair.int2 = 4;
+    println(integer_to_string(pair.int2));
 
     pair.reset();
 
-    println(integer_to_string(pair.int1()));
-    println(integer_to_string(pair.int2()));
+    println(integer_to_string(pair.int1));
+    println(integer_to_string(pair.int2));
 };
 
 struct IntPair {
@@ -20,6 +20,6 @@ struct IntPair {
 };
 
 fn IntPair.reset(pair: &IntPair) {
-	pair.int1(0);
-	pair.int2(0);
+	pair.int1 = 0;
+	pair.int2 = 0;
 };

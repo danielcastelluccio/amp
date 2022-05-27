@@ -244,8 +244,28 @@ def parse(contents, type, extra):
 
                 locals.append("instance")
                 
-                #print(item_type)
+                #function = Function(get_name, instructions, locals, ["&" + name], [item_type])
+                #tokens.append(function)
 
+                get_name = "_" + item_name
+                instructions = []
+                locals = []
+                
+                item_type = item.split(":")[1].strip()
+
+                instructions.append(Declare("instance", "&" + name))
+                instructions.append(Retrieve("instance", None))
+                instructions.append(Constant(8 * len(items)))
+                instructions.append(Invoke("@add", 2, []))
+                instructions.append(Invoke("@get_8", 1, []))
+                instructions.append(Invoke("@cast_" + item_type, 1, []))
+                instructions.append(Return(1))
+
+                if not item_type in primitives or item_type == "any":
+                    item_type = "&" + item_type;
+
+                locals.append("instance")
+                
                 function = Function(get_name, instructions, locals, ["&" + name], [item_type])
                 tokens.append(function)
 
@@ -266,9 +286,10 @@ def parse(contents, type, extra):
                 locals.append(item_name)
                 locals.append("instance")
 
-                #print(item.split(":")[1].strip())
+                #function = Function(set_name, instructions, locals, ["&" + name, item.split(":")[1].strip()], [])
+                #tokens.append(function)
 
-                function = Function(set_name, instructions, locals, ["&" + name, item.split(":")[1].strip()], [])
+                function = Function("_" + item_name + "=", instructions, locals, ["&" + name, item.split(":")[1].strip()], [])
                 tokens.append(function)
 
                 items[item.split(":")[0]] = item.split(":")[1].strip()
@@ -604,19 +625,19 @@ def parse_statement(contents, extra):
                 current_parenthesis += 1
             elif character == ")":
                 current_parenthesis -= 1
-            elif character == "+" and current_parenthesis == 0 and special_index == -1:
+            elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
                 special_sign = "+"
                 special_index = index
-            elif character == "-" and current_parenthesis == 0 and special_index == -1:
+            elif character == "-" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
                 special_sign = "-"
                 special_index = index
-            elif character == "*" and current_parenthesis == 0 and special_index == -1:
+            elif character == "*" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
                 special_sign = "*"
                 special_index = index
-            elif character == "/" and current_parenthesis == 0 and special_index == -1:
+            elif character == "/" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
                 special_sign = "/"
                 special_index = index
-            elif character == "%" and current_parenthesis == 0 and special_index == -1:
+            elif character == "%" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
                 special_sign = "%"
                 special_index = index
             elif character == "=" and last_character == "=" and current_parenthesis == 0:
@@ -625,13 +646,13 @@ def parse_statement(contents, extra):
             elif character == "=" and last_character == "!" and current_parenthesis == 0:
                 special_sign = "!="
                 special_index = index - 1
-            elif character == "<" and current_parenthesis == 0 and special_index == -1:
+            elif character == "<" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
                 special_sign = "<"
                 special_index = index
-            elif character == ">" and current_parenthesis == 0 and special_index == -1:
+            elif character == ">" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
                 special_sign = ">"
                 special_index = index
-            elif character == "[" and current_parenthesis == 0 and special_index == -1:
+            elif character == "[" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
                 special_sign = "[]"
                 special_index = index
             elif character == "]" and current_parenthesis == 0:
@@ -640,10 +661,17 @@ def parse_statement(contents, extra):
                 if not last_character == "=":
                     special_sign = "[]="
                     special_index3 = index
+            elif character == "." and current_parenthesis == 0 and special_index == -1 and not "(" in contents[index : (contents.index("=") if "=" in contents else len(contents))]:
+                special_sign = "."
+                special_index = index
+            elif character == "=" and current_parenthesis == 0 and special_sign == ".":
+                if not last_character == "=":
+                    special_sign = ".="
+                    special_index2 = index
             
             last_character = character
             
-        if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!" and not special_sign == "[]=":
+        if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!" and not special_sign == "[]=" and not special_sign == ".=":
                 name = contents.split(" ")[0]
                 expression = contents[contents.index("=") + 1 : len(contents)]
                 expression = expression.lstrip()
@@ -717,6 +745,18 @@ def parse_statement(contents, extra):
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("_[]=", 3, []))
+        elif special_sign == ".":
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 1 :].strip()
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("_" + after, 1, []))
+        elif special_sign == ".=":
+            before = contents[0 : special_index].strip()
+            after = contents[special_index + 1 : special_index2].strip()
+            after2 = contents[special_index2 + 1 : len(contents)].strip()
+            instructions.extend(parse_statement(after2, extra + instructions))
+            instructions.extend(parse_statement(before, extra + instructions))
+            instructions.append(Invoke("_" + after + "=", 2, []))
         elif "(" in contents and contents.endswith(")"):
             max = 0
             index_thing = -1

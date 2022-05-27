@@ -7,7 +7,7 @@ fn main() {
 
     option = Option.of("Hello Option!", String.memory_size());
     if (option.is_value()) {
-        println(@cast_&String(option.data()));
+        println(@cast_&String(option.data));
     } else {
         println("not a thing (this should never print with this code)");
     };

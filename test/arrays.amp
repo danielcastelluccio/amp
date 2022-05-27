@@ -5,5 +5,5 @@ fn main() {
     array[0] = "Hello ";
     array[1] = "World!";
     println(@cast_&String(array[0]) + @cast_&String(array[1]));
-    println("Array Length: " + integer_to_string(@cast_integer(array.length())));
+    println("Array Length: " + integer_to_string(@cast_integer(array.length)));
 };

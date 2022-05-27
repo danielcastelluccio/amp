@@ -2,9 +2,9 @@ use "std.amp";
 
 fn main(arguments: Array) {
     let i = 0;
-    while (i < arguments.length()) {
+    while (i < arguments.length) {
         let argument = @cast_&String(arguments[i]);
-        println(argument + ", size: " + integer_to_string(argument.length()));
+        println(argument + ", size: " + integer_to_string(argument.length));
         i = i + 1;
     };
 };
