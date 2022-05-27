@@ -208,7 +208,7 @@ def parse(contents, type, extra):
 
         return_ = arguments_old[arguments_old.rindex(":") + 1 : len(arguments_old)] if ":" in arguments_old[arguments_old.rindex(")") : len(arguments_old)] else ""
 
-        return [Function(name, instructions, locals, parameters, return_.strip().split(",") if return_.strip() else [])]
+        return [Function(name, instructions, locals, parameters, "".join(return_.split(" ")).split(",") if return_.strip() else [])]
     elif type == "Use":
         use = contents[contents.index(" ") + 1 : len(contents)]
         use = use[1 : len(use) - 1]
@@ -452,19 +452,52 @@ def parse_statement(contents, extra):
     global if_id
 
     if contents.startswith("let "):
-        name = contents.split(" ")[1].replace(":", "")
-        type_ = contents.split(" ")[2] if ":" in contents else ""
-        instructions.append(Declare(name, type_))
+        contents_variables = contents[4 : contents.index("=")]
+        variables_split = contents_variables.split(",")
+
+        names = []
+        for variable in variables_split:
+            variable = variable.strip()
+            name = variable.split(" ")[0].replace(":", "")
+            type_ = ""
+            if len(variable.split(" ")) > 1:
+                type_ = variable.split(" ")[1] if ":" in contents else ""
+            instructions.append(Declare(name, type_))
+            names.append(name)
 
         expression = contents[contents.index("=") + 1 : len(contents)]
         expression = expression.lstrip()
         instructions.extend(parse_statement(expression, extra + instructions))
-        instructions.append(Assign(name))
+        for name in names[::-1]:
+            instructions.append(Assign(name))
     elif contents.startswith("return ") or contents == "return":
         return_value_statement = contents[7 : len(contents)]
         if return_value_statement:
-            instructions.extend(parse_statement(return_value_statement, extra + instructions))
-        instructions.append(Return(1 if return_value_statement else 0))
+            parenthesis_index = 0
+            built_return = ""
+            comma_count = 0
+            return_instructions = []
+            for character in return_value_statement:
+                if character == "(":
+                    parenthesis_index += 1
+                elif character == "(":
+                    parenthesis_index -= 1
+                elif character == "," and parenthesis_index == 0:
+                    return_instructions = parse_statement(built_return, extra + instructions) + return_instructions
+                    built_return = ""
+                    comma_count += 1
+                    continue
+
+                built_return += character
+
+            if built_return:
+                return_instructions = parse_statement(built_return, extra + instructions) + return_instructions
+
+            instructions.extend(return_instructions)
+            instructions.append(Return(comma_count + 1))
+
+        else:
+            instructions.append(Return(0))
     elif contents.isnumeric():
         instructions.append(Constant(int(contents)))
     elif contents == "true" or contents == "false":
@@ -927,8 +960,6 @@ def process_program(program):
 
                     owned_variables.add(instruction.name)
 
-                    stack -= 1
-
                     if len(loops) > 0:
                         variable_loops[instruction.name] = loops[len(loops) - 1]
 
@@ -940,6 +971,22 @@ def process_program(program):
                             del loop_errors[instruction.name]
                     else:
                         variable_loops[instruction.name] = ""
+
+                    for usage in dict(variable_usages):
+                        if variable_usages[usage] == stack:
+                            if not (variables[instruction.name][0] == "&" or variables[usage] in primitives):
+                                owned_variables.remove(usage)
+
+                                current_loop = ""
+                                if len(loops) > 0:
+                                    current_loop = loops[len(loops) - 1]
+
+                                if not variable_loops[usage] == current_loop:
+                                    loop_errors[usage] = current_loop
+
+                            del variable_usages[usage]
+
+                    stack -= 1
                 elif isinstance(instruction, StartWhile):
                     stack -= 1
                     scopes.append("while_" + str(instruction.id1))
@@ -2119,8 +2166,9 @@ def create_linux_binary(program, file_name_base):
                 elif isinstance(instruction, Invoke) and not instruction.name.startswith("@cast_"):
                     asm_function.instructions.append("call " + get_asm_name(instruction.name) + "_" + "~".join(instruction.parameters).replace("&", ""))
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
-                    for return_type in instruction.return_:
-                        asm_function.instructions.append("push r8")
+                    #print(instruction.return_)
+                    for i in range(0, len(instruction.return_)):
+                        asm_function.instructions.append("push r" + str(8 + i))
                 elif isinstance(instruction, Duplicate):
                     asm_function.instructions.append("pop r8")
                     asm_function.instructions.append("push r8")
@@ -2143,8 +2191,8 @@ def create_linux_binary(program, file_name_base):
                             index -= 2
                         asm_function.instructions.append("push qword [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * len(token.parameters)) + "]")
                 elif isinstance(instruction, Return):
-                    for _ in range(0, instruction.value_count):
-                        asm_function.instructions.append("pop r8")
+                    for i in range(0, instruction.value_count):
+                        asm_function.instructions.append("pop r" + str(8 + i))
 
                     asm_function.instructions.append("mov rsp, rbp")
                     asm_function.instructions.append("pop rbp")

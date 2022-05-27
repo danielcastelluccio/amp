@@ -229,7 +229,7 @@ fn LinkedList.insert(linked_list: &LinkedList, index: integer, data: any) {
 fn LinkedList.remove(linked_list: &LinkedList, index: integer) {
     let node = @cast_&LinkedList_Node(linked_list.head());
 
-    let i: integer = 0;
+    let i = 0;
     while (i < index) {
         node = @cast_&LinkedList_Node(node.next());
         i = i + 1;

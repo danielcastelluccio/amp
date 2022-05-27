@@ -1,0 +1,11 @@
+use "std.amp";
+
+fn main() {
+	let string, boolean = foo();
+	println(string);
+	println(boolean_to_string(boolean));
+};
+
+fn foo(): String, boolean {
+	return "Bob", true;
+};
