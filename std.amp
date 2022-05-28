@@ -376,3 +376,7 @@ _==(value1: any, value2: any): boolean {
 _!=(value1: &any, value2: &any): boolean {
     return not_equal(value1, value2)
 }
+
+integer.memory_size(): integer {
+	return 0
+}
