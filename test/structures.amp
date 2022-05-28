@@ -1,25 +1,25 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    let pair = IntPair(1, 2);
-    println(integer_to_string(pair.int1));
-    println(integer_to_string(pair.int2));
+main() {
+    let pair = IntPair(1, 2)
+    println(integer_to_string(pair.int1))
+    println(integer_to_string(pair.int2))
 
-    pair.int2 = 4;
-    println(integer_to_string(pair.int2));
+    pair.int2 = 4
+    println(integer_to_string(pair.int2))
 
-    pair.reset();
+    pair.reset()
 
-    println(integer_to_string(pair.int1));
-    println(integer_to_string(pair.int2));
-};
+    println(integer_to_string(pair.int1))
+    println(integer_to_string(pair.int2))
+}
 
-struct IntPair {
-    int1: integer;
-    int2: integer;
-};
+IntPair {
+    int1: integer
+    int2: integer
+}
 
-fn _.reset(pair: &IntPair) {
-	pair.int1 = 0;
-	pair.int2 = 0;
-};
+_.reset(pair: &IntPair) {
+	pair.int1 = 0
+	pair.int2 = 0
+}

@@ -1,25 +1,25 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    let functions = Array(2);
-    functions[0] = test;
-    functions[1] = test2;
+main() {
+    let functions = Array(2)
+    functions[0] = test
+    functions[1] = test2
 
-    let i = 0;
+    let i = 0
     while (i < functions.length) {
-    	let parameters = Array(1);
-    	parameters[0] = "Welcome child!";
+    	let parameters = Array(1)
+    	parameters[0] = "Welcome child!"
 
-		println(@cast_String(@cast_&Function(functions[i]).call(parameters)));
-        i = i + 1;
-    };
-};
+		println(@cast_String(@cast_&Function(functions[i]).call(parameters)))
+        i = i + 1
+    }
+}
 
-fn test(test: String): String {
-    return "Hello from test function! Main function says: " + test;
-};
+test(test: String): String {
+    return "Hello from test function! Main function says: " + test
+}
 
 
-fn test2(test: String): String {
-    return "Hello from test2 function! Main function says: " + test;
-};
+test2(test: String): String {
+    return "Hello from test2 function! Main function says: " + test
+}

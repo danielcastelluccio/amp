@@ -1,11 +1,11 @@
-use "std.amp";
+use "std"
 
-fn main() {
-	let string, boolean = foo();
-	println(string);
-	println(boolean_to_string(boolean));
-};
+main() {
+	let string, boolean = foo()
+	println(string)
+	println(boolean_to_string(boolean))
+}
 
-fn foo(): String, boolean {
-	return "Bob", true;
-};
+foo(): String, boolean {
+	return "Bob", true
+}

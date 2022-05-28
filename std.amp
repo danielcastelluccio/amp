@@ -1,378 +1,378 @@
-fn print(string: &String) {
-    @print_size(string.pointer, string.length);
-};
+print(string: &String) {
+    @print_size(string.pointer, string.length)
+}
 
-fn println(string: &String) {
-    print(string);
-    print("\n");
-};
+println(string: &String) {
+    print(string)
+    print("\n")
+}
 
-fn error(string: String) {
-    @error_size(string, length(string));
-};
+error(string: String) {
+    @error_size(string, length(string))
+}
 
-fn errorln(string: String) {
-    error(string);
-    error("\n");
-};
+errorln(string: String) {
+    error(string)
+    error("\n")
+}
 
-fn read(): String {
-    let string = @allocate(128);
-    @read_size(string, 128);
-    return String(string, 128);
-};
+read(): String {
+    let string = @allocate(128)
+    @read_size(string, 128)
+    return String(string, 128)
+}
 
-fn execute_command(file: String, arguments: Array, wait: boolean) {
-	let null_terminated_file = file + "\0";
-	let arguments_new = Array(arguments.length + 1);
-	let i = 0;
+execute_command(file: String, arguments: Array, wait: boolean) {
+	let null_terminated_file = file + "\0"
+	let arguments_new = Array(arguments.length + 1)
+	let i = 0
 	while (i < arguments.length) {
-		let thing = @cast_&String(arguments[i]) + "\0";
-		arguments_new[i] = @cast_any(thing.pointer_consume());
-		i = i + 1;
-	};
+		let thing = @cast_&String(arguments[i]) + "\0"
+		arguments_new[i] = @cast_any(thing.pointer_consume())
+		i = i + 1
+	}
 
-	@execute(null_terminated_file.pointer, arguments_new.pointer, wait);
+	@execute(null_terminated_file.pointer, arguments_new.pointer, wait)
 
-	let i = 0;
+	let i = 0
 	while (i < arguments_new.length - 1) {
-		let argument = arguments_new[i];
-		@free(argument, length(argument) + 1);
-		i = i + 1;
-	};
+		let argument = arguments_new[i]
+		@free(argument, length(argument) + 1)
+		i = i + 1
+	}
 
-    print("");
-};
+    print("")
+}
 
-fn length(string: &any): integer {
-    let location = string;
-    let i = 0;
+length(string: &any): integer {
+    let location = string
+    let i = 0
 
     while (true) {
         if (@get_1(location) == 0) {
-            return i;
-        };
-        location = location + 1;
-        i = i + 1;
-    };
+            return i
+        }
+        location = location + 1
+        i = i + 1
+    }
 
-    return 999;
-};
+    return 999
+}
 
-fn _+(string1: &String, string2: &String): String {
-    let string1_length = string1.length;
-    let string2_length = string2.length;
-    let new_memory = @allocate(string1_length + string2_length);
-    @copy(string1.pointer, new_memory, string1_length);
-    @copy(string2.pointer, new_memory + string1_length, string2_length);
-    return String(new_memory, string1_length + string2_length);
-};
+_+(string1: &String, string2: &String): String {
+    let string1_length = string1.length
+    let string2_length = string2.length
+    let new_memory = @allocate(string1_length + string2_length)
+    @copy(string1.pointer, new_memory, string1_length)
+    @copy(string2.pointer, new_memory + string1_length, string2_length)
+    return String(new_memory, string1_length + string2_length)
+}
 
-fn integer_to_string(integer: integer): String {
-    let string = "";
+integer_to_string(integer: integer): String {
+    let string = ""
     if (integer == 0) {
-        string = "0";
-    };
+        string = "0"
+    }
     
     while (integer > 0) {
-        let modulo = integer % 10;
-        integer = integer / 10;
-        let prepended_string = String(store(modulo + 48), 1);
-        string = prepended_string +string;
-    };
+        let modulo = integer % 10
+        integer = integer / 10
+        let prepended_string = String(store(modulo + 48), 1)
+        string = prepended_string +string
+    }
 
-    return string;
-};
+    return string
+}
 
-fn boolean_to_string(boolean: boolean): String {
+boolean_to_string(boolean: boolean): String {
     if (boolean == 1) {
-        return "true";
-    };
-    return "false";
-};
+        return "true"
+    }
+    return "false"
+}
 
-fn store(value: integer): any {
-    let new_memory = @allocate(1);
-    @set_1(value, new_memory);
-    return new_memory;
-};
+store(value: integer): any {
+    let new_memory = @allocate(1)
+    @set_1(value, new_memory)
+    return new_memory
+}
 
-fn not_equal(value1: &any, value2: &any): boolean {
-    return @not(@equal(value1, value2));  
-};
+not_equal(value1: &any, value2: &any): boolean {
+    return @not(@equal(value1, value2))  
+}
 
-struct Array {
-    pointer: any;
-    length: integer;
-	item_size: integer;
-};
+Array {
+    pointer: any
+    length: integer
+	item_size: integer
+}
 
-fn Array(pointer: any, length: integer): Array {
-    return Array(pointer, length, 0);
-};
+Array(pointer: any, length: integer): Array {
+    return Array(pointer, length, 0)
+}
 
-fn Array(size: integer): Array {
-    return Array(@allocate(size * 8), size);
-};
+Array(size: integer): Array {
+    return Array(@allocate(size * 8), size)
+}
 
-fn Array(size: integer, memory_size: integer): Array {
-    return Array(@allocate(size * 8), size, memory_size);
-};
+Array(size: integer, memory_size: integer): Array {
+    return Array(@allocate(size * 8), size, memory_size)
+}
 
-fn _[]=(array: &Array, index: integer, value: any) {
-    @set_8(@cast_integer(value), array.pointer + (index * 8));
-};
+_[]=(array: &Array, index: integer, value: any) {
+    @set_8(@cast_integer(value), array.pointer + (index * 8))
+}
 
-fn _[](array: &Array, index: integer): &any {
-    return @get_8(array.pointer + (index * 8));
-};
+_[](array: &Array, index: integer): &any {
+    return @get_8(array.pointer + (index * 8))
+}
 
-fn _.free_custom(array: &Array) {
+_.free_custom(array: &Array) {
 	if (array.item_size > 0) {
-		let i = 0;
+		let i = 0
 		while (i < array.length) {
 			if (@not(array[i] == 0)) {
-				@free(array[i], array.item_size);
-			};
-			i = i + 1;
-		};
-	};
-	@free(array.pointer, array.length * 8);
-};
+				@free(array[i], array.item_size)
+			}
+			i = i + 1
+		}
+	}
+	@free(array.pointer, array.length * 8)
+}
 
-struct Function {
-    pointer: any;
-};
+Function {
+    pointer: any
+}
 
-fn _.call(function: &Function, parameters: Array): any {
-    return @call_function(function.pointer, parameters.pointer, parameters.length);
-};
+_.call(function: &Function, parameters: Array): any {
+    return @call_function(function.pointer, parameters.pointer, parameters.length)
+}
 
-struct String {
-    pointer: any;
-    length: integer;
-    static: boolean;
-};
+String {
+    pointer: any
+    length: integer
+    static: boolean
+}
 
-fn String(pointer: any): String {
-    return String(pointer, length(pointer), false);
-};
+String(pointer: any): String {
+    return String(pointer, length(pointer), false)
+}
 
-fn String(pointer: any, length: integer): String {
-    return String(pointer, length, false);
-};
+String(pointer: any, length: integer): String {
+    return String(pointer, length, false)
+}
 
-fn _.free_custom(string: &String) {
+_.free_custom(string: &String) {
 	if (@not(string.static)) {
-		@free(string.pointer, string.length);
-	};
-};
+		@free(string.pointer, string.length)
+	}
+}
 
-fn _==(string1: String, string2: String): boolean {
+_==(string1: String, string2: String): boolean {
     if (string1.length != string2.length) {
-        return false;
-    };
+        return false
+    }
 
-    let i = 0;
+    let i = 0
     while (i < string1.length) {
         if (@get_1(string1.pointer + i) != @get_1(string2.pointer + i)) {
-            return false;
-        };
+            return false
+        }
 
-        i = i + 1;
-    };
+        i = i + 1
+    }
 
-    return true;
-};
+    return true
+}
 
-fn null(): any {
-    return 0;
-};
+null(): any {
+    return 0
+}
 
-struct LinkedList {
-    head: any;
-	item_size: integer;
-};
+LinkedList {
+    head: any
+	item_size: integer
+}
 
-fn LinkedList(item_size: integer): LinkedList {
-	return LinkedList(LinkedList_Node(null(), null(), item_size), item_size);
-};
+LinkedList(item_size: integer): LinkedList {
+	return LinkedList(LinkedList_Node(null(), null(), item_size), item_size)
+}
 
-fn LinkedList(): LinkedList {
-    return LinkedList(0);
-};
+LinkedList(): LinkedList {
+    return LinkedList(0)
+}
 
-fn _.append(linked_list: &LinkedList, data: any) {
-    let node = @cast_&LinkedList_Node(linked_list.head);
+_.append(linked_list: &LinkedList, data: any) {
+    let node = @cast_&LinkedList_Node(linked_list.head)
     while (node.next != null()) {
-        node = @cast_&LinkedList_Node(node.next);
-    };
+        node = @cast_&LinkedList_Node(node.next)
+    }
 
-    let new_node = LinkedList_Node(data, null(), linked_list.item_size);
-    node.next = new_node;
-};
+    let new_node = LinkedList_Node(data, null(), linked_list.item_size)
+    node.next = new_node
+}
 
-fn _.insert(linked_list: &LinkedList, index: integer, data: any) {
-    let node = @cast_&LinkedList_Node(linked_list.head);
+_.insert(linked_list: &LinkedList, index: integer, data: any) {
+    let node = @cast_&LinkedList_Node(linked_list.head)
 
-    let i = 0;
+    let i = 0
     while (i < index) {
-        node = @cast_&LinkedList_Node(node.next);
-        i = i + 1;
-    };
+        node = @cast_&LinkedList_Node(node.next)
+        i = i + 1
+    }
 
-    let temp_next = node.next;
-    let new_node = LinkedList_Node(data, @cast_any(temp_next), linked_list.item_size);
-    node.next = new_node;
-};
+    let temp_next = node.next
+    let new_node = LinkedList_Node(data, @cast_any(temp_next), linked_list.item_size)
+    node.next = new_node
+}
 
-fn _.remove(linked_list: &LinkedList, index: integer) {
-    let node = @cast_&LinkedList_Node(linked_list.head);
+_.remove(linked_list: &LinkedList, index: integer) {
+    let node = @cast_&LinkedList_Node(linked_list.head)
 
-    let i = 0;
+    let i = 0
     while (i < index) {
-        node = @cast_&LinkedList_Node(node.next);
-        i = i + 1;
-    };
+        node = @cast_&LinkedList_Node(node.next)
+        i = i + 1
+    }
 
-    let temp_next_next = @cast_&LinkedList_Node(node.next).next;
-	@cast_&LinkedList_Node(node.next).free_custom();
-	@free(node.next, LinkedList_Node.memory_size());
-    node.next = @cast_any(temp_next_next);
-};
+    let temp_next_next = @cast_&LinkedList_Node(node.next).next
+	@cast_&LinkedList_Node(node.next).free_custom()
+	@free(node.next, LinkedList_Node.memory_size())
+    node.next = @cast_any(temp_next_next)
+}
 
-fn _[](linked_list: &LinkedList, index: integer): &any {
-    let node = @cast_&LinkedList_Node(linked_list.head);
-    let i = 0;
+_[](linked_list: &LinkedList, index: integer): &any {
+    let node = @cast_&LinkedList_Node(linked_list.head)
+    let i = 0
 
     while (i < (index + 1)) {
-        node = @cast_&LinkedList_Node(node.next);
-        i = i + 1;
-    };
+        node = @cast_&LinkedList_Node(node.next)
+        i = i + 1
+    }
 
-    return node.data;
-};
+    return node.data
+}
 
-fn _size(linked_list: &LinkedList): integer {
-    let node = @cast_&LinkedList_Node(linked_list.head);
-    let i = 0;
+_size(linked_list: &LinkedList): integer {
+    let node = @cast_&LinkedList_Node(linked_list.head)
+    let i = 0
 
     while (node.next != null()) {
-        node = @cast_&LinkedList_Node(node.next);
-        i = i + 1;
-    };
+        node = @cast_&LinkedList_Node(node.next)
+        i = i + 1
+    }
 
-    return i;
-};
+    return i
+}
 
-fn _.to_array(linked_list: LinkedList): Array {
-    let size = linked_list.size;
-    let array = Array(size);
-    let i = 0;
-    let node = @cast_LinkedList_Node(linked_list.head_consume());
+_.to_array(linked_list: LinkedList): Array {
+    let size = linked_list.size
+    let array = Array(size)
+    let i = 0
+    let node = @cast_LinkedList_Node(linked_list.head_consume())
 
     while (node.next != 0) {
-		let prev_node: &LinkedList_Node = node;
-        node = @cast_LinkedList_Node(@cast_any(node.next_consume()));
-		let next = prev_node.next;
-        array[i] = @cast_any(node.data);
-        i = i + 1;
-    };
+		let prev_node: &LinkedList_Node = node
+        node = @cast_LinkedList_Node(@cast_any(node.next_consume()))
+		let next = prev_node.next
+        array[i] = @cast_any(node.data)
+        i = i + 1
+    }
 
-    return array;
-};
+    return array
+}
 
-fn _.free_custom(list: &LinkedList) {
-	let node = list.head;
+_.free_custom(list: &LinkedList) {
+	let node = list.head
 	while (node != 0) {
-		let new_node = @cast_&LinkedList_Node(node).next;
-		@cast_&LinkedList_Node(node).free_custom();
-		@free(node, LinkedList_Node.memory_size());
-		node = new_node;
-	};
-};
+		let new_node = @cast_&LinkedList_Node(node).next
+		@cast_&LinkedList_Node(node).free_custom()
+		@free(node, LinkedList_Node.memory_size())
+		node = new_node
+	}
+}
 
-struct LinkedList_Node {
-    data: any;
-    next: any;
-	item_size: integer;
-};
+LinkedList_Node {
+    data: any
+    next: any
+	item_size: integer
+}
 
-fn _.free_custom(node: &LinkedList_Node) {
+_.free_custom(node: &LinkedList_Node) {
 	if (node.item_size != 0) {
-		@free(node.data, node.item_size);
-	};
-};
+		@free(node.data, node.item_size)
+	}
+}
 
-struct Option {
-    data: any;
-	item_size: integer;
-};
+Option {
+    data: any
+	item_size: integer
+}
 
-fn Option.empty(): Option {
-    return Option(null(), 0);
-};
+Option.empty(): Option {
+    return Option(null(), 0)
+}
 
-fn Option.of(data: any): Option {
-    return Option.of(data, 0);
-};
+Option.of(data: any): Option {
+    return Option.of(data, 0)
+}
 
-fn Option.of(data: any, item_size: integer): Option {
-    return Option(data, item_size);
-};
+Option.of(data: any, item_size: integer): Option {
+    return Option(data, item_size)
+}
 
-fn _.is_value(option: &Option): boolean {
-    return not_equal(option.data, null());
-};
+_.is_value(option: &Option): boolean {
+    return not_equal(option.data, null())
+}
 
-fn _.free_custom(option: &Option) {
-	let test = option.data != null();
-	let test2 = option.item_size > 0;
+_.free_custom(option: &Option) {
+	let test = option.data != null()
+	let test2 = option.item_size > 0
 	if (@and(test, test2)) {
-		@free(option.data, option.item_size);
-	};
-};
+		@free(option.data, option.item_size)
+	}
+}
 
-fn _+(value1: any, value2: any): any {
-    return @add(value1, value2);
-};
+_+(value1: any, value2: any): any {
+    return @add(value1, value2)
+}
 
-fn _+(value1: integer, value2: integer): integer {
-    return @cast_integer(@add(value1, value2));
-};
+_+(value1: integer, value2: integer): integer {
+    return @cast_integer(@add(value1, value2))
+}
 
-fn _-(value1: any, value2: any): any {
-    return @subtract(value1, value2);
-};
+_-(value1: any, value2: any): any {
+    return @subtract(value1, value2)
+}
 
-fn _-(value1: integer, value2: integer): integer {
-    return @cast_integer(@subtract(value1, value2));
-};
+_-(value1: integer, value2: integer): integer {
+    return @cast_integer(@subtract(value1, value2))
+}
 
-fn _%(value1: integer, value2: integer): integer {
-    return @cast_integer(@modulo(value1, value2));
-};
+_%(value1: integer, value2: integer): integer {
+    return @cast_integer(@modulo(value1, value2))
+}
 
-fn _/(value1: integer, value2: integer): integer {
-    return @cast_integer(@divide(value1, value2));
-};
+_/(value1: integer, value2: integer): integer {
+    return @cast_integer(@divide(value1, value2))
+}
 
-fn _*(value1: integer, value2: integer): integer {
-    return @cast_integer(@multiply(value1, value2));
-};
+_*(value1: integer, value2: integer): integer {
+    return @cast_integer(@multiply(value1, value2))
+}
 
-fn _<(value1: integer, value2: integer): boolean {
-    return @less(value1, value2);
-};
+_<(value1: integer, value2: integer): boolean {
+    return @less(value1, value2)
+}
 
-fn _>(value1: integer, value2: integer): boolean {
-    return @greater(value1, value2);
-};
+_>(value1: integer, value2: integer): boolean {
+    return @greater(value1, value2)
+}
 
-fn _==(value1: any, value2: any): boolean {
-    return @equal(value1, value2);
-};
+_==(value1: any, value2: any): boolean {
+    return @equal(value1, value2)
+}
 
-fn _!=(value1: &any, value2: &any): boolean {
-    return not_equal(value1, value2);
-};
+_!=(value1: &any, value2: &any): boolean {
+    return not_equal(value1, value2)
+}

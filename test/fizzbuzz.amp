@@ -1,24 +1,24 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    let i = 0;
+main() {
+    let i = 0
 
     while (i < 10) {
-        i = i + 1;
-        let fizzbuzz = fizzbuzz(i);
-        println(fizzbuzz);
-    };
-};
+        i = i + 1
+        let fizzbuzz = fizzbuzz(i)
+        println(fizzbuzz)
+    }
+}
 
-fn fizzbuzz(int: integer): String {
+fizzbuzz(int: integer): String {
     if ((int % 15) == 0) {
-        return "FizzBuzz";
-    };
+        return "FizzBuzz"
+    }
     if ((int % 5) == 0) {
-        return "Buzz";
-    };
+        return "Buzz"
+    }
     if ((int % 3) == 0) {
-        return "Fizz";
-    };
-    return integer_to_string(int);
-};
+        return "Fizz"
+    }
+    return integer_to_string(int)
+}

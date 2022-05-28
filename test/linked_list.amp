@@ -1,24 +1,24 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    let list = LinkedList();
-    list.append(5);
-    list.append(3);
-    list.append(2);
-    list.append(1);
-    list.append(4);
-    list.insert(0, 4);
-    list.insert(2, 4);
-    list.remove(1);
-    print_int_list(list);
-    println("List size: " + integer_to_string(list.size));
-    println("At 0: " + integer_to_string(@cast_integer(list[0])));
-};
+main() {
+    let list = LinkedList()
+    list.append(5)
+    list.append(3)
+    list.append(2)
+    list.append(1)
+    list.append(4)
+    list.insert(0, 4)
+    list.insert(2, 4)
+    list.remove(1)
+    print_int_list(list)
+    println("List size: " + integer_to_string(list.size))
+    println("At 0: " + integer_to_string(@cast_integer(list[0])))
+}
 
-fn print_int_list(list: &LinkedList) {
-    let node = @cast_&LinkedList_Node(list.head);
+print_int_list(list: &LinkedList) {
+    let node = @cast_&LinkedList_Node(list.head)
     while (node.next != null()) {
-        node = @cast_&LinkedList_Node(node.next);
-        println(integer_to_string(@cast_integer(node.data)));
-    };
-};
+        node = @cast_&LinkedList_Node(node.next)
+        println(integer_to_string(@cast_integer(node.data)))
+    }
+}

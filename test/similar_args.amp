@@ -1,14 +1,14 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    test1(4);
-    test1(true);
-};
+main() {
+    test1(4)
+    test1(true)
+}
 
-fn test1(value: integer) {
-    println("Printing integer: " + integer_to_string(value));
-};
+test1(value: integer) {
+    println("Printing integer: " + integer_to_string(value))
+}
 
-fn test1(value: boolean) {
-    println("Printing boolean: " + boolean_to_string(value));
-};
+test1(value: boolean) {
+    println("Printing boolean: " + boolean_to_string(value))
+}

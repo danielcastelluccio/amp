@@ -1,9 +1,9 @@
-use "std.amp";
+use "std"
 
-fn main() {
+main() {
     if ("test" == "test") {
-        println("equal");
+        println("equal")
     } else {
-        println("not equal");
-    };
-};
+        println("not equal")
+    }
+}

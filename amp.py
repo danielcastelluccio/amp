@@ -110,26 +110,26 @@ def parse_file(file):
     
     for content in contents_split:
         if "//" in content:
-            contents += content[0 : content.index("//")]
+            contents += content[0 : content.index("//")] + "\n"
         else:
-            contents += content
+            contents += content + "\n"
 
     program = parse(contents, "Program", None)
     
     for token in program.tokens:
         if isinstance(token, Use):
-            program.tokens.extend(parse_file(token.file).tokens)
+            program.tokens.extend(parse_file(token.file + ".amp").tokens)
     
     return program
 
 def getType(statement):
-    if statement.startswith("fn "):
+    if "{" in statement and "(" in statement[0 : statement.index("{")] and not statement.strip().startswith("while ") and not statement.strip().startswith("if "):
         return "Function"
     elif statement.startswith("use "):
         return "Use"
-    elif statement.startswith("struct "):
+    elif "{" in statement and not "(" in statement[0 : statement.index("{")] and ":" in statement:
         return "Struct"
-    elif statement.startswith("enum "):
+    elif "{" in statement and not "(" in statement[0 : statement.index("{")]:
         return "Enum"    
     else:
         return "Statement"
@@ -140,7 +140,7 @@ def parse(contents, type, extra):
         things = []
         current_indent = 0
         for character in contents:
-            if character == ';' and current_indent == 0:
+            if character == '\n' and current_indent == 0:
                 things.extend(parse(current_thing, getType(current_thing), things))
                 current_thing = ""
             else:
@@ -153,14 +153,14 @@ def parse(contents, type, extra):
 
         return Program(things)
     elif type == "Function":
-        name = contents.split(" ")[1].split("(")[0]
+        name = contents.split(" ")[0].split("(")[0]
         current_thing = ""
         instructions = []
         current_indent = 0
 
         arguments_array = []
-        arguments_old = contents[len("fn " + name) : contents.index("{")]
-        arguments = arguments_old[0 : arguments_old.rindex(")")]
+        arguments_old = contents[len(name) : contents.index("{")]
+        arguments = arguments_old[arguments_old.index("(") : arguments_old.rindex(")")]
 
         current_argument = ""
         for character in arguments:
@@ -177,8 +177,6 @@ def parse(contents, type, extra):
         parameters = []
         for argument in arguments_array[::-1]:
             if argument:
-                #print(name)
-                #print(argument)
                 instructions.append(Declare(argument.split(":")[0], argument.split(":")[1].strip()))
 
         for argument in arguments_array:
@@ -186,7 +184,7 @@ def parse(contents, type, extra):
                 parameters.append(argument.split(":")[1].strip())
         
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
-            if character == ';' and current_indent == 0:
+            if character == '\n' and current_indent == 0:
                 instructions.extend(parse(current_thing, getType(current_thing), instructions))
                 current_thing = ""
             else:
@@ -207,20 +205,19 @@ def parse(contents, type, extra):
             instructions.append(Return(0))
 
         return_ = arguments_old[arguments_old.rindex(":") + 1 : len(arguments_old)] if ":" in arguments_old[arguments_old.rindex(")") : len(arguments_old)] else ""
-
         return [Function(name, instructions, locals, parameters, "".join(return_.split(" ")).split(",") if return_.strip() else [])]
     elif type == "Use":
         use = contents[contents.index(" ") + 1 : len(contents)]
         use = use[1 : len(use) - 1]
         return [Use(use)]
     elif type == "Struct":
-        name = contents.split(" ")[1]
+        name = contents.split(" ")[0]
         items = {}
         items_list = []
         tokens = []
 
         body = contents[contents.index("{") + 1 : contents.index("}")]
-        for item in body.split(";"):
+        for item in body.split("\n"):
             if item:
                 item = item.strip()
                 item_name = item.split(":")[0]
@@ -240,7 +237,7 @@ def parse(contents, type, extra):
                 instructions.append(Return(1))
 
                 if not item_type in primitives or item_type == "any":
-                    item_type = "&" + item_type;
+                    item_type = "&" + item_type
 
                 locals.append("instance")
                 
@@ -262,7 +259,7 @@ def parse(contents, type, extra):
                 instructions.append(Return(1))
 
                 if not item_type in primitives or item_type == "any":
-                    item_type = "&" + item_type;
+                    item_type = "&" + item_type
 
                 locals.append("instance")
                 
@@ -401,13 +398,13 @@ def parse(contents, type, extra):
 
         return tokens
     elif type == "Enum":
-        name = contents.split(" ")[1]
+        name = contents.split(" ")[0]
         items = {}
         items_list = []
         tokens = []
 
         body = contents[contents.index("{") + 1 : contents.index("}")]
-        for item in body.split(";"):
+        for item in body.split("\n"):
             if item:
                 item = item.strip()
 
@@ -544,7 +541,7 @@ def parse_statement(contents, extra):
         instructions.append(CheckIf(false_id, True))
 
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
-            if character == ';' and current_indent == 0:
+            if character == '\n' and current_indent == 0:
                 instructions2.extend(parse(current_thing, getType(current_thing), extra + instructions))
                 current_thing = ""
             else:
@@ -599,7 +596,7 @@ def parse_statement(contents, extra):
         instructions.append(StartWhile(id1, id2))
 
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
-            if character == ';' and current_indent == 0:
+            if character == '\n' and current_indent == 0:
                 instructions2.extend(parse(current_thing, getType(current_thing), extra + instructions2))
                 current_thing = ""
             else:
@@ -815,7 +812,8 @@ def parse_statement(contents, extra):
             else:
                 instructions.extend(parse_statement(contents[1 : len(contents) - 1], extra +  instructions))
         else:
-            instructions.append(Retrieve(contents, None))
+            if contents:
+                instructions.append(Retrieve(contents, None))
         
     return instructions
     

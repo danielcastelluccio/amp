@@ -1,23 +1,23 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    print_test(Test.TEST1());
-    print_test(Test.TEST2());
-    print_test(Test.TEST3());
-};
+main() {
+    print_test(Test.TEST1())
+    print_test(Test.TEST2())
+    print_test(Test.TEST3())
+}
 
-fn print_test(test: &Test) {
+print_test(test: &Test) {
     if (test.TEST1()) {
-        println("is TEST1");
+        println("is TEST1")
     } else if (test.TEST2()) {
-        println("is TEST2");
+        println("is TEST2")
     } else {
-        println("is TEST3? could be another thing");
-    };
-};
+        println("is TEST3? could be another thing")
+    }
+}
 
-enum Test {
-    TEST1;
-    TEST2;
-    TEST3;
-};
+Test {
+    TEST1
+    TEST2
+    TEST3
+}

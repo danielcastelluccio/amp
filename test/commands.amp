@@ -1,18 +1,18 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    let array = Array(1, String.memory_size());
-    array[0] = "/bin/ls";
+main() {
+    let array = Array(1, String.memory_size())
+    array[0] = "/bin/ls"
 
-    execute_command("/bin/ls", array, true);
+    execute_command("/bin/ls", array, true)
 
-    println("after first!");
+    println("after first!")
 
-	array = Array(2, String.memory_size());
-	array[0] = "/bin/ls";
-	array[1] = "-l";
+	array = Array(2, String.memory_size())
+	array[0] = "/bin/ls"
+	array[1] = "-l"
 
-    execute_command("/bin/ls", array, true);
+    execute_command("/bin/ls", array, true)
 
-    println("after second!");
-};
+    println("after second!")
+}

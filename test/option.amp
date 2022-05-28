@@ -1,14 +1,14 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    let option = Option.empty();
+main() {
+    let option = Option.empty()
 
-    println(boolean_to_string(option.is_value()));
+    println(boolean_to_string(option.is_value()))
 
-    option = Option.of("Hello Option!", String.memory_size());
+    option = Option.of("Hello Option!", String.memory_size())
     if (option.is_value()) {
-        println(@cast_&String(option.data));
+        println(@cast_&String(option.data))
     } else {
-        println("not a thing (this should never print with this code)");
-    };
-};
+        println("not a thing (this should never print with this code)")
+    }
+}

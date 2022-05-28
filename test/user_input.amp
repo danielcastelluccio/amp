@@ -1,7 +1,7 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    print("Hello, what is your name? ");
-    let string = read();
-    print("Hello " + string);
-};
+main() {
+    print("Hello, what is your name? ")
+    let string = read()
+    print("Hello " + string)
+}

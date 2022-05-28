@@ -1,10 +1,10 @@
-use "std.amp";
+use "std"
 
-fn main() {
-    let string = "";
+main() {
+    let string = ""
 
     while (string.length < 4) {
-        string = string + "a";
-        println(string);
-    };
-};
+        string = string + "a"
+        println(string)
+    }
+}
