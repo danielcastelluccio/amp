@@ -127,7 +127,7 @@ fn _[](array: &Array, index: integer): &any {
     return @get_8(array.pointer + (index * 8));
 };
 
-fn Array.free_custom(array: &Array) {
+fn _.free_custom(array: &Array) {
 	if (array.item_size > 0) {
 		let i = 0;
 		while (i < array.length) {
@@ -144,7 +144,7 @@ struct Function {
     pointer: any;
 };
 
-fn Function.call(function: &Function, parameters: Array): any {
+fn _.call(function: &Function, parameters: Array): any {
     return @call_function(function.pointer, parameters.pointer, parameters.length);
 };
 
@@ -162,7 +162,7 @@ fn String(pointer: any, length: integer): String {
     return String(pointer, length, false);
 };
 
-fn String.free_custom(string: &String) {
+fn _.free_custom(string: &String) {
 	if (@not(string.static)) {
 		@free(string.pointer, string.length);
 	};
@@ -202,7 +202,7 @@ fn LinkedList(): LinkedList {
     return LinkedList(0);
 };
 
-fn LinkedList.append(linked_list: &LinkedList, data: any) {
+fn _.append(linked_list: &LinkedList, data: any) {
     let node = @cast_&LinkedList_Node(linked_list.head);
     while (node.next != null()) {
         node = @cast_&LinkedList_Node(node.next);
@@ -212,7 +212,7 @@ fn LinkedList.append(linked_list: &LinkedList, data: any) {
     node.next = new_node;
 };
 
-fn LinkedList.insert(linked_list: &LinkedList, index: integer, data: any) {
+fn _.insert(linked_list: &LinkedList, index: integer, data: any) {
     let node = @cast_&LinkedList_Node(linked_list.head);
 
     let i = 0;
@@ -226,7 +226,7 @@ fn LinkedList.insert(linked_list: &LinkedList, index: integer, data: any) {
     node.next = new_node;
 };
 
-fn LinkedList.remove(linked_list: &LinkedList, index: integer) {
+fn _.remove(linked_list: &LinkedList, index: integer) {
     let node = @cast_&LinkedList_Node(linked_list.head);
 
     let i = 0;
@@ -265,7 +265,7 @@ fn _size(linked_list: &LinkedList): integer {
     return i;
 };
 
-fn LinkedList.to_array(linked_list: LinkedList): Array {
+fn _.to_array(linked_list: LinkedList): Array {
     let size = linked_list.size;
     let array = Array(size);
     let i = 0;
@@ -282,7 +282,7 @@ fn LinkedList.to_array(linked_list: LinkedList): Array {
     return array;
 };
 
-fn LinkedList.free_custom(list: &LinkedList) {
+fn _.free_custom(list: &LinkedList) {
 	let node = list.head;
 	while (node != 0) {
 		let new_node = @cast_&LinkedList_Node(node).next;
@@ -298,7 +298,7 @@ struct LinkedList_Node {
 	item_size: integer;
 };
 
-fn LinkedList_Node.free_custom(node: &LinkedList_Node) {
+fn _.free_custom(node: &LinkedList_Node) {
 	if (node.item_size != 0) {
 		@free(node.data, node.item_size);
 	};
@@ -321,11 +321,11 @@ fn Option.of(data: any, item_size: integer): Option {
     return Option(data, item_size);
 };
 
-fn Option.is_value(option: &Option): boolean {
+fn _.is_value(option: &Option): boolean {
     return not_equal(option.data, null());
 };
 
-fn Option.free_custom(option: &Option) {
+fn _.free_custom(option: &Option) {
 	let test = option.data != null();
 	let test2 = option.item_size > 0;
 	if (@and(test, test2)) {

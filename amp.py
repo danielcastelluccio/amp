@@ -296,7 +296,7 @@ def parse(contents, type, extra):
                 items_list.append(item.split(":")[0])
 
         for item in items:
-            get_consume_name = name + "." + item + "_consume"
+            get_consume_name = "_." + item + "_consume"
             instructions = []
             locals = []
                 
@@ -422,7 +422,7 @@ def parse(contents, type, extra):
                 function = Function(get_name, instructions, locals, [], [name])
                 tokens.append(function)
 
-                check_name = name + "." + item
+                check_name = "_." + item
                 instructions = []
                 locals = []
 
@@ -929,7 +929,7 @@ def process_program(program):
                         type_ = types[len(types) - 1]
                         if len(type_) > 0 and type_[0] == "&":
                             type_ = type_[1::]
-                        instruction.name = instruction.name.replace("_.", type_ + ".")
+                        #instruction.name = instruction.name.replace("_.", type_ + ".")
                         instruction.parameter_count += 1
 
                     if instruction.name.startswith("@cast_") and ((instruction.name[6 : len(instruction.name)] in program_types) or (instruction.name[7 : len(instruction.name)] in program_types)):
