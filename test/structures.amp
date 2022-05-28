@@ -17,9 +17,10 @@ main() {
 IntPair {
     int1: integer
     int2: integer
+
+	reset(pair: &IntPair) {
+		pair.int1 = 0
+		pair.int2 = 0
+	}
 }
 
-_.reset(pair: &IntPair) {
-	pair.int1 = 0
-	pair.int2 = 0
-}

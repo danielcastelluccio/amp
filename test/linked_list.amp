@@ -11,7 +11,7 @@ main() {
     list.insert(2, 4)
     list.remove(1)
     print_int_list(list)
-    println("List size: " + integer_to_string(list.size))
+    println("List size: " + integer_to_string(list.size()))
     println("At 0: " + integer_to_string(@cast_integer(list[0])))
 }
 

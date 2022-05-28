@@ -216,81 +216,109 @@ def parse(contents, type, extra):
         items_list = []
         tokens = []
 
-        body = contents[contents.index("{") + 1 : contents.index("}")]
-        for item in body.split("\n"):
-            if item:
-                item = item.strip()
-                item_name = item.split(":")[0]
+        function_code = []
 
-                get_name = name + "." + item_name
-                instructions = []
-                locals = []
-                
-                item_type = item.split(":")[1].strip()
+        body = contents[contents.index("{") + 1 : contents.rindex("}")]
 
-                instructions.append(Declare("instance", "&" + name))
-                instructions.append(Retrieve("instance", None))
-                instructions.append(Constant(8 * len(items)))
-                instructions.append(Invoke("@add", 2, []))
-                instructions.append(Invoke("@get_8", 1, []))
-                instructions.append(Invoke("@cast_" + item_type, 1, []))
-                instructions.append(Return(1))
+        element = ""
+        bracket_index = 0
+        for character in body:
+            if character == "\n" and bracket_index == 0:
+                element = element.strip()
+                if element:
+                    element = element.strip()
+                    if not "(" in element:
+                        item = element
+                        item_name = item.split(":")[0]
 
-                if not item_type in primitives or item_type == "any":
-                    item_type = "&" + item_type
+                        get_name = name + "." + item_name
+                        instructions = []
+                        locals = []
+                        
+                        item_type = item.split(":")[1].strip()
 
-                locals.append("instance")
-                
-                #function = Function(get_name, instructions, locals, ["&" + name], [item_type])
-                #tokens.append(function)
+                        instructions.append(Declare("instance", "&" + name))
+                        instructions.append(Retrieve("instance", None))
+                        instructions.append(Constant(8 * len(items)))
+                        instructions.append(Invoke("@add", 2, []))
+                        instructions.append(Invoke("@get_8", 1, []))
+                        instructions.append(Invoke("@cast_" + item_type, 1, []))
+                        instructions.append(Return(1))
 
-                get_name = "_" + item_name
-                instructions = []
-                locals = []
-                
-                item_type = item.split(":")[1].strip()
+                        if not item_type in primitives or item_type == "any":
+                            item_type = "&" + item_type
 
-                instructions.append(Declare("instance", "&" + name))
-                instructions.append(Retrieve("instance", None))
-                instructions.append(Constant(8 * len(items)))
-                instructions.append(Invoke("@add", 2, []))
-                instructions.append(Invoke("@get_8", 1, []))
-                instructions.append(Invoke("@cast_" + item_type, 1, []))
-                instructions.append(Return(1))
+                        locals.append("instance")
+                        
+                        #function = Function(get_name, instructions, locals, ["&" + name], [item_type])
+                        #tokens.append(function)
 
-                if not item_type in primitives or item_type == "any":
-                    item_type = "&" + item_type
+                        get_name = "_" + item_name
+                        instructions = []
+                        locals = []
+                        
+                        item_type = item.split(":")[1].strip()
 
-                locals.append("instance")
-                
-                function = Function(get_name, instructions, locals, ["&" + name], [item_type])
-                tokens.append(function)
+                        instructions.append(Declare("instance", "&" + name))
+                        instructions.append(Retrieve("instance", None))
+                        instructions.append(Constant(8 * len(items)))
+                        instructions.append(Invoke("@add", 2, []))
+                        instructions.append(Invoke("@get_8", 1, []))
+                        instructions.append(Invoke("@cast_" + item_type, 1, []))
+                        instructions.append(Return(1))
 
-                set_name = name + "." + item_name
-                instructions = []
-                locals = []
+                        if not item_type in primitives or item_type == "any":
+                            item_type = "&" + item_type
 
-                instructions.append(Declare("instance", "&" + name))
-                instructions.append(Declare(item_name, item.split(":")[1].strip()))
-                instructions.append(Retrieve("instance", None))
-                instructions.append(Constant(8 * len(items)))
-                instructions.append(Invoke("@add", 2, []))
-                instructions.append(Retrieve(item_name, None))
-                instructions.append(Invoke("@cast_integer", 1, []))
-                instructions.append(Invoke("@set_8", 2, []))
-                instructions.append(Return(0))
+                        locals.append("instance")
+                        
+                        function = Function(get_name, instructions, locals, ["&" + name], [item_type])
+                        tokens.append(function)
 
-                locals.append(item_name)
-                locals.append("instance")
+                        set_name = name + "." + item_name
+                        instructions = []
+                        locals = []
 
-                #function = Function(set_name, instructions, locals, ["&" + name, item.split(":")[1].strip()], [])
-                #tokens.append(function)
+                        instructions.append(Declare("instance", "&" + name))
+                        instructions.append(Declare(item_name, item.split(":")[1].strip()))
+                        instructions.append(Retrieve("instance", None))
+                        instructions.append(Constant(8 * len(items)))
+                        instructions.append(Invoke("@add", 2, []))
+                        instructions.append(Retrieve(item_name, None))
+                        instructions.append(Invoke("@cast_integer", 1, []))
+                        instructions.append(Invoke("@set_8", 2, []))
+                        instructions.append(Return(0))
 
-                function = Function("_" + item_name + "=", instructions, locals, ["&" + name, item.split(":")[1].strip()], [])
-                tokens.append(function)
+                        locals.append(item_name)
+                        locals.append("instance")
 
-                items[item.split(":")[0]] = item.split(":")[1].strip()
-                items_list.append(item.split(":")[0])
+                        #function = Function(set_name, instructions, locals, ["&" + name, item.split(":")[1].strip()], [])
+                        #tokens.append(function)
+
+                        function = Function("_" + item_name + "=", instructions, locals, ["&" + name, item.split(":")[1].strip()], [])
+                        tokens.append(function)
+
+                        items[item.split(":")[0]] = item.split(":")[1].strip()
+                        items_list.append(item.split(":")[0])
+                    else:
+                        function = parse(element, "Function", extra + tokens)[0]
+                        if len(function.parameters) > 0 and (function.parameters[0] == name or function.parameters[0][1:] == name):
+                            function.name = "_." + function.name
+                        else:
+                            if function.name:
+                                function.name = name + "." + function.name
+                            else:
+                                function.name = name
+                        tokens.append(function)
+                    element = ""
+            elif character == "{":
+                bracket_index += 1
+            elif character == "}":
+                bracket_index -= 1
+
+            if not character == "\n" or not bracket_index == 0:
+                element += character
+
 
         for item in items:
             get_consume_name = "_." + item + "_consume"

@@ -105,18 +105,31 @@ Array {
     pointer: any
     length: integer
 	item_size: integer
-}
 
-Array(pointer: any, length: integer): Array {
-    return Array(pointer, length, 0)
-}
+	(pointer: any, length: integer): Array {
+	    return Array(pointer, length, 0)
+	}
+	
+	(size: integer): Array {
+	    return Array(@allocate(size * 8), size)
+	}
 
-Array(size: integer): Array {
-    return Array(@allocate(size * 8), size)
-}
+	(size: integer, memory_size: integer): Array {
+	    return Array(@allocate(size * 8), size, memory_size)
+	}
 
-Array(size: integer, memory_size: integer): Array {
-    return Array(@allocate(size * 8), size, memory_size)
+	free_custom(array: &Array) {
+		if (array.item_size > 0) {
+			let i = 0
+			while (i < array.length) {
+				if (@not(array[i] == 0)) {
+					@free(array[i], array.item_size)
+				}
+				i = i + 1
+			}
+		}
+		@free(array.pointer, array.length * 8)
+	}
 }
 
 _[]=(array: &Array, index: integer, value: any) {
@@ -127,44 +140,31 @@ _[](array: &Array, index: integer): &any {
     return @get_8(array.pointer + (index * 8))
 }
 
-_.free_custom(array: &Array) {
-	if (array.item_size > 0) {
-		let i = 0
-		while (i < array.length) {
-			if (@not(array[i] == 0)) {
-				@free(array[i], array.item_size)
-			}
-			i = i + 1
-		}
-	}
-	@free(array.pointer, array.length * 8)
-}
-
 Function {
     pointer: any
-}
 
-_.call(function: &Function, parameters: Array): any {
-    return @call_function(function.pointer, parameters.pointer, parameters.length)
+	call(function: &Function, parameters: Array): any {
+	    return @call_function(function.pointer, parameters.pointer, parameters.length)
+	}
 }
 
 String {
     pointer: any
     length: integer
     static: boolean
-}
 
-String(pointer: any): String {
-    return String(pointer, length(pointer), false)
-}
+	(pointer: any): String {
+	    return String(pointer, length(pointer), false)
+	}
+	
+	(pointer: any, length: integer): String {
+	    return String(pointer, length, false)
+	}
 
-String(pointer: any, length: integer): String {
-    return String(pointer, length, false)
-}
-
-_.free_custom(string: &String) {
-	if (@not(string.static)) {
-		@free(string.pointer, string.length)
+	free_custom(string: &String) {
+		if (@not(string.static)) {
+			@free(string.pointer, string.length)
+		}
 	}
 }
 
@@ -192,53 +192,92 @@ null(): any {
 LinkedList {
     head: any
 	item_size: integer
-}
 
-LinkedList(item_size: integer): LinkedList {
-	return LinkedList(LinkedList_Node(null(), null(), item_size), item_size)
-}
+	(item_size: integer): LinkedList {
+		return LinkedList(LinkedList_Node(null(), null(), item_size), item_size)
+	}
+	
+	(): LinkedList {
+	    return LinkedList(0)
+	}
 
-LinkedList(): LinkedList {
-    return LinkedList(0)
-}
+	append(linked_list: &LinkedList, data: any) {
+	    let node = @cast_&LinkedList_Node(linked_list.head)
+	    while (node.next != null()) {
+	        node = @cast_&LinkedList_Node(node.next)
+	    }
+	
+	    let new_node = LinkedList_Node(data, null(), linked_list.item_size)
+	    node.next = new_node
+	}
 
-_.append(linked_list: &LinkedList, data: any) {
-    let node = @cast_&LinkedList_Node(linked_list.head)
-    while (node.next != null()) {
-        node = @cast_&LinkedList_Node(node.next)
-    }
+	insert(linked_list: &LinkedList, index: integer, data: any) {
+	    let node = @cast_&LinkedList_Node(linked_list.head)
+	
+	    let i = 0
+	    while (i < index) {
+	        node = @cast_&LinkedList_Node(node.next)
+	        i = i + 1
+	    }
+	
+	    let temp_next = node.next
+	    let new_node = LinkedList_Node(data, @cast_any(temp_next), linked_list.item_size)
+	    node.next = new_node
+	}
 
-    let new_node = LinkedList_Node(data, null(), linked_list.item_size)
-    node.next = new_node
-}
+	remove(linked_list: &LinkedList, index: integer) {
+	    let node = @cast_&LinkedList_Node(linked_list.head)
+	
+	    let i = 0
+	    while (i < index) {
+	        node = @cast_&LinkedList_Node(node.next)
+	        i = i + 1
+	    }
+	
+	    let temp_next_next = @cast_&LinkedList_Node(node.next).next
+		@cast_&LinkedList_Node(node.next).free_custom()
+		@free(node.next, LinkedList_Node.memory_size())
+	    node.next = @cast_any(temp_next_next)
+	}
 
-_.insert(linked_list: &LinkedList, index: integer, data: any) {
-    let node = @cast_&LinkedList_Node(linked_list.head)
+	to_array(linked_list: LinkedList): Array {
+	    let size = linked_list.size()
+	    let array = Array(size)
+	    let i = 0
+	    let node = @cast_LinkedList_Node(linked_list.head_consume())
+	
+	    while (node.next != 0) {
+			let prev_node: &LinkedList_Node = node
+	        node = @cast_LinkedList_Node(@cast_any(node.next_consume()))
+			let next = prev_node.next
+	        array[i] = @cast_any(node.data)
+	        i = i + 1
+	    }
+	
+	    return array
+	}
+	
+	free_custom(list: &LinkedList) {
+		let node = list.head
+		while (node != 0) {
+			let new_node = @cast_&LinkedList_Node(node).next
+			@cast_&LinkedList_Node(node).free_custom()
+			@free(node, LinkedList_Node.memory_size())
+			node = new_node
+		}
+	}
 
-    let i = 0
-    while (i < index) {
-        node = @cast_&LinkedList_Node(node.next)
-        i = i + 1
-    }
-
-    let temp_next = node.next
-    let new_node = LinkedList_Node(data, @cast_any(temp_next), linked_list.item_size)
-    node.next = new_node
-}
-
-_.remove(linked_list: &LinkedList, index: integer) {
-    let node = @cast_&LinkedList_Node(linked_list.head)
-
-    let i = 0
-    while (i < index) {
-        node = @cast_&LinkedList_Node(node.next)
-        i = i + 1
-    }
-
-    let temp_next_next = @cast_&LinkedList_Node(node.next).next
-	@cast_&LinkedList_Node(node.next).free_custom()
-	@free(node.next, LinkedList_Node.memory_size())
-    node.next = @cast_any(temp_next_next)
+	size(linked_list: &LinkedList): integer {
+	    let node = @cast_&LinkedList_Node(linked_list.head)
+	    let i = 0
+	
+	    while (node.next != null()) {
+	        node = @cast_&LinkedList_Node(node.next)
+	        i = i + 1
+	    }
+	
+	    return i
+	}
 }
 
 _[](linked_list: &LinkedList, index: integer): &any {
@@ -253,83 +292,44 @@ _[](linked_list: &LinkedList, index: integer): &any {
     return node.data
 }
 
-_size(linked_list: &LinkedList): integer {
-    let node = @cast_&LinkedList_Node(linked_list.head)
-    let i = 0
-
-    while (node.next != null()) {
-        node = @cast_&LinkedList_Node(node.next)
-        i = i + 1
-    }
-
-    return i
-}
-
-_.to_array(linked_list: LinkedList): Array {
-    let size = linked_list.size
-    let array = Array(size)
-    let i = 0
-    let node = @cast_LinkedList_Node(linked_list.head_consume())
-
-    while (node.next != 0) {
-		let prev_node: &LinkedList_Node = node
-        node = @cast_LinkedList_Node(@cast_any(node.next_consume()))
-		let next = prev_node.next
-        array[i] = @cast_any(node.data)
-        i = i + 1
-    }
-
-    return array
-}
-
-_.free_custom(list: &LinkedList) {
-	let node = list.head
-	while (node != 0) {
-		let new_node = @cast_&LinkedList_Node(node).next
-		@cast_&LinkedList_Node(node).free_custom()
-		@free(node, LinkedList_Node.memory_size())
-		node = new_node
-	}
-}
-
 LinkedList_Node {
     data: any
     next: any
 	item_size: integer
-}
 
-_.free_custom(node: &LinkedList_Node) {
-	if (node.item_size != 0) {
-		@free(node.data, node.item_size)
+	free_custom(node: &LinkedList_Node) {
+		if (node.item_size != 0) {
+			@free(node.data, node.item_size)
+		}
 	}
 }
 
 Option {
     data: any
 	item_size: integer
-}
 
-Option.empty(): Option {
-    return Option(null(), 0)
-}
+	empty(): Option {
+	    return Option(null(), 0)
+	}
+	
+	of(data: any): Option {
+	    return Option.of(data, 0)
+	}
+	
+	of(data: any, item_size: integer): Option {
+	    return Option(data, item_size)
+	}
 
-Option.of(data: any): Option {
-    return Option.of(data, 0)
-}
-
-Option.of(data: any, item_size: integer): Option {
-    return Option(data, item_size)
-}
-
-_.is_value(option: &Option): boolean {
-    return not_equal(option.data, null())
-}
-
-_.free_custom(option: &Option) {
-	let test = option.data != null()
-	let test2 = option.item_size > 0
-	if (@and(test, test2)) {
-		@free(option.data, option.item_size)
+	is_value(option: &Option): boolean {
+	    return not_equal(option.data, null())
+	}
+	
+	free_custom(option: &Option) {
+		let test = option.data != null()
+		let test2 = option.item_size > 0
+		if (@and(test, test2)) {
+			@free(option.data, option.item_size)
+		}
 	}
 }
 
