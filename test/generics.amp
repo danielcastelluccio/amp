@@ -1,0 +1,13 @@
+use "std"
+
+main() {
+	let storage = Storage("Hello World!")
+	println(storage.value)
+
+	let storage = Storage(2)
+	println(integer_to_string(storage.value))
+}
+
+Storage<A> {
+	value: A
+}
