@@ -1648,7 +1648,7 @@ def process_program(program):
     added_functions = []
     for function in list(program.tokens):
         if isinstance(function, Function):
-            if len(function.generics) > 0 or (function.name + str(function.parameters) + str(function.generics_applied) in added_functions):
+            if not is_used(function, program.tokens) or len(function.generics) > 0 or (function.name + str(function.parameters) + str(function.generics_applied) in added_functions):
                 #print(function.name + " " + str(function.parameters))
                 program.tokens.remove(function)
             else:
@@ -1900,11 +1900,11 @@ def is_used(function, functions):
     for other_function in functions:
         if isinstance(other_function, Function) and not other_function.name == function.name:
             for instruction in other_function.tokens:
-                if isinstance(instruction, Invoke) and instruction.name == function.name and (other_function.name == "main" or is_used(other_function, functions)):
+                if isinstance(instruction, Invoke) and instruction.name == function.name and instruction.type_parameters == function.generics_applied and (other_function.name == "main" or is_used(other_function, functions)):
                     return True
                 elif isinstance(instruction, Retrieve) and isinstance(instruction.data, list) and instruction.name == function.name and (other_function.name == "main" or is_used(other_function, functions)):
                     return True
-        
+
     return False
 
 def is_type(given, wanted):
@@ -2649,17 +2649,16 @@ def create_linux_binary(program, file_name_base):
     call_function.instructions.append("ret")
     asm_program.functions.append(call_function)
     
-    functions = ["_start", "@print_memory_"]
+    functions = ["_start"]
     for token in program.tokens:
         if isinstance(token, Function):
             for instruction in token.tokens:
                 if isinstance(instruction, Invoke):
-                    functions.append(instruction.name + "_" + "~".join(instruction.parameters).replace("&", ""))
+                    functions.append(instruction.name + "_" + "~".join(instruction.parameters).replace("&", "") + "_")
                     
     for function in list(asm_program.functions):
         if not function.name in functions:
-            pass
-            #asm_program.functions.remove(function)
+            asm_program.functions.remove(function)
 
     index_thing = 0
     
