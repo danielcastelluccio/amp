@@ -1,14 +1,14 @@
 use "std"
 
 main() {
-    let array = Array(1, String.memory_size())
+    let array = Array<String>(1)
     array[0] = "/bin/ls"
 
     execute_command("/bin/ls", array, true)
 
     println("after first!")
 
-	array = Array(2, String.memory_size())
+	array = Array<String>(2)
 	array[0] = "/bin/ls"
 	array[1] = "-l"
 

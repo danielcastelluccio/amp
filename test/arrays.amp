@@ -1,9 +1,9 @@
 use "std"
 
 main() {
-    let array = Array(2, String.memory_size())
+    let array = Array<String>(2)
     array[0] = "Hello "
     array[1] = "World!"
-    println(@cast_&String(array[0]) + @cast_&String(array[1]))
-    println("Array Length: " + integer_to_string(@cast_integer(array.length)))
+    println(array[0] + array[1])
+    println("Array Length: " + integer_to_string(array.length))
 }

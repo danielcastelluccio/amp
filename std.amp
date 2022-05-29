@@ -22,9 +22,9 @@ read(): String {
     return String(string, 128)
 }
 
-execute_command(file: String, arguments: Array, wait: boolean) {
+execute_command(file: String, arguments: Array<String>, wait: boolean) {
 	let null_terminated_file = file + "\0"
-	let arguments_new = Array(arguments.length + 1)
+	let arguments_new: Array<any> = Array<any>(arguments.length + 1)
 	let i = 0
 	while (i < arguments.length) {
 		let thing = @cast_&String(arguments[i]) + "\0"
@@ -101,29 +101,20 @@ not_equal(value1: &any, value2: &any): boolean {
     return @not(@equal(value1, value2))  
 }
 
-Array {
+Array<A> {
     pointer: any
     length: integer
-	item_size: integer
 
-	(pointer: any, length: integer): Array {
-	    return Array(pointer, length, 0)
-	}
-	
-	(size: integer): Array {
-	    return Array(@allocate(size * 8), size)
+	<A>(size: integer): Array<A> {
+	    return Array<A>(@allocate(size * 8), size)
 	}
 
-	(size: integer, memory_size: integer): Array {
-	    return Array(@allocate(size * 8), size, memory_size)
-	}
-
-	free_custom(array: &Array) {
-		if (array.item_size > 0) {
+	free_custom<A>(array: &Array<A>) {
+		if (A.memory_size() > 0) {
 			let i = 0
 			while (i < array.length) {
 				if (@not(array[i] == 0)) {
-					@free(array[i], array.item_size)
+					@free(array[i], A.memory_size())
 				}
 				i = i + 1
 			}
@@ -132,18 +123,18 @@ Array {
 	}
 }
 
-_[]=(array: &Array, index: integer, value: any) {
+_[]=<A>(array: &Array<A>, index: integer, value: A) {
     @set_8(@cast_integer(value), array.pointer + (index * 8))
 }
 
-_[](array: &Array, index: integer): &any {
-    return @get_8(array.pointer + (index * 8))
+_[]<A>(array: &Array<A>, index: integer): &A {
+    return @cast_&A(@get_8(array.pointer + (index * 8)))
 }
 
 Function {
     pointer: any
 
-	call(function: &Function, parameters: Array): any {
+	call(function: &Function, parameters: Array<any>): any {
 	    return @call_function(function.pointer, parameters.pointer, parameters.length)
 	}
 }
@@ -240,22 +231,22 @@ LinkedList {
 	    node.next = @cast_any(temp_next_next)
 	}
 
-	to_array(linked_list: LinkedList): Array {
-	    let size = linked_list.size()
-	    let array = Array(size)
-	    let i = 0
-	    let node = @cast_LinkedList_Node(linked_list.head_consume())
-	
-	    while (node.next != 0) {
-			let prev_node: &LinkedList_Node = node
-	        node = @cast_LinkedList_Node(@cast_any(node.next_consume()))
-			let next = prev_node.next
-	        array[i] = @cast_any(node.data)
-	        i = i + 1
-	    }
-	
-	    return array
-	}
+	//to_array(linked_list: LinkedList): Array {
+	//    let size = linked_list.size()
+	//    let array = Array(size)
+	//    let i = 0
+	//    let node = @cast_LinkedList_Node(linked_list.head_consume())
+	//
+	//    while (node.next != 0) {
+	//		let prev_node: &LinkedList_Node = node
+	//        node = @cast_LinkedList_Node(@cast_any(node.next_consume()))
+	//		let next = prev_node.next
+	//        array[i] = @cast_any(node.data)
+	//        i = i + 1
+	//    }
+	//
+	//    return array
+	//}
 	
 	free_custom(list: &LinkedList) {
 		let node = list.head
@@ -333,7 +324,7 @@ Option {
 	}
 }
 
-_+(value1: any, value2: any): any {
+_+(value1: &any, value2: &any): any {
     return @add(value1, value2)
 }
 
@@ -369,7 +360,7 @@ _>(value1: integer, value2: integer): boolean {
     return @greater(value1, value2)
 }
 
-_==(value1: any, value2: any): boolean {
+_==(value1: &any, value2: &any): boolean {
     return @equal(value1, value2)
 }
 
@@ -378,5 +369,13 @@ _!=(value1: &any, value2: &any): boolean {
 }
 
 integer.memory_size(): integer {
+	return 0
+}
+
+boolean.memory_size(): integer {
+	return 0
+}
+
+any.memory_size(): integer {
 	return 0
 }

@@ -14,13 +14,14 @@ class Program(Token):
         self.tokens = tokens
     
 class Function(Token):
-    def __init__(self, name, tokens, locals, parameters, return_, generics):
+    def __init__(self, name, tokens, locals, parameters, return_, generics, generics_applied = []):
         self.name = name
         self.tokens = tokens
         self.locals = locals
         self.parameters = parameters
         self.return_ = return_
         self.generics = generics
+        self.generics_applied = generics_applied
 
 class StructMarker(Token):
     def __init__(self, name):
@@ -60,13 +61,16 @@ class Duplicate(Instruction):
         pass
     
 class Invoke(Instruction):
-    def __init__(self, name, parameter_count, parameters, return_ = ""):
+    def __init__(self, name, parameter_count, parameters, return_ = "", type_parameters = ""):
         self.name = name
         self.parameter_count = parameter_count
         self.parameters = parameters
         if not return_:
             return_ = []
         self.return_ = return_
+        if not type_parameters:
+            type_parameters = []
+        self.type_parameters = type_parameters
     
 class Return(Instruction):
     def __init__(self, value_count):
@@ -161,6 +165,13 @@ def parse(contents, type, extra):
         current_thing = ""
         instructions = []
         current_indent = 0
+        generics = []
+
+        if "<" in name and ">" in name:
+            for generic in name[name.index("<") + 1 : name.index(">")]:
+                generics.append(generic)
+
+            name = name[0 : name.index("<")]
 
         arguments_array = []
         arguments_old = contents[len(name) : contents.index("{")]
@@ -209,7 +220,7 @@ def parse(contents, type, extra):
             instructions.append(Return(0))
 
         return_ = arguments_old[arguments_old.rindex(":") + 1 : len(arguments_old)] if ":" in arguments_old[arguments_old.rindex(")") : len(arguments_old)] else ""
-        return [Function(name, instructions, locals, parameters, "".join(return_.split(" ")).split(",") if return_.strip() else [], [])]
+        return [Function(name, instructions, locals, parameters, "".join(return_.split(" ")).split(",") if return_.strip() else [], generics)]
     elif type == "Use":
         use = contents[contents.index(" ") + 1 : len(contents)]
         use = use[1 : len(use) - 1]
@@ -263,7 +274,7 @@ def parse(contents, type, extra):
 
                         locals.append("instance")
                         
-                        function = Function(get_name, instructions, locals, ["&" + name_full], [item_type], [item_type] if (len(item_type) == 1 or (item_type[0] == "&" and len(item_type) == 2)) else [])
+                        function = Function(get_name, instructions, locals, ["&" + name_full], [item_type], type_parameters)
                         tokens.append(function)
 
                         set_name = name + "." + item_name
@@ -293,13 +304,16 @@ def parse(contents, type, extra):
                         items_list.append(item.split(":")[0])
                     else:
                         function = parse(element, "Function", extra + tokens)[0]
-                        if len(function.parameters) > 0 and (function.parameters[0] == name or function.parameters[0][1:] == name):
+                        #print(name + " " + function.parameters[0] + " " + str(is_type(name, function.parameters[0])))
+                        if function.name and len(function.parameters) > 0 and is_type(name, function.parameters[0]) and not function.parameters[0] == "any":
                             function.name = "_." + function.name
                         else:
                             if function.name:
                                 function.name = name + "." + function.name
                             else:
                                 function.name = name
+
+                        #print(function.name + " " + str(function.parameters))
                         tokens.append(function)
                     element = ""
             elif character == "{":
@@ -388,7 +402,7 @@ def parse(contents, type, extra):
         locals.append("instance")
 
         #print(name + " " + str(generics))
-        function = Function(name, instructions, locals, list(items.values()), [name_full], generics)
+        function = Function(name, instructions, locals, list(items.values()), [name_full], type_parameters)
         tokens.append(function)
 
         ##################
@@ -407,12 +421,8 @@ def parse(contents, type, extra):
 
         instructions.append(Declare("instance", "&" + name))
 
-        generics = []
         for item in items:
             if not items[item] in primitives:
-                if len(items[item]) == 1:
-                    generics.append(items[item])
-
                 instructions.append(Invoke(items[item] + ".memory_size", 0, [], "integer"))
                 instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(8 * items_list.index(item)))
@@ -425,7 +435,11 @@ def parse(contents, type, extra):
 
         locals.append("instance")
 
-        function = Function(name + ".free", instructions, locals, ["&" + name], [], generics)
+
+        function = Function(name + ".free", instructions, locals, ["&" + name_full], [], type_parameters)
+        #if name == "Function":
+            #print(function.name)
+            #print(type_parameters)
         tokens.append(function)
 
         tokens.append(StructMarker(name))
@@ -653,22 +667,24 @@ def parse_statement(contents, extra):
         last_character = ""
         for index, character in enumerate(contents):
             if character == "(":
+                if last_character == ">" and (special_sign == "<" or special_sign == ">"):
+                    special_sign = ""
                 current_parenthesis += 1
             elif character == ")":
                 current_parenthesis -= 1
-            elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
+            elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                 special_sign = "+"
                 special_index = index
-            elif character == "-" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
+            elif character == "-" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                 special_sign = "-"
                 special_index = index
-            elif character == "*" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
+            elif character == "*" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                 special_sign = "*"
                 special_index = index
-            elif character == "/" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
+            elif character == "/" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                 special_sign = "/"
                 special_index = index
-            elif character == "%" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
+            elif character == "%" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                 special_sign = "%"
                 special_index = index
             elif character == "=" and last_character == "=" and current_parenthesis == 0:
@@ -677,16 +693,16 @@ def parse_statement(contents, extra):
             elif character == "=" and last_character == "!" and current_parenthesis == 0:
                 special_sign = "!="
                 special_index = index - 1
-            elif character == "<" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
+            elif character == "<" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                 special_sign = "<"
                 special_index = index
-            elif character == ">" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
+            elif character == ">" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                 special_sign = ">"
                 special_index = index
-            elif character == "[" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_index):
+            elif character == "[" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                 special_sign = "[]"
                 special_index = index
-            elif character == "]" and current_parenthesis == 0:
+            elif character == "]" and current_parenthesis == 0 and special_index2 == -1:
                 special_index2 = index
             elif character == "=" and current_parenthesis == 0 and special_sign == "[]":
                 if not last_character == "=":
@@ -701,7 +717,7 @@ def parse_statement(contents, extra):
                     special_index2 = index
             
             last_character = character
-            
+
         if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!" and not special_sign == "[]=" and not special_sign == ".=":
                 name = contents.split(" ")[0]
                 expression = contents[contents.index("=") + 1 : len(contents)]
@@ -801,10 +817,19 @@ def parse_statement(contents, extra):
                     
             
             name = contents[0 : index_thing]
-            
+            type_parameters = []
+            if "<" in name:
+                type_parameters = name[name.index("<") + 1 : name.index(">")].split(",")
+                name = name[0 : name.index("<")]
+
             if name:
                 arguments_array = []
-                arguments = contents[len(name) + 1 : len(contents) - 1]
+                arguments = contents[len(name) : ]
+                arguments = arguments[arguments.index("(") + 1 : len(arguments) - 1]
+                #if "." in name:
+                    #arguments = contents[contents[contents.index(".") :].index("(") + 1 - contents.index(".") : len(contents) - 1]
+                    #print(name)
+                    #print(arguments)
 
                 current_argument = ""
                 current_parenthesis = 0
@@ -831,6 +856,7 @@ def parse_statement(contents, extra):
                         instructions.extend(parse_statement(parameter, extra + instructions))
                 
                 if "." in name:
+                    #print(name[0 : name.rindex(".")])
                     parsed = parse_statement(name[0 : name.rindex(".")], extra + instructions)
                     if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
                         for instruction in (extra + instructions):
@@ -842,7 +868,9 @@ def parse_statement(contents, extra):
                         instructions.extend(parsed)
                         name = "_." + name[name.rindex(".") + 1 : len(name)]
 
-                instructions.append(Invoke(name, len(arguments_array), []))
+                #print(type_parameters)
+                #print(name + " " + str(type_parameters))
+                instructions.append(Invoke(name, len(arguments_array), [], [], type_parameters))
             else:
                 instructions.extend(parse_statement(contents[1 : len(contents) - 1], extra +  instructions))
         else:
@@ -861,7 +889,7 @@ internals = [
     Function("@free", [], [], ["&any", "integer"], [], []),
     Function("@print_memory", [], [], [], [], []),
     Function("@error_size", [], [], ["&any", "integer"], [], []),
-    Function("@read_size", [], [], ["any", "integer"], [], []),
+    Function("@read_size", [], [], ["&any", "integer"], [], []),
     Function("@get_1", [], [], ["&any"], ["integer"], []),
     Function("@equal", [], [], ["&any", "&any"], ["boolean"], []),
     Function("@copy", [], [], ["&any", "&any", "integer"], [], []),
@@ -878,6 +906,28 @@ internals = [
     Function("@call_function", [], [], ["&any", "&any", "integer"], ["any"], [])
 ]
 
+def create_generic_function(function2, mapped_generics, functions, new_generic_functions):
+    new_function = copy.deepcopy(function2)
+
+    new_function.generics_applied = []
+    for generic in mapped_generics:
+        for i in range(0, len(new_function.parameters)):
+            new_function.parameters[i] = replace_type(new_function.parameters[i], generic, mapped_generics[generic])
+
+        for i in range(0, len(new_function.return_)):
+            new_function.return_[i] = replace_type(new_function.return_[i], generic, mapped_generics[generic])
+
+        for generic in new_function.generics:
+            new_function.generics_applied.append(mapped_generics[generic])
+
+    new_function.generics = []
+    id = new_function.name + "_" + str(len(new_function.parameters))
+    functions.setdefault(id, [])
+    functions[id].append(new_function)
+    new_generic_functions[new_function] = copy.deepcopy(mapped_generics)
+
+    return new_function
+
 def process_program(program):
     return_value = 0
     
@@ -887,7 +937,7 @@ def process_program(program):
     program_enums = []
     new_generic_functions = {}
 
-    for token in program.tokens:
+    for token in list(program.tokens):
         if isinstance(token, Function):
             id = token.name + "_" + str(len(token.parameters))
             functions.setdefault(id, [])
@@ -898,12 +948,15 @@ def process_program(program):
                     if not other_function.parameters[i] == token.parameters[i]:
                         matches = False
                 
-                #print(other_function.parameters)
-                #print(token.parameters)
+                #print(token.name)
+                #print(str(other_function.parameters) + " " + str(token.parameters))
                 if matches:
                     print("PROCESS: " + token.name + " has duplicate definitions.")
                     return 1
 
+            #print(id)
+            #if len(token.generics) > 0 and token.name == "_.free_custom":
+                #print(token.parameters)
             functions[id].append(token)
             #print(id + " " + token.name)
             functions2[token.name] = token
@@ -919,8 +972,86 @@ def process_program(program):
         functions[id].append(function)
         functions2[token.name] = function
 
-    for function in program.tokens:
+    for function2 in program.tokens:
+        if isinstance(function2, Function):
+            #print(function2.name + " " + str(function2.parameters) + " " +  str(function2.generics))
+            if len(function2.generics) > 0:
+                id = function2.name + "_" + str(len(function2.parameters))
+                limited_types = ["integer", "boolean", "any", "String"]
+                for program_type in limited_types:
+                    #print(program_type in functions)
+                    mapped_generics = {"A": program_type}
+                    #for i in range(0, len(function2.parameters)):
+                        #parameter = function2.parameters[i]
+                        #input = cached_types[i]
+
+                        #collect_mapped(mapped_generics, parameter, input)
+
+                    #for key in dict(mapped_generics):
+                        #if key == mapped_generics[key]:
+                            #del mapped_generics[key]
+
+                    if len(mapped_generics) > 0:
+                        new_function = create_generic_function(function2, mapped_generics, functions, new_generic_functions)
+                        program.tokens.append(new_function)
+                        #if len(new_function.generics) > 0:
+                            #print("test")
+                            #exit()
+                        #functions[id].append(new_function)
+                        #print(functions[id])
+                        #print("tset")
+                        #print(id + " " + str(new_function.parameters))
+
+                        if function2.name + ".free_1" in functions:
+                            if len(mapped_generics) > 0:
+                                new_function = copy.deepcopy(functions[function2.name + ".free_1"][0])
+                                for generic in mapped_generics:
+                                    #type = type.replace(generic, mapped_generics[generic])
+                                    for i in range(0, len(new_function.parameters)):
+                                        new_function.parameters[i] = replace_type(new_function.parameters[i], generic, mapped_generics[generic])
+                                    for i in range(0, len(new_function.return_)):
+                                        new_function.return_[i] = new_function.return_[i].replace(generic, mapped_generics[generic])
+
+                                program.tokens.append(new_function)
+                                new_function.name = new_function.name[0 : new_function.name.index(".")] + ("<" + ",".join(new_function.generics) + ">" if len(new_function.generics) > 0 else "") + ".free"
+                                new_function.generics = []
+                                for generic in mapped_generics:
+                                    new_function.name = replace_type(new_function.name, generic, mapped_generics[generic])
+                                    new_function.generics.append(mapped_generics[generic])
+
+                                new_function.name = new_function.name + ".free"
+
+                                new_function.generics = []
+                                new_generic_functions[new_function] = mapped_generics
+
+                        if "_.free_custom_1" in functions:
+                            flag = False
+                            for free_custom in functions["_.free_custom_1"]:
+                                if not flag and len(free_custom.generics) > 0 and is_type(function2.name, free_custom.parameters[0][1 : ]):
+                                    if len(mapped_generics) > 0:
+                                        flag = True
+                                        new_function = copy.deepcopy(free_custom)
+                                        for generic in mapped_generics:
+                                            #type = type.replace(generic, mapped_generics[generic])
+                                            for i in range(0, len(new_function.parameters)):
+                                                new_function.parameters[i] = replace_type(new_function.parameters[i], generic, mapped_generics[generic])
+                                            for i in range(0, len(new_function.return_)):
+                                                new_function.return_[i] = new_function.return_[i].replace(generic, mapped_generics[generic])
+
+                                        program.tokens.append(new_function)
+                                        new_function.generics_applied = []
+                                        for generic in mapped_generics:
+                                            new_function.name = replace_type(new_function.name, generic, mapped_generics[generic])
+                                            new_function.generics_applied.append(mapped_generics[generic])
+
+
+
+                                        new_function.generics = []
+                                        new_generic_functions[new_function] = copy.deepcopy(mapped_generics)
+
+    for function in list(program.tokens):
         if isinstance(function, Function):
+            #print("a       " + function.name)
             types = []
             variables = {}
             j = 0
@@ -949,9 +1080,12 @@ def process_program(program):
                     else:
                         given_type = "unknown"
 
-                    if instruction.name in variables:
-                        if variables[instruction.name].type == "":
-                            variables[instruction.name].type = given_type
+                    #if instruction.name in variables:
+                        #if variables[instruction.name].type == "":
+                            #if function.name == "execute_command":
+                                #print(given_type)
+                                #print("-----")
+                            #variables[instruction.name].type = given_type
                 elif isinstance(instruction, Retrieve):
                     if instruction.name in functions2 and not instruction.name in variables:
                         types.append("Function")
@@ -985,70 +1119,9 @@ def process_program(program):
                                     cached_types.append(given_type)
 
                             instruction.parameters = function2.parameters
-                            cached_types = cached_types[::-1]
 
                             if len(function2.return_) > 0:
                                 for type in function2.return_:
-                                    if function.name == "main":
-                                        mapped_generics = {}
-                                        for i in range(0, len(function2.parameters)):
-                                            parameter = function2.parameters[i]
-                                            input = cached_types[i]
-
-                                            collect_mapped(mapped_generics, parameter, input)
-
-                                        if len(mapped_generics) > 0:
-                                            new_function = copy.deepcopy(function2)
-                                            for generic in mapped_generics:
-                                                type = type.replace(generic, mapped_generics[generic])
-                                                for i in range(0, len(new_function.parameters)):
-                                                    new_function.parameters[i] = new_function.parameters[i].replace(generic, mapped_generics[generic])
-
-                                                for i in range(0, len(new_function.return_)):
-                                                    new_function.return_[i] = new_function.return_[i].replace(generic, mapped_generics[generic])
-
-                                            program.tokens.append(new_function)
-                                            instruction.parameters = new_function.parameters
-                                            instruction.return_ = new_function.return_
-                                            #new_function.name = new_function.name[0 : ] + ("<" + ",".join(new_function.generics) + ">" if len(new_function.generics) > 0 else "")
-                                            #for generic in mapped_generics:
-                                                #new_function.name = new_function.name.replace(generic, mapped_generics[generic])
-                                            
-                                            id = new_function.name + "_" + str(len(new_function.parameters))
-                                            functions.setdefault(id, [])
-                                            functions[id].append(new_function)
-                                            #print(new_function.name)
-
-                                            instruction.name = new_function.name
-                                            new_function.generics = []
-                                            new_generic_functions[new_function] = mapped_generics
-                                            #print(instruction.parameters)
-
-                                            if function2.name + ".free_1" in functions:
-                                                if len(mapped_generics) > 0:
-                                                    new_function = copy.deepcopy(functions[function2.name + ".free_1"][0])
-                                                    for generic in mapped_generics:
-                                                        type = type.replace(generic, mapped_generics[generic])
-                                                        for i in range(0, len(new_function.parameters)):
-                                                            new_function.parameters[i] = new_function.parameters[i].replace(generic, mapped_generics[generic])
-
-                                                        for i in range(0, len(new_function.return_)):
-                                                            new_function.return_[i] = new_function.return_[i].replace(generic, mapped_generics[generic])
-
-                                                    program.tokens.append(new_function)
-                                                    new_function.name = new_function.name[0 : new_function.name.index(".")] + ("<" + ",".join(new_function.generics) + ">" if len(new_function.generics) > 0 else "") + ".free"
-                                                    for generic in mapped_generics:
-                                                        new_function.name = new_function.name.replace(generic, mapped_generics[generic])
-                                                    #instruction.name = new_function.name
-                                                    #print(instruction.parameters)
-
-                                                    new_function.parameters[0] = new_function.parameters[0][0 : ] + ("<" + ",".join(new_function.generics) + ">" if len(new_function.generics) > 0 else "")
-                                                    for generic in mapped_generics:
-                                                        new_function.parameters[0] = new_function.parameters[0].replace(generic, mapped_generics[generic])
-
-                                                    new_function.generics = []
-                                                    new_generic_functions[new_function] = mapped_generics
-
                                     if type[0] == "&" and (type[1:] == "boolean" or type[1:] == "integer"):
                                         type = type[1:]
 
@@ -1079,7 +1152,7 @@ def process_program(program):
                 elif isinstance(instruction, StartWhile):
                     given_type = types.pop()
                 elif isinstance(instruction, Declare):
-                    variables[instruction.name] = instruction
+                    variables[instruction.name] = instruction.type
                 elif isinstance(instruction, Assign):
                     if len(types) > 0:
                         given_type = types.pop()
@@ -1087,8 +1160,8 @@ def process_program(program):
                         given_type = "unknown"
 
                     if instruction.name in variables:
-                        if variables[instruction.name].type == "":
-                            variables[instruction.name].type = given_type
+                        if variables[instruction.name] == "":
+                            variables[instruction.name] = given_type
                 elif isinstance(instruction, Retrieve):
                     if instruction.name in functions2 and not instruction.name in variables:
                         types.append("Function")
@@ -1096,7 +1169,7 @@ def process_program(program):
                         if not instruction.name in variables:
                             types.append("unknown")
                         else:
-                            types.append(variables[instruction.name].type)
+                            types.append(variables[instruction.name])
                 elif isinstance(instruction, Invoke):
                     if instruction.name.startswith("_."):
                         type_ = types[len(types) - 1]
@@ -1132,7 +1205,7 @@ def process_program(program):
                             if set_params:
                                 instruction.parameters = function2.parameters
 
-                            cached_types = cached_types[::-1]
+                            #cached_types = cached_types[::-1]
 
                             if len(function2.return_) > 0:
                                 for type in function2.return_:
@@ -1153,20 +1226,36 @@ def process_program(program):
                         
                 j += 1
 
-
     for new_function in new_generic_functions:
         mapped_generics = new_generic_functions[new_function]
 
         for generic in mapped_generics:
             for token in new_function.tokens:
                 if isinstance(token, Declare):
-                    token.type = token.type.replace(generic, mapped_generics[generic])
+                    #if new_function.name == "_.free_custom":
+                        #print(str(mapped_generics) + " " + str(new_function.generics_applied))
+                        #print(token.type)
+                    token.type = replace_type(token.type, generic, mapped_generics[generic])
+                    #if new_function.name == "_.free_custom":
+                        #print(new_function.generics_applied)
+                        #print(token.type)
                 elif isinstance(token, Invoke):
                     if token.name.startswith("@cast_"):
-                        token.name = token.name.replace(generic, mapped_generics[generic])
+                        token.name = "@cast_" + replace_type(token.name[6:], generic, mapped_generics[generic])
                     elif ".memory_size" in token.name:
                         token.name = token.name.replace(generic, mapped_generics[generic])
 
+                    for i in range(0, len(token.parameters)):
+                        token.parameters[i] = replace_type(token.parameters[i], generic, mapped_generics[generic])
+                    
+                    for i in range(0, len(token.type_parameters)):
+                        token.type_parameters[i] = replace_type(token.type_parameters[i], generic, mapped_generics[generic])
+
+                    
+                    #print(token.type_parameters)
+
+
+    #exit()
     # type checking
     for token in program.tokens:
         if isinstance(token, Function):
@@ -1177,7 +1266,7 @@ def process_program(program):
         return 1
 
     for function in program.tokens:
-        if isinstance(function, Function):
+        if isinstance(function, Function) and len(function.generics) == 0:
             if function.name == "main":
                 for token in function.tokens:
                     if isinstance(token, Invoke):
@@ -1336,18 +1425,6 @@ def process_program(program):
                             print("PROCESS: Variable " + instruction.name + " in " + function.name + " used while not owned.")
                             return 1
 
-                    else:
-                        #id = "_" + str(index_thing)
-
-                        #function.tokens.insert(function.tokens.index(instruction) + 1, Duplicate())
-                        #function.tokens.insert(function.tokens.index(instruction) + 2, Declare(id, "Function"))
-                        #function.tokens.insert(function.tokens.index(instruction) + 3, Assign(id))
-                        #function.locals.append(id)
-
-                        #values[id] = "Function"
-                    
-                        #value_usages[stack] = id
-                    
                         index_thing += 1
                 elif isinstance(instruction, Invoke):
                     if instruction.name.startswith("@cast_"):
@@ -1371,6 +1448,8 @@ def process_program(program):
                             for usage in dict(variable_usages):
                                 if variable_usages[usage] == stack:
                                     if not (parameter[0] == "&" or variables[usage] in primitives):
+                                        #print(usage)
+                                        #print(variables[usage])
                                         owned_variables.remove(usage)
 
                                         current_loop = ""
@@ -1383,7 +1462,6 @@ def process_program(program):
                                     del variable_usages[usage]
 
                             if stack in value_usages and parameter[0] == "&" and not values[value_usages[stack]] in primitives and not values[value_usages[stack]] in program_enums:
-                                #print(function.name + " " + str(stack) + " " + value_usages[stack] + " " + values[value_usages[stack]] + " " + instruction.name)
                                 function.tokens.insert(post_method_index, Invoke(normalize(values[value_usages[stack]]) + ".memory_size", 0, [], ["integer"]))
                                 function.tokens.insert(post_method_index + 1, Retrieve(value_usages[stack], None))
                                 function.tokens.insert(post_method_index + 2, Invoke("@free", 2, ["any", "integer"], []))
@@ -1490,6 +1568,8 @@ def process_program(program):
                     variables_realtime[instruction.name] = instruction
                     if function.locals.index(instruction.name) < len(function.parameters):
                         variables[instruction.name] = instruction
+                    #if function.name == "execute_command":
+                        #print(instruction.type)
                 elif isinstance(instruction, Duplicate):
                     types.append(types[len(types) - 1])
                 elif isinstance(instruction, Assign):
@@ -1509,6 +1589,9 @@ def process_program(program):
                             types.append("unknown")
                         else:
                             types.append(variables[instruction.name].type)
+
+                    #if function.name == "execute_command":
+                        #print(types[len(types) - 1])
                 elif isinstance(instruction, Invoke):
                     if instruction.name.startswith("@cast_"):
                         types.pop()
@@ -1523,13 +1606,18 @@ def process_program(program):
                             index = function.tokens.index(instruction)
                             function.tokens.insert(index, Duplicate())
                             index += 1
+                            #print(functions.keys())
                             if "_.free_custom_1" in functions:
                                 for free_custom in functions["_.free_custom_1"]:
-                                    if free_custom.parameters[0][1 : ] == free_type:
+                                    #print(free_custom.name + " " + str(free_custom.parameters))
+                                    if is_type(free_type, free_custom.parameters[0][1 : ]):
+                                        #if function.name == "execute_command":
+                                            #print(free_type + " " + str(free_custom.parameters))
                                         function.tokens.insert(index, Duplicate())
-                                        function.tokens.insert(index + 1, Invoke("_.free_custom", 1, [free_type], []))
+                                        function.tokens.insert(index + 1, Invoke("_.free_custom", 1, [free_type], [], [] if not "<" in free_type else free_type[free_type.index("<") + 1 : free_type.rindex(">")].split(",")))
                                         j += 2
                                         index += 2
+                                        break
                             function.tokens.insert(index, Invoke(free_type + ".free", 1, [free_type], []))
                             j += 2
                     elif len(instruction.return_) > 0:
@@ -1545,18 +1633,17 @@ def process_program(program):
                                     cached_types.append(given_type)
 
                         for type in instruction.return_:
-                            if function.name == "main":
-                                mapped_generics = {}
+                            mapped_generics = {}
                                 #print(function.name)
                                 #print(instruction.name)
                                 #print(id)
-                                for i in range(0, len(function2.parameters)):
-                                    parameter = function2.parameters[i]
-                                    input = cached_types[i]
+                            for i in range(0, len(function2.parameters)):
+                                parameter = function2.parameters[i]
+                                input = cached_types[i]
 
-                                    collect_mapped(mapped_generics, parameter, input)
-                                for generic in mapped_generics:
-                                    type = type.replace(generic, mapped_generics[generic])
+                                collect_mapped(mapped_generics, parameter, input)
+                            for generic in mapped_generics:
+                                type = replace_type(type, generic, mapped_generics[generic])
 
                             if type[0] == "&" and (type[1:] == "boolean" or type[1:] == "integer"):
                                 type = type[1:]
@@ -1567,15 +1654,42 @@ def process_program(program):
     added_functions = []
     for function in list(program.tokens):
         if isinstance(function, Function):
-            if not is_used(function, program.tokens) or len(function.generics) > 0 or (function.name + str(function.parameters) in added_functions):
+            if len(function.generics) > 0 or (function.name + str(function.parameters) + str(function.generics_applied) in added_functions):
+                #print(function.name + " " + str(function.parameters))
                 program.tokens.remove(function)
             else:
-                added_functions.append(function.name + str(function.parameters))
+
+                added_functions.append(function.name + str(function.parameters) + str(function.generics_applied))
+
+            #if not is_used(function, program.tokens) or len(function.generics) > 0 or (function.name + str(function.parameters) in added_functions):
+                #print(function.name)
+                #program.tokens.remove(function)
+                #pass
+            #else:
+                #added_functions.append(function.name + str(function.parameters))
 
     return return_value
 
 def normalize(name):
     return name[0 : name.index("<") if "<" in name else len(name)]
+
+def replace_type(type, given, wanted):
+    main = type[0 : type.index("<") if "<" in type else len(type)]
+    generics = []
+    if "<" in type:
+        for generic in type[type.index("<") + 1 : type.index(">")].split(","):
+            generics.append(generic)
+
+    if len(main) == 1 or (len(main) == 2 and main[0] == "&"):
+        main = ("&" if main[0] == "&" else "") + wanted
+
+    if len(main) > 0 and main[0] == "&" and main[1:] in primitives and not main[1:] == "any":
+        main = main[1:]
+
+    for i in range(0, len(generics)):
+        generics[i] = replace_type(generics[i], given, wanted)
+
+    return main + ("<" + ",".join(generics) + ">" if len(generics) > 0 else "")
 
 def type_check(function, instructions, program_types, functions, functions2, alter):
     return_value = 0
@@ -1583,6 +1697,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
     types = []
     variables = {}
 
+    #print(function.name)
     if len(function.generics) > 0:
         return 0
     
@@ -1614,7 +1729,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 print("PROCESS: While in " + function.name + " expects boolean, given " + given_type + ".")
                 return 1
         elif isinstance(instruction, Declare):
-            variables[instruction.name] = instruction.type
+            variables[instruction.name] = instruction
         elif isinstance(instruction, Assign):
             if len(types) == 0:
                 print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + (variables[instruction.name] if variables[instruction.name] else "a value") + ", given nothing.")
@@ -1626,13 +1741,20 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 print("PROCESS: Variable " + instruction.name + " in " + function.name + " not found.")
                 return 1
 
-            if variables[instruction.name] == "":
-                variables[instruction.name] = given_type
+            if variables[instruction.name].type == "":
+                #if function.name == "execute_command":
+                    #print("j " + given_type)
+                variables[instruction.name].type = given_type
+            #else:
+                #if function.name == "execute_command":
+                    #print("k " + instruction.name + " " + variables[instruction.name].type)
 
-            if not is_type(given_type, variables[instruction.name]):
-                print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + variables[instruction.name] + ", given " + given_type + ".")
+            if not is_type(given_type, variables[instruction.name].type):
+                print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + variables[instruction.name].type + ", given " + given_type + ".")
                 return 1
         elif isinstance(instruction, Retrieve):
+            #if function.name == "_.free_custom":
+                #print(variables[instruction.name])
 
             if instruction.name in functions2 and not instruction.name in variables:
                 types.append("Function")
@@ -1641,7 +1763,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 if not instruction.name in variables:
                     print("PROCESS: Variable " + instruction.name + " in " + function.name + " not found.")
                     return 1
-                types.append(variables[instruction.name])
+                types.append(variables[instruction.name].type)
         elif isinstance(instruction, Duplicate):
             top = types.pop()
             types.append(top)
@@ -1664,9 +1786,34 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                     return 1
 
                 named_functions = list(functions[id])
+                for function7 in list(named_functions):
+                    if len(function7.generics) > 0:
+                        named_functions.remove(function7)
+
                 function2 = named_functions[0]
 
                 cached_types = []
+
+                #if "Array" in function.name:
+                    #print("---------")
+                    #for function4 in named_functions:
+                        #print(function4.parameters)
+
+                #if function.name == "_.free_custom" and function2.name == "_item_size":
+                    #print(types)
+                    #print(function.parameters)
+                    #print(function.generics_applied)
+                    #print("---")
+                    #for function12 in named_functions:
+                        #print(function12.generics_applied)
+                    #print("---------")
+
+                #if function.name == "execute_command" and function2.name == "_[]=":
+                    #print(instruction.type_parameters)
+                    #print(named_functions)
+                    #print(named_functions[0].generics_applied)
+                    #print("----------------------------------------")
+
 
                 i = 0
                 while i < instruction.parameter_count:
@@ -1677,11 +1824,23 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                     given_type = types.pop()
                     cached_types.append(given_type)
 
-                    for function3 in named_functions:
+                    for function3 in list(named_functions):
                         if not is_type(given_type, function3.parameters[i]):
+                            #if function.name == "_.free_custom" and function2.name == "_item_size":
+                                #print("removed " + str(function3.generics_applied) + " " + given_type + " " + function3.parameters[i])
+                            #print(given_type + " " + function3.parameters[i])
+                            #print("removed " + given_type + " " + function3.parameters[i])
+                            #print(function.parameters)
                             named_functions.remove(function3)
+                            #if "Array" in function.name:
+                                #print("removed " + given_type + " " + function3.parameters[i])
+                        #else:
+                            #if "Array" in function.name:
+                                #print("not removed " + given_type + " " + function3.parameters[i])
+
 
                     if len(named_functions) == 0:
+                        
                         print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given " + given_type + ".")
                         return 1
 
@@ -1692,47 +1851,102 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                     
                 cached_types = cached_types[::-1]
 
+                #if function.name == "_.free_custom" and function2.name == "_item_size":
+                    #print(function.parameters)
+                    #print(function.generics_applied)
+                    #print("---")
+                    #for function12 in named_functions:
+                        #print(function12.generics_applied)
+                    #print("---------")
+
+                if len(named_functions) > 1:
+                    for function5 in list(named_functions):
+                        if len(function5.generics_applied) < len(instruction.type_parameters):
+                            named_functions.remove(function5)
+                        for i in range(0, len(function5.generics_applied)):
+                            if len(instruction.type_parameters) > i:
+                                if not function5.generics_applied[i] == instruction.type_parameters[i]:
+                                    #print(function5.generics_applied[i] + " " + instruction.type_parameters[i])
+                                    named_functions.remove(function5)
+                                    #print(function5.generics_applied[i] + " " + instruction.type_parameters[i])
+
+                #if function.name == "_.free_custom" and function2.name == "_item_size":
+                    #print(function.parameters)
+                    #print(function.generics_applied)
+                    #for function12 in named_functions:
+                        #print(function12.generics_applied)
+                    #print("------------------------------")
+
+
                 if len(named_functions) > 1:
                     for i in range(0, instruction.parameter_count):
                         cached_types2 = list(cached_types)
                         given_type = cached_types2.pop()
                         for function3 in named_functions:
-                            if (not given_type == function3.parameters[i] and not given_type == function3.parameters[i][1::]) and len(named_functions) > 1:
+                            if ((not given_type == function3.parameters[i] and not given_type == function3.parameters[i][1::]) or len(function3.generics) > 0) and len(named_functions) > 1:
+                                #if function.name == "_.free_custom" and function2.name == "_item_size":
+                                    #print(given_type + " " + function3.parameters[i] + " " + str(len(named_functions)))
                                 named_functions.remove(function3)
+                            #else:
+                                #if function.name == "_.free_custom" and function2.name == "_item_size":
+                                    #print("saved " + given_type + " " + function3.parameters[i] + " " + str(len(named_functions)) + " " + str(function3.generics) + " " + str(function3.generics_applied))
+
+
+                #if function.name == "execute_command" and function2.name == "Array":
+                    #for function12 in named_functions:
+                        #print(function12.generics_applied)
+                    #print("---------")
                                 
                 function2 = named_functions[0]
 
-                #if len(instruction.parameters) == 0:
+                #if function.name == "main" and function2.name == "_[]=":
+                    #for function8 in named_functions:
+                        #print(str(function8.parameters) + " " + str(function8.generics_applied))
+
+                    #print("--------")
+
                 set_params = False
                 if len(instruction.parameters) == 0:
                     set_params = True
                 else:
+                    #if function.name == "main" and function2.name == "_[]=":
+                        #print(str(instruction.parameters) + " " + str(function2.parameters))
                     for i in range(0, len(instruction.parameters)):
-                        if not is_type(instruction.parameters[i], function2.parameters[i]) or function2.parameters[i] == "any":
+                        if not is_type(instruction.parameters[i], function2.parameters[i]) or "any" in function2.parameters[i]:
                             set_params = True
 
                 if set_params:
                     instruction.parameters = function2.parameters
 
-                #if function.name == "integer_to_string":
-                    #print(instruction.name + " " + str(instruction.parameters) + " " + str(set_params) + " " + str(function2.parameters))
-
                 instruction.return_ = function2.return_
+                #print(str(instruction.type_parameters) + " " + str(function2.generics) + " " + function.name + " " + str(function.generics) + " " + str(function.generics_applied) + " " + function2.name)
+                #if function.name == "main" or function.name == "execute_command":
+
+                #if function.name == "execute_command" and function2.name == "Array":
+                    #print(instruction.type_parameters)
+
+                instruction.type_parameters = function2.generics_applied
+
+                #if function.name == "execute_command" and function2.name == "Array":
+                    #print(instruction.type_parameters)
 
                 if len(function2.return_) > 0:
                     for type in function2.return_:
-                        mapped_generics = {}
-                        for i in range(0, len(function2.parameters)):
-                            parameter = function2.parameters[i]
-                            input = cached_types[i]
+                        #print(function.name + " " + function2.name + " " + type)
+                        #mapped_generics = {}
+                        #for i in range(0, len(function2.parameters)):
+                            #parameter = function2.parameters[i]
+                            #input = cached_types[i]
 
-                            collect_mapped(mapped_generics, parameter, input)
-                        for generic in mapped_generics:
-                            type = type.replace(generic, mapped_generics[generic])
+                            #collect_mapped(mapped_generics, parameter, input)
 
-                        if type[0] == "&" and (type[1:] == "boolean" or type[1:] == "integer"):
-                            type = type[1:]
+                        #for generic in mapped_generics:
+                            #type = replace_type(type, generic, mapped_generics[generic])
+
+                        #if type[0] == "&" and (type[1:] == "boolean" or type[1:] == "integer"):
+                            #type = type[1:]
                         types.append(type)
+                        #print(type)
         elif isinstance(instruction, Return):
             for return_type in function.return_:
                 if len(types) == 0:
@@ -1741,6 +1955,7 @@ def type_check(function, instructions, program_types, functions, functions2, alt
 
                 given_type = types.pop()
                 if not is_type(given_type, return_type):
+                    #print(function.parameters)
                     print("PROCESS: Return in " + function.name + " expects " + return_type + ", given " + given_type + ".")
                     return 1
 
@@ -1761,7 +1976,7 @@ def collect_mapped(mapped_generics, parameter, input):
     if len(parameter_main) == 1:
         mapped_generics[parameter_main] = input_main
 
-    if "<" in parameter:
+    if "<" in parameter and "<" in input:
         parameter_generics = parameter[parameter.index("<") + 1 : parameter.rindex(">")].split(",")
         input_generics = input[input.index("<") + 1 : input.rindex(">")].split(",")
 
@@ -1789,10 +2004,13 @@ def is_type(given, wanted):
     if wanted[0] == "&" and (wanted[1 : len(wanted)] == given or wanted[1:] == "any"):
         return True
 
-    if len(wanted) == 1 or (len(wanted) == 2 and wanted[0] == "&"): # is a type parameter
-        return True
+    #if len(wanted) == 1 or (len(wanted) == 2 and wanted[0] == "&"): # is a type parameter
+        #return True
 
-    if "<" in wanted:
+    #if len(given) == 1 or (len(given) == 2 and given[0] == "&"): # is a type parameter
+        #return True
+
+    if "<" in wanted and "<" in given:
         main_wanted = wanted[0 : wanted.index("<")]
         main_given = given[0 : given.index("<")]
 
@@ -1809,7 +2027,10 @@ def is_type(given, wanted):
 
         return good
 
-    return given == wanted
+    main_wanted = wanted[0 : wanted.index("<") if "<" in wanted else len(wanted)]
+    main_given = given[0 : given.index("<") if "<" in given else len(given)]
+
+    return main_given == main_wanted or (main_wanted[0] == "&" and main_given == main_wanted[1:])
 
 def create_linux_binary(program, file_name_base):
     
@@ -1830,7 +2051,7 @@ def create_linux_binary(program, file_name_base):
     
     asm_program = AsmProgram([], [])
 
-    print_size = AsmFunction("@print_size_any~integer", [])
+    print_size = AsmFunction("@print_size_any~integer_", [])
     print_size.instructions.append("push rbp")
     print_size.instructions.append("mov rbp, rsp")
     print_size.instructions.append("mov rdx, [rbp+24]")
@@ -1843,7 +2064,7 @@ def create_linux_binary(program, file_name_base):
     print_size.instructions.append("ret")
     asm_program.functions.append(print_size)
 
-    error_size = AsmFunction("@error_size_any~integer", [])
+    error_size = AsmFunction("@error_size_any~integer_", [])
     error_size.instructions.append("push rbp")
     error_size.instructions.append("mov rbp, rsp")
     error_size.instructions.append("mov rdx, [rbp+24]")
@@ -1868,7 +2089,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("mul rdx")
     _start.instructions.append("push rcx")
     _start.instructions.append("push rax")
-    _start.instructions.append("call @allocate_integer")
+    _start.instructions.append("call @allocate_integer_")
     _start.instructions.append("add rsp, 8")
     _start.instructions.append("pop rcx")
     _start.instructions.append("mov rax, 0")
@@ -1890,7 +2111,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("push rdx")
     _start.instructions.append("push rbx")
     _start.instructions.append("push r9")
-    _start.instructions.append("call String_any")
+    _start.instructions.append("call String_any_")
     _start.instructions.append("add rsp, 8")
     _start.instructions.append("pop rbx")
     _start.instructions.append("pop rdx")
@@ -1903,22 +2124,22 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("jmp arguments_loop")
     _start.instructions.append("arguments_loop_end:")
     _start.instructions.append("mov r11, r8")
-    _start.instructions.append("call String.memory_size_")
-    _start.instructions.append("push r8")
+    #_start.instructions.append("call String.memory_size__")
+    #_start.instructions.append("push r8")
     _start.instructions.append("push rcx")
     _start.instructions.append("push r11")
-    _start.instructions.append("call Array_any~integer~integer")
+    _start.instructions.append("call Array_any~integer_String")
     _start.instructions.append("add rsp, 16")
     _start.instructions.append("push r8")
-    #_start.instructions.append("call @print_memory_")
+    #_start.instructions.append("call @print_memory__")
     _start.instructions.append("call main")
-    #_start.instructions.append("call @print_memory_")
+    #_start.instructions.append("call @print_memory__")
     _start.instructions.append("mov rax, 60")
     _start.instructions.append("xor rdi, rdi")
     _start.instructions.append("syscall")
     asm_program.functions.append(_start)
 
-    add = AsmFunction("@add_any~any", [])
+    add = AsmFunction("@add_any~any_", [])
     add.instructions.append("push rbp")
     add.instructions.append("mov rbp, rsp")
     add.instructions.append("mov r8, [rbp+16]")
@@ -1928,7 +2149,7 @@ def create_linux_binary(program, file_name_base):
     add.instructions.append("ret")
     asm_program.functions.append(add)
 
-    multiply = AsmFunction("@multiply_integer~integer", [])
+    multiply = AsmFunction("@multiply_integer~integer_", [])
     multiply.instructions.append("push rbp")
     multiply.instructions.append("mov rbp, rsp")
     multiply.instructions.append("mov rax, [rbp+16]")
@@ -1940,7 +2161,7 @@ def create_linux_binary(program, file_name_base):
     multiply.instructions.append("ret")
     asm_program.functions.append(multiply)
 
-    subtract = AsmFunction("@subtract_any~any", [])
+    subtract = AsmFunction("@subtract_any~any_", [])
     subtract.instructions.append("push rbp")
     subtract.instructions.append("mov rbp, rsp")
     subtract.instructions.append("mov r8, [rbp+16]")
@@ -1950,7 +2171,7 @@ def create_linux_binary(program, file_name_base):
     subtract.instructions.append("ret")
     asm_program.functions.append(subtract)
 
-    divide = AsmFunction("@divide_integer~integer", [])
+    divide = AsmFunction("@divide_integer~integer_", [])
     divide.instructions.append("push rbp")
     divide.instructions.append("mov rbp, rsp")
     divide.instructions.append("mov rax, [rbp+16]")
@@ -1962,7 +2183,7 @@ def create_linux_binary(program, file_name_base):
     divide.instructions.append("ret")
     asm_program.functions.append(divide)
 
-    modulo = AsmFunction("@modulo_integer~integer", [])
+    modulo = AsmFunction("@modulo_integer~integer_", [])
     modulo.instructions.append("push rbp")
     modulo.instructions.append("mov rbp, rsp")
     modulo.instructions.append("mov rax, [rbp+16]")
@@ -1974,7 +2195,7 @@ def create_linux_binary(program, file_name_base):
     modulo.instructions.append("ret")
     asm_program.functions.append(modulo)
 
-    allocate = AsmFunction("@allocate_integer", [])
+    allocate = AsmFunction("@allocate_integer_", [])
     allocate.instructions.append("push rbp")
     allocate.instructions.append("mov rbp, rsp")
     allocate.instructions.append("mov rbx, [rbp+16]") # rbx = allocated size
@@ -2094,7 +2315,7 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("ret")
     asm_program.functions.append(allocate)
 
-    free = AsmFunction("@free_any~integer", [])
+    free = AsmFunction("@free_any~integer_", [])
     free.instructions.append("push rbp")
     free.instructions.append("mov rbp, rsp")
 
@@ -2250,7 +2471,7 @@ def create_linux_binary(program, file_name_base):
     free.instructions.append("ret")
     asm_program.functions.append(free)
 
-    print_memory = AsmFunction("@print_memory_", [])
+    print_memory = AsmFunction("@print_memory__", [])
     print_memory.instructions.append("push rbp")
     print_memory.instructions.append("mov rbp, rsp")
     print_memory.instructions.append("add rbp, 8")
@@ -2302,7 +2523,7 @@ def create_linux_binary(program, file_name_base):
     print_memory.instructions.append("ret")
     asm_program.functions.append(print_memory)
 
-    copy = AsmFunction("@copy_any~any~integer", [])
+    copy = AsmFunction("@copy_any~any~integer_", [])
     copy.instructions.append("push rbp")
     copy.instructions.append("mov rbp, rsp")
     copy.instructions.append("mov rsi, [rbp+16]")
@@ -2314,7 +2535,7 @@ def create_linux_binary(program, file_name_base):
     copy.instructions.append("ret")
     asm_program.functions.append(copy)
 
-    or_ = AsmFunction("@or_boolean~boolean", [])
+    or_ = AsmFunction("@or_boolean~boolean_", [])
     or_.instructions.append("push rbp")
     or_.instructions.append("mov rbp, rsp")
     or_.instructions.append("mov r8, [rbp+16]")
@@ -2324,7 +2545,7 @@ def create_linux_binary(program, file_name_base):
     or_.instructions.append("ret")
     asm_program.functions.append(or_)
 
-    and_ = AsmFunction("@and_boolean~boolean", [])
+    and_ = AsmFunction("@and_boolean~boolean_", [])
     and_.instructions.append("push rbp")
     and_.instructions.append("mov rbp, rsp")
     and_.instructions.append("mov r8, [rbp+16]")
@@ -2334,7 +2555,7 @@ def create_linux_binary(program, file_name_base):
     and_.instructions.append("ret")
     asm_program.functions.append(and_)
 
-    not_ = AsmFunction("@not_boolean", [])
+    not_ = AsmFunction("@not_boolean_", [])
     not_.instructions.append("push rbp")
     not_.instructions.append("mov rbp, rsp")
     not_.instructions.append("mov r8, [rbp+16]")
@@ -2344,7 +2565,7 @@ def create_linux_binary(program, file_name_base):
     not_.instructions.append("ret")
     asm_program.functions.append(not_)
 
-    equal = AsmFunction("@equal_any~any", [])
+    equal = AsmFunction("@equal_any~any_", [])
     equal.instructions.append("push rbp")
     equal.instructions.append("mov rbp, rsp")
     equal.instructions.append("mov r8, [rbp+16]")
@@ -2362,7 +2583,7 @@ def create_linux_binary(program, file_name_base):
     equal.instructions.append("ret")
     asm_program.functions.append(equal)
 
-    less = AsmFunction("@less_integer~integer", [])
+    less = AsmFunction("@less_integer~integer_", [])
     less.instructions.append("push rbp")
     less.instructions.append("mov rbp, rsp")
     less.instructions.append("mov r8, [rbp+16]")
@@ -2380,7 +2601,7 @@ def create_linux_binary(program, file_name_base):
     less.instructions.append("ret")
     asm_program.functions.append(less)
 
-    greater = AsmFunction("@greater_integer~integer", [])
+    greater = AsmFunction("@greater_integer~integer_", [])
     greater.instructions.append("push rbp")
     greater.instructions.append("mov rbp, rsp")
     greater.instructions.append("mov r8, [rbp+16]")
@@ -2398,7 +2619,7 @@ def create_linux_binary(program, file_name_base):
     greater.instructions.append("ret")
     asm_program.functions.append(greater)
 
-    set_1 = AsmFunction("@set_1_integer~any", [])
+    set_1 = AsmFunction("@set_1_integer~any_", [])
     set_1.instructions.append("push rbp")
     set_1.instructions.append("mov rbp, rsp")
     set_1.instructions.append("mov r8, [rbp+16]")
@@ -2409,7 +2630,7 @@ def create_linux_binary(program, file_name_base):
     set_1.instructions.append("ret")
     asm_program.functions.append(set_1)
 
-    set_8 = AsmFunction("@set_8_integer~any", [])
+    set_8 = AsmFunction("@set_8_integer~any_", [])
     set_8.instructions.append("push rbp")
     set_8.instructions.append("mov rbp, rsp")
     #set_8.instructions.append("mov rdi, [rbp+24]")
@@ -2423,7 +2644,7 @@ def create_linux_binary(program, file_name_base):
     set_8.instructions.append("ret")
     asm_program.functions.append(set_8)
 
-    get = AsmFunction("@get_1_any", [])
+    get = AsmFunction("@get_1_any_", [])
     get.instructions.append("push rbp")
     get.instructions.append("mov rbp, rsp")
     get.instructions.append("mov r9, [rbp+16]")
@@ -2433,7 +2654,7 @@ def create_linux_binary(program, file_name_base):
     get.instructions.append("ret")
     asm_program.functions.append(get)
 
-    get = AsmFunction("@get_8_any", [])
+    get = AsmFunction("@get_8_any_", [])
     get.instructions.append("push rbp")
     get.instructions.append("mov rbp, rsp")
     #get.instructions.append("mov rdi, [rbp+16]")
@@ -2445,7 +2666,7 @@ def create_linux_binary(program, file_name_base):
     get.instructions.append("ret")
     asm_program.functions.append(get)
 
-    read_size = AsmFunction("@read_size_any~integer", [])
+    read_size = AsmFunction("@read_size_any~integer_", [])
     read_size.instructions.append("push rbp")
     read_size.instructions.append("mov rbp, rsp")
     read_size.instructions.append("mov rdx, [rbp+24]")
@@ -2458,13 +2679,13 @@ def create_linux_binary(program, file_name_base):
     read_size.instructions.append("ret")
     asm_program.functions.append(read_size)
 
-    exit = AsmFunction("@exit_", [])
+    exit = AsmFunction("@exit__", [])
     exit.instructions.append("mov rax, 60")
     exit.instructions.append("xor rdi, rdi")
     exit.instructions.append("syscall")
     asm_program.functions.append(exit)
 
-    execute = AsmFunction("@execute_any~any~boolean", [])
+    execute = AsmFunction("@execute_any~any~boolean_", [])
     execute.instructions.append("push rbp")
     execute.instructions.append("mov rbp, rsp")
     execute.instructions.append("mov rax, 57")
@@ -2496,7 +2717,7 @@ def create_linux_binary(program, file_name_base):
     execute.instructions.append("ret")
     asm_program.functions.append(execute)
 
-    call_function = AsmFunction("@call_function_any~any~integer", [])
+    call_function = AsmFunction("@call_function_any~any~integer_", [])
     call_function.instructions.append("push rbp")
     call_function.instructions.append("mov rbp, rsp")
     call_function.instructions.append("mov r9, [rbp+16]")
@@ -2527,7 +2748,8 @@ def create_linux_binary(program, file_name_base):
                     
     for function in list(asm_program.functions):
         if not function.name in functions:
-            asm_program.functions.remove(function)
+            pass
+            #asm_program.functions.remove(function)
 
     index_thing = 0
     
@@ -2537,14 +2759,18 @@ def create_linux_binary(program, file_name_base):
         for letter in name:
             if letter in bad:
                 new_name += str(ord(letter))
+            elif letter == "&":
+                pass
             else:
                 new_name += letter
         return new_name
 
 
+    if_id_binary = 0
     for token in program.tokens:
         if isinstance(token, Function):
-            asm_function = AsmFunction("main" if token.name == "main" else get_asm_name(token.name + "_" + "~".join(token.parameters).replace("&", "")), [])
+            if_id_binary += if_id
+            asm_function = AsmFunction("main" if token.name == "main" else get_asm_name(token.name + "_" + "~".join(token.parameters).replace("&", "") + "_" + "~".join(token.generics_applied)), [])
             
             asm_function.instructions.append("push rbp")
             asm_function.instructions.append("mov rbp, rsp")
@@ -2579,7 +2805,7 @@ def create_linux_binary(program, file_name_base):
                         asm_function.instructions.append("push 1")
                         asm_function.instructions.append("push " + str(0 if not put_string else len(put_string.split(","))))
                         asm_function.instructions.append("push qword " + name)
-                        asm_function.instructions.append("call String_any~integer~boolean")
+                        asm_function.instructions.append("call String_any~integer~boolean_")
                         asm_function.instructions.append("add rsp, 24")
                         asm_function.instructions.append("push r8")
 
@@ -2588,7 +2814,7 @@ def create_linux_binary(program, file_name_base):
 
                         asm_program.data.append(AsmData(name, put_string))
                 elif isinstance(instruction, Invoke) and not instruction.name.startswith("@cast_"):
-                    asm_function.instructions.append("call " + get_asm_name(instruction.name + "_" + "~".join(instruction.parameters).replace("&", "")))
+                    asm_function.instructions.append("call " + get_asm_name(instruction.name + "_" + "~".join(instruction.parameters).replace("&", "") + "_" + "~".join(instruction.type_parameters)))
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
                     #print(instruction.return_)
                     for i in range(0, len(instruction.return_)):
@@ -2605,8 +2831,8 @@ def create_linux_binary(program, file_name_base):
                     asm_function.instructions.append("mov [rbp" + "{:+d}".format(-index * 8 - 8 + 8 * len(token.parameters)) + "], r8")
                 elif isinstance(instruction, Retrieve):
                     if isinstance(instruction.data, list) and not instruction.name in token.locals:
-                        asm_function.instructions.append("push " + instruction.name + "_" + "~".join(instruction.data).replace("&", ""))
-                        asm_function.instructions.append("call Function_any")
+                        asm_function.instructions.append("push " + instruction.name + "_" + "~".join(instruction.data).replace("&", "") + "_")
+                        asm_function.instructions.append("call Function_any_")
                         asm_function.instructions.append("add rsp, 8")
                         asm_function.instructions.append("push r8")
                     else:
@@ -2622,25 +2848,25 @@ def create_linux_binary(program, file_name_base):
                     asm_function.instructions.append("pop rbp")
                     asm_function.instructions.append("ret")
                 elif isinstance(instruction, PreCheckIf):
-                    asm_function.instructions.append("if_" + str(instruction.id) + ":") 
+                    asm_function.instructions.append("if_" + str(instruction.id + if_id_binary) + ":") 
                 elif isinstance(instruction, CheckIf):
                     if instruction.checking:
                         asm_function.instructions.append("pop r8")
                         asm_function.instructions.append("cmp r8, 1")
-                        asm_function.instructions.append("jne if_" + str(instruction.false_id))
+                        asm_function.instructions.append("jne if_" + str(instruction.false_id + if_id_binary))
                 elif isinstance(instruction, EndIf):
-                    asm_function.instructions.append("if_" + str(instruction.id) + ":")
+                    asm_function.instructions.append("if_" + str(instruction.id + if_id_binary) + ":")
                 elif isinstance(instruction, EndIfBlock):
-                    asm_function.instructions.append("jmp if_" + str(instruction.id))
+                    asm_function.instructions.append("jmp if_" + str(instruction.id + if_id_binary))
                 elif isinstance(instruction, PreStartWhile):
-                    asm_function.instructions.append("while_" + str(instruction.id1) + ":")
+                    asm_function.instructions.append("while_" + str(instruction.id1 + if_id_binary) + ":")
                 elif isinstance(instruction, StartWhile):
                     asm_function.instructions.append("pop r8")
                     asm_function.instructions.append("cmp r8, 1")
-                    asm_function.instructions.append("jne while_" + str(instruction.id2))
+                    asm_function.instructions.append("jne while_" + str(instruction.id2 + if_id_binary))
                 elif isinstance(instruction, EndWhile):
-                    asm_function.instructions.append("jmp while_" + str(instruction.id1))
-                    asm_function.instructions.append("while_" + str(instruction.id2) + ":")
+                    asm_function.instructions.append("jmp while_" + str(instruction.id1 + if_id_binary))
+                    asm_function.instructions.append("while_" + str(instruction.id2 + if_id_binary) + ":")
             asm_program.functions.append(asm_function)
 
     try:
