@@ -670,6 +670,7 @@ def parse_statement(contents, extra):
             if character == "(":
                 if last_character == ">" and (special_sign == "<" or special_sign == ">"):
                     special_sign = ""
+                    special_index = -1
                 current_parenthesis += 1
             elif character == ")":
                 current_parenthesis -= 1
@@ -821,16 +822,12 @@ def parse_statement(contents, extra):
             type_parameters = []
             if "<" in name:
                 type_parameters = name[name.index("<") + 1 : name.index(">")].split(",")
-                name = name[0 : name.index("<")]
+                #name = name[0 : name.index("<")] + name[name.index(">") + 1 : ]
 
             if name:
                 arguments_array = []
                 arguments = contents[len(name) : ]
                 arguments = arguments[arguments.index("(") + 1 : len(arguments) - 1]
-                #if "." in name:
-                    #arguments = contents[contents[contents.index(".") :].index("(") + 1 - contents.index(".") : len(contents) - 1]
-                    #print(name)
-                    #print(arguments)
 
                 current_argument = ""
                 current_parenthesis = 0
@@ -857,7 +854,6 @@ def parse_statement(contents, extra):
                         instructions.extend(parse_statement(parameter, extra + instructions))
                 
                 if "." in name:
-                    #print(name[0 : name.rindex(".")])
                     parsed = parse_statement(name[0 : name.rindex(".")], extra + instructions)
                     if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
                         for instruction in (extra + instructions):
@@ -869,8 +865,8 @@ def parse_statement(contents, extra):
                         instructions.extend(parsed)
                         name = "_." + name[name.rindex(".") + 1 : len(name)]
 
-                #print(type_parameters)
-                #print(name + " " + str(type_parameters))
+                if "<" in name:
+                    name = name[0 : name.index("<")]
                 instructions.append(Invoke(name, len(arguments_array), [], [], type_parameters))
             else:
                 instructions.extend(parse_statement(contents[1 : len(contents) - 1], extra +  instructions))
@@ -984,26 +980,10 @@ def process_program(program):
                 for program_type in limited_types:
                     #print(program_type in functions)
                     mapped_generics = {"A": program_type}
-                    #for i in range(0, len(function2.parameters)):
-                        #parameter = function2.parameters[i]
-                        #input = cached_types[i]
-
-                        #collect_mapped(mapped_generics, parameter, input)
-
-                    #for key in dict(mapped_generics):
-                        #if key == mapped_generics[key]:
-                            #del mapped_generics[key]
 
                     if len(mapped_generics) > 0:
                         new_function = create_generic_function(function2, mapped_generics, functions, new_generic_functions)
                         program.tokens.append(new_function)
-                        #if len(new_function.generics) > 0:
-                            #print("test")
-                            #exit()
-                        #functions[id].append(new_function)
-                        #print(functions[id])
-                        #print("tset")
-                        #print(id + " " + str(new_function.parameters))
 
                         if function2.name + ".free_1" in functions:
                             if len(mapped_generics) > 0:
@@ -1584,15 +1564,14 @@ def process_program(program):
                         else:
                             types.append(variables[instruction.name].type)
 
-                    #if function.name == "execute_command":
-                        #print(types[len(types) - 1])
                 elif isinstance(instruction, Invoke):
                     if instruction.name.startswith("@cast_"):
                         types.pop()
                         types.append(instruction.name[6:])
                     elif instruction.name.startswith("@free"):
                         free_type = types.pop()
-                        types.pop()
+                        if len(types) > 0:
+                            types.pop()
 
                         name = function.name
 
@@ -1600,13 +1579,9 @@ def process_program(program):
                             index = function.tokens.index(instruction)
                             function.tokens.insert(index, Duplicate())
                             index += 1
-                            #print(functions.keys())
                             if "_.free_custom_1" in functions:
                                 for free_custom in functions["_.free_custom_1"]:
-                                    #print(free_custom.name + " " + str(free_custom.parameters))
                                     if is_type(free_type, free_custom.parameters[0][1 : ]):
-                                        #if function.name == "execute_command":
-                                            #print(free_type + " " + str(free_custom.parameters))
                                         function.tokens.insert(index, Duplicate())
                                         function.tokens.insert(index + 1, Invoke("_.free_custom", 1, [free_type], [], [] if not "<" in free_type else free_type[free_type.index("<") + 1 : free_type.rindex(">")].split(",")))
                                         j += 2
@@ -1691,7 +1666,6 @@ def type_check(function, instructions, program_types, program_structs, functions
     types = []
     variables = {}
 
-    #print(function.name)
     if len(function.generics) > 0:
         return 0
     
@@ -1779,6 +1753,12 @@ def type_check(function, instructions, program_types, program_structs, functions
                     print("PROCESS: Attempted to cast in " + function.name + " from " + given_type + " to " + name + ".")
                     return 1
                 
+                given_type_parameters = instruction.type_parameters
+                for struct in program_structs:
+                    if (struct.name == name or struct.name == name[1:]) and not len(given_type_parameters) == len(struct.generics):
+                        #print(instruction.type_parameters)
+                        print("PROCESS: Type " + name + " in " + function.name + " expects " + str(len(struct.generics)) + " type parameters, given " + str(len(given_type_parameters)) + " (in cast).")
+                        return 1
                 types.append(instruction.name[6 : len(instruction.name)])
             else:
                 id = instruction.name + "_" + str(instruction.parameter_count)
@@ -1808,6 +1788,7 @@ def type_check(function, instructions, program_types, program_structs, functions
                     for function3 in list(named_functions):
                         if not is_type(given_type, function3.parameters[i]):
                             named_functions.remove(function3)
+
 
                     if len(named_functions) == 0:
                         print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given " + given_type + ".")
@@ -1894,7 +1875,7 @@ def collect_mapped(mapped_generics, parameter, input):
             collect_mapped(mapped_generics, parameter_generics[i], input_generics[i])
 
 def is_used(function, functions):
-    if function.name == "main" or (function.name == "String" and function.parameters[0] == "any") or (function.name == "Function" and function.parameters[0] == "any") or (function.name == "Array" and function.parameters[0] == "any" and function.parameters[1] == "integer") or function.name == "String.memory_size":
+    if function.name == "main" or (function.name == "String" and function.parameters[0] == "any") or (function.name == "Function" and function.parameters[0] == "any") or function.name == "Function.free" or (function.name == "Array" and function.parameters[0] == "any" and function.parameters[1] == "integer") or function.name == "String.memory_size":
         return True
 
     for other_function in functions:
@@ -2386,9 +2367,6 @@ def create_linux_binary(program, file_name_base):
     print_memory.instructions.append("mov rbp, rsp")
     print_memory.instructions.append("add rbp, 8")
 
-    print_memory.instructions.append("mov rdi, rbp")
-    print_memory.instructions.append("call print_integer")
-
     print_memory.instructions.append("mov rax, [memory]")
 
     print_memory.instructions.append("loop_thing:")
@@ -2649,7 +2627,7 @@ def create_linux_binary(program, file_name_base):
     call_function.instructions.append("ret")
     asm_program.functions.append(call_function)
     
-    functions = ["_start"]
+    functions = ["_start", "@print_memory__"]
     for token in program.tokens:
         if isinstance(token, Function):
             for instruction in token.tokens:

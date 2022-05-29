@@ -5,9 +5,9 @@ main() {
 
     println(boolean_to_string(option.is_value()))
 
-    option = Option.of("Hello Option!", String.memory_size())
-    if (option.is_value()) {
-        println(@cast_&String(option.data))
+    let option2 = Option.of("Hello Option!")
+    if (option2.is_value()) {
+        println(option2.data())
     } else {
         println("not a thing (this should never print with this code)")
     }

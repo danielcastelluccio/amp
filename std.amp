@@ -182,128 +182,121 @@ null(): any {
 
 LinkedList<A> {
     head: any
-	item_size: integer
 
-	<A>(item_size: integer): LinkedList<A> {
-		return LinkedList<A>(LinkedList_Node(null(), null(), item_size), item_size)
-	}
-	
 	<A>(): LinkedList<A> {
-	    return LinkedList<A>(0)
+		return LinkedList<A>(LinkedList_Node<A>(null(), null()))
 	}
 
 	append<A>(linked_list: &LinkedList<A>, data: A) {
-	    let node = @cast_&LinkedList_Node(linked_list.head)
+	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	    while (node.next != null()) {
-	        node = @cast_&LinkedList_Node(node.next)
+	        node = @cast_&LinkedList_Node<A>(node.next)
 	    }
 	
-	    let new_node = LinkedList_Node(data, null(), linked_list.item_size)
+	    let new_node = LinkedList_Node<A>(data, null())
 	    node.next = new_node
 	}
 
 	insert<A>(linked_list: &LinkedList<A>, index: integer, data: A) {
-	    let node = @cast_&LinkedList_Node(linked_list.head)
+	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	
 	    let i = 0
 	    while (i < index) {
-	        node = @cast_&LinkedList_Node(node.next)
+	        node = @cast_&LinkedList_Node<A>(node.next)
 	        i = i + 1
 	    }
 	
 	    let temp_next = node.next
-	    let new_node = LinkedList_Node(data, @cast_any(temp_next), linked_list.item_size)
+	    let new_node = LinkedList_Node<A>(data, @cast_any(temp_next))
 	    node.next = new_node
 	}
 
 	remove<A>(linked_list: &LinkedList<A>, index: integer) {
-	    let node = @cast_&LinkedList_Node(linked_list.head)
+	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	
 	    let i = 0
 	    while (i < index) {
-	        node = @cast_&LinkedList_Node(node.next)
+	        node = @cast_&LinkedList_Node<A>(node.next)
 	        i = i + 1
 	    }
 	
-	    let temp_next_next = @cast_&LinkedList_Node(node.next).next
-		@cast_&LinkedList_Node(node.next).free_custom()
+	    let temp_next_next = @cast_&LinkedList_Node<A>(node.next).next
+		@cast_&LinkedList_Node<A>(node.next).free_custom()
 		@free(node.next, LinkedList_Node.memory_size())
 	    node.next = @cast_any(temp_next_next)
 	}
 
-	free_custom<A>(list: &LinkedList<A>) {
-		let node = list.head
-		while (node != 0) {
-			let new_node = @cast_&LinkedList_Node(node).next
-			@cast_&LinkedList_Node(node).free_custom()
-			@free(node, LinkedList_Node.memory_size())
-			node = new_node
-		}
-	}
-
 	size<A>(linked_list: &LinkedList<A>): integer {
-	    let node = @cast_&LinkedList_Node(linked_list.head)
+	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	    let i = 0
 	
 	    while (node.next != null()) {
-	        node = @cast_&LinkedList_Node(node.next)
+	        node = @cast_&LinkedList_Node<A>(node.next)
 	        i = i + 1
 	    }
 	
 	    return i
 	}
+
+	free_custom<A>(list: &LinkedList<A>) {
+		let node = list.head
+		while (node != 0) {
+			let new_node = @cast_&LinkedList_Node<A>(node).next
+			@cast_&LinkedList_Node<A>(node).free_custom()
+			@free(node, LinkedList_Node.memory_size())
+			node = new_node
+		}
+	}
 }
 
 _[]<A>(linked_list: &LinkedList<A>, index: integer): &A {
-    let node = @cast_&LinkedList_Node(linked_list.head)
+    let node = @cast_&LinkedList_Node<A>(linked_list.head)
     let i = 0
 
     while (i < (index + 1)) {
-        node = @cast_&LinkedList_Node(node.next)
+        node = @cast_&LinkedList_Node<A>(node.next)
         i = i + 1
     }
 
     return @cast_&A(node.data)
 }
 
-LinkedList_Node {
+LinkedList_Node<A> {
     data: any
     next: any
-	item_size: integer
 
-	free_custom(node: &LinkedList_Node) {
-		if (node.item_size != 0) {
-			@free(node.data, node.item_size)
+	free_custom<A>(node: &LinkedList_Node<A>) {
+		if (@and(A.memory_size() != 0, node.data != 0)) {
+			@free(node.data, A.memory_size())
 		}
 	}
 }
 
-Option {
+Option<A> {
     data: any
-	item_size: integer
 
-	empty(): Option {
-	    return Option(null(), 0)
+	empty<A>(): Option<A> {
+	    return Option<A>(null())
 	}
 	
-	of(data: any): Option {
-	    return Option.of(data, 0)
+	of<A>(data: A): Option<A> {
+	    return Option<A>(data)
 	}
 	
-	of(data: any, item_size: integer): Option {
-	    return Option(data, item_size)
-	}
-
-	is_value(option: &Option): boolean {
+	is_value<A>(option: &Option<A>): boolean {
 	    return not_equal(option.data, null())
 	}
 	
-	free_custom(option: &Option) {
+	free_custom<A>(option: &Option<A>) {
 		let test = option.data != null()
-		let test2 = option.item_size > 0
+		let test2 = A.memory_size() > 0
 		if (@and(test, test2)) {
-			@free(option.data, option.item_size)
+			@free(option.data, A.memory_size())
 		}
+	}
+
+	data<A>(option: &Option<A>): &A {
+		return @cast_&A(option.data)
 	}
 }
 
