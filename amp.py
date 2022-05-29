@@ -24,8 +24,9 @@ class Function(Token):
         self.generics_applied = generics_applied
 
 class StructMarker(Token):
-    def __init__(self, name):
+    def __init__(self, name, generics):
         self.name = name
+        self.generics = generics
 
 class EnumMarker(Token):
     def __init__(self, name):
@@ -442,7 +443,7 @@ def parse(contents, type, extra):
             #print(type_parameters)
         tokens.append(function)
 
-        tokens.append(StructMarker(name))
+        tokens.append(StructMarker(name, type_parameters))
 
         return tokens
     elif type == "Enum":
@@ -934,6 +935,7 @@ def process_program(program):
     functions = {}
     functions2 = {}
     program_types = ["integer", "boolean", "any"]
+    program_structs = []
     program_enums = []
     new_generic_functions = {}
 
@@ -962,6 +964,7 @@ def process_program(program):
             functions2[token.name] = token
         elif isinstance(token, StructMarker):
             program_types.append(token.name)
+            program_structs.append(token)
         elif isinstance(token, EnumMarker):
             program_types.append(token.name)
             program_enums.append(token.name)
@@ -1259,7 +1262,7 @@ def process_program(program):
     # type checking
     for token in program.tokens:
         if isinstance(token, Function):
-            if type_check(token, token.tokens, program_types, functions, functions2, True) == 1:
+            if type_check(token, token.tokens, program_types, program_structs, functions, functions2, True) == 1:
                 return_value = 1
 
     if return_value == 1:
@@ -1691,7 +1694,7 @@ def replace_type(type, given, wanted):
 
     return main + ("<" + ",".join(generics) + ">" if len(generics) > 0 else "")
 
-def type_check(function, instructions, program_types, functions, functions2, alter):
+def type_check(function, instructions, program_types, program_structs, functions, functions2, alter):
     return_value = 0
 
     types = []
@@ -1730,6 +1733,15 @@ def type_check(function, instructions, program_types, functions, functions2, alt
                 return 1
         elif isinstance(instruction, Declare):
             variables[instruction.name] = instruction
+            name = variables[instruction.name].type
+            name_bare = name[0 : name.index("<") if "<" in name else len(name)]
+            given_type_parameters = 0 if not "<" in name else len(name[name.index("<") + 1 : name.index(">")].split(","))
+            for struct in program_structs:
+                if struct.name == name_bare and not given_type_parameters == len(struct.generics):
+                    if not given_type_parameters == len(struct.generics):
+                        print("PROCESS: Type " + name_bare + " in " + function.name + " expects " + str(len(struct.generics)) + " type parameters, given " + str(given_type_parameters) + ".")
+                        return 1
+                    print(name_bare)
         elif isinstance(instruction, Assign):
             if len(types) == 0:
                 print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + (variables[instruction.name] if variables[instruction.name] else "a value") + ", given nothing.")
