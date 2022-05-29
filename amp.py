@@ -262,7 +262,7 @@ def parse(contents, type, extra):
                         
                         item_type = item.split(":")[1].strip()
 
-                        instructions.append(Declare("instance", "&" + name))
+                        instructions.append(Declare("instance", "&" + name_full))
                         instructions.append(Retrieve("instance", None))
                         instructions.append(Constant(8 * len(items)))
                         instructions.append(Invoke("@add", 2, ["&any", "&any"], ["any"]))
@@ -282,7 +282,7 @@ def parse(contents, type, extra):
                         instructions = []
                         locals = []
 
-                        instructions.append(Declare("instance", "&" + name))
+                        instructions.append(Declare("instance", "&" + name_full))
                         instructions.append(Declare(item_name, item.split(":")[1].strip()))
                         instructions.append(Retrieve("instance", None))
                         instructions.append(Constant(8 * len(items)))
@@ -298,7 +298,7 @@ def parse(contents, type, extra):
                         #function = Function(set_name, instructions, locals, ["&" + name, item.split(":")[1].strip()], [])
                         #tokens.append(function)
 
-                        function = Function("_" + item_name + "=", instructions, locals, ["&" + name, item.split(":")[1].strip()], [], [item_type] if len(item_type) == 1 else [])
+                        function = Function("_" + item_name + "=", instructions, locals, ["&" + name_full, item.split(":")[1].strip()], [], type_parameters)
                         tokens.append(function)
 
                         items[item.split(":")[0]] = item.split(":")[1].strip()
@@ -333,7 +333,7 @@ def parse(contents, type, extra):
                 
             item_type = items[item]
 
-            instructions.append(Declare("instance", "&" + name))
+            instructions.append(Declare("instance", "&" + name_full))
             instructions.append(Retrieve("instance", None))
             instructions.append(Constant(8 * items_list.index(item)))
             instructions.append(Invoke("@add", 2, []))
@@ -366,7 +366,7 @@ def parse(contents, type, extra):
 
             locals.append("instance")
                 
-            function = Function(get_consume_name, instructions, locals, [name + ("<" + ",".join(generics) + ">" if len(generics) > 0 else "")], [item_type], generics)
+            function = Function(get_consume_name, instructions, locals, [name + ("<" + ",".join(generics) + ">" if len(generics) > 0 else "")], [item_type], type_parameters)
             tokens.append(function)
 
 
@@ -420,7 +420,7 @@ def parse(contents, type, extra):
         instructions = []
         locals = []
 
-        instructions.append(Declare("instance", "&" + name))
+        instructions.append(Declare("instance", "&" + name_full))
 
         for item in items:
             if not items[item] in primitives:
@@ -980,7 +980,7 @@ def process_program(program):
             #print(function2.name + " " + str(function2.parameters) + " " +  str(function2.generics))
             if len(function2.generics) > 0:
                 id = function2.name + "_" + str(len(function2.parameters))
-                limited_types = ["integer", "boolean", "any", "String"]
+                limited_types = ["integer", "boolean", "any", "String", "Function"]
                 for program_type in limited_types:
                     #print(program_type in functions)
                     mapped_generics = {"A": program_type}
@@ -1235,18 +1235,13 @@ def process_program(program):
         for generic in mapped_generics:
             for token in new_function.tokens:
                 if isinstance(token, Declare):
-                    #if new_function.name == "_.free_custom":
-                        #print(str(mapped_generics) + " " + str(new_function.generics_applied))
-                        #print(token.type)
                     token.type = replace_type(token.type, generic, mapped_generics[generic])
-                    #if new_function.name == "_.free_custom":
-                        #print(new_function.generics_applied)
-                        #print(token.type)
                 elif isinstance(token, Invoke):
                     if token.name.startswith("@cast_"):
                         token.name = "@cast_" + replace_type(token.name[6:], generic, mapped_generics[generic])
                     elif ".memory_size" in token.name:
-                        token.name = token.name.replace(generic, mapped_generics[generic])
+                        index = token.name.index(".memory_size")
+                        token.name = replace_type(token.name[0 : index], generic, mapped_generics[generic]) + ".memory_size"
 
                     for i in range(0, len(token.parameters)):
                         token.parameters[i] = replace_type(token.parameters[i], generic, mapped_generics[generic])
@@ -1254,11 +1249,7 @@ def process_program(program):
                     for i in range(0, len(token.type_parameters)):
                         token.type_parameters[i] = replace_type(token.type_parameters[i], generic, mapped_generics[generic])
 
-                    
-                    #print(token.type_parameters)
 
-
-    #exit()
     # type checking
     for token in program.tokens:
         if isinstance(token, Function):
@@ -1735,13 +1726,20 @@ def type_check(function, instructions, program_types, program_structs, functions
             variables[instruction.name] = instruction
             name = variables[instruction.name].type
             name_bare = name[0 : name.index("<") if "<" in name else len(name)]
-            given_type_parameters = 0 if not "<" in name else len(name[name.index("<") + 1 : name.index(">")].split(","))
+            if len(name_bare) > 0 and name_bare[0] == "&":
+                name_bare = name_bare[1:]
+            given_type_parameters = [] if not "<" in name else name[name.index("<") + 1 : name.index(">")].split(",")
             for struct in program_structs:
-                if struct.name == name_bare and not given_type_parameters == len(struct.generics):
-                    if not given_type_parameters == len(struct.generics):
-                        print("PROCESS: Type " + name_bare + " in " + function.name + " expects " + str(len(struct.generics)) + " type parameters, given " + str(given_type_parameters) + ".")
+                if struct.name == name_bare and not len(given_type_parameters) == len(struct.generics):
+                    if not len(given_type_parameters) == len(struct.generics):
+                        print("PROCESS: Type " + name_bare + " in " + function.name + " expects " + str(len(struct.generics)) + " type parameters, given " + str(len(given_type_parameters)) + ".")
                         return 1
-                    print(name_bare)
+
+            for type_parameter in given_type_parameters:
+                if len(type_parameter) == 1:
+                    print("PROCESS: Type " + name_bare + " in " + function.name + " uses undeclared generic " + type_parameter + ".")
+                    return 1
+                            
         elif isinstance(instruction, Assign):
             if len(types) == 0:
                 print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + (variables[instruction.name] if variables[instruction.name] else "a value") + ", given nothing.")
@@ -1754,20 +1752,12 @@ def type_check(function, instructions, program_types, program_structs, functions
                 return 1
 
             if variables[instruction.name].type == "":
-                #if function.name == "execute_command":
-                    #print("j " + given_type)
                 variables[instruction.name].type = given_type
-            #else:
-                #if function.name == "execute_command":
-                    #print("k " + instruction.name + " " + variables[instruction.name].type)
 
             if not is_type(given_type, variables[instruction.name].type):
                 print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + variables[instruction.name].type + ", given " + given_type + ".")
                 return 1
         elif isinstance(instruction, Retrieve):
-            #if function.name == "_.free_custom":
-                #print(variables[instruction.name])
-
             if instruction.name in functions2 and not instruction.name in variables:
                 types.append("Function")
                 instruction.data = functions2[instruction.name].parameters
@@ -1806,27 +1796,6 @@ def type_check(function, instructions, program_types, program_structs, functions
 
                 cached_types = []
 
-                #if "Array" in function.name:
-                    #print("---------")
-                    #for function4 in named_functions:
-                        #print(function4.parameters)
-
-                #if function.name == "_.free_custom" and function2.name == "_item_size":
-                    #print(types)
-                    #print(function.parameters)
-                    #print(function.generics_applied)
-                    #print("---")
-                    #for function12 in named_functions:
-                        #print(function12.generics_applied)
-                    #print("---------")
-
-                #if function.name == "execute_command" and function2.name == "_[]=":
-                    #print(instruction.type_parameters)
-                    #print(named_functions)
-                    #print(named_functions[0].generics_applied)
-                    #print("----------------------------------------")
-
-
                 i = 0
                 while i < instruction.parameter_count:
                     if len(types) == 0:
@@ -1838,21 +1807,9 @@ def type_check(function, instructions, program_types, program_structs, functions
 
                     for function3 in list(named_functions):
                         if not is_type(given_type, function3.parameters[i]):
-                            #if function.name == "_.free_custom" and function2.name == "_item_size":
-                                #print("removed " + str(function3.generics_applied) + " " + given_type + " " + function3.parameters[i])
-                            #print(given_type + " " + function3.parameters[i])
-                            #print("removed " + given_type + " " + function3.parameters[i])
-                            #print(function.parameters)
                             named_functions.remove(function3)
-                            #if "Array" in function.name:
-                                #print("removed " + given_type + " " + function3.parameters[i])
-                        #else:
-                            #if "Array" in function.name:
-                                #print("not removed " + given_type + " " + function3.parameters[i])
-
 
                     if len(named_functions) == 0:
-                        
                         print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given " + given_type + ".")
                         return 1
 
@@ -1863,14 +1820,6 @@ def type_check(function, instructions, program_types, program_structs, functions
                     
                 cached_types = cached_types[::-1]
 
-                #if function.name == "_.free_custom" and function2.name == "_item_size":
-                    #print(function.parameters)
-                    #print(function.generics_applied)
-                    #print("---")
-                    #for function12 in named_functions:
-                        #print(function12.generics_applied)
-                    #print("---------")
-
                 if len(named_functions) > 1:
                     for function5 in list(named_functions):
                         if len(function5.generics_applied) < len(instruction.type_parameters):
@@ -1878,17 +1827,7 @@ def type_check(function, instructions, program_types, program_structs, functions
                         for i in range(0, len(function5.generics_applied)):
                             if len(instruction.type_parameters) > i:
                                 if not function5.generics_applied[i] == instruction.type_parameters[i]:
-                                    #print(function5.generics_applied[i] + " " + instruction.type_parameters[i])
                                     named_functions.remove(function5)
-                                    #print(function5.generics_applied[i] + " " + instruction.type_parameters[i])
-
-                #if function.name == "_.free_custom" and function2.name == "_item_size":
-                    #print(function.parameters)
-                    #print(function.generics_applied)
-                    #for function12 in named_functions:
-                        #print(function12.generics_applied)
-                    #print("------------------------------")
-
 
                 if len(named_functions) > 1:
                     for i in range(0, instruction.parameter_count):
@@ -1896,33 +1835,14 @@ def type_check(function, instructions, program_types, program_structs, functions
                         given_type = cached_types2.pop()
                         for function3 in named_functions:
                             if ((not given_type == function3.parameters[i] and not given_type == function3.parameters[i][1::]) or len(function3.generics) > 0) and len(named_functions) > 1:
-                                #if function.name == "_.free_custom" and function2.name == "_item_size":
-                                    #print(given_type + " " + function3.parameters[i] + " " + str(len(named_functions)))
                                 named_functions.remove(function3)
-                            #else:
-                                #if function.name == "_.free_custom" and function2.name == "_item_size":
-                                    #print("saved " + given_type + " " + function3.parameters[i] + " " + str(len(named_functions)) + " " + str(function3.generics) + " " + str(function3.generics_applied))
 
-
-                #if function.name == "execute_command" and function2.name == "Array":
-                    #for function12 in named_functions:
-                        #print(function12.generics_applied)
-                    #print("---------")
-                                
                 function2 = named_functions[0]
-
-                #if function.name == "main" and function2.name == "_[]=":
-                    #for function8 in named_functions:
-                        #print(str(function8.parameters) + " " + str(function8.generics_applied))
-
-                    #print("--------")
 
                 set_params = False
                 if len(instruction.parameters) == 0:
                     set_params = True
                 else:
-                    #if function.name == "main" and function2.name == "_[]=":
-                        #print(str(instruction.parameters) + " " + str(function2.parameters))
                     for i in range(0, len(instruction.parameters)):
                         if not is_type(instruction.parameters[i], function2.parameters[i]) or "any" in function2.parameters[i]:
                             set_params = True
@@ -1931,34 +1851,12 @@ def type_check(function, instructions, program_types, program_structs, functions
                     instruction.parameters = function2.parameters
 
                 instruction.return_ = function2.return_
-                #print(str(instruction.type_parameters) + " " + str(function2.generics) + " " + function.name + " " + str(function.generics) + " " + str(function.generics_applied) + " " + function2.name)
-                #if function.name == "main" or function.name == "execute_command":
-
-                #if function.name == "execute_command" and function2.name == "Array":
-                    #print(instruction.type_parameters)
 
                 instruction.type_parameters = function2.generics_applied
 
-                #if function.name == "execute_command" and function2.name == "Array":
-                    #print(instruction.type_parameters)
-
                 if len(function2.return_) > 0:
                     for type in function2.return_:
-                        #print(function.name + " " + function2.name + " " + type)
-                        #mapped_generics = {}
-                        #for i in range(0, len(function2.parameters)):
-                            #parameter = function2.parameters[i]
-                            #input = cached_types[i]
-
-                            #collect_mapped(mapped_generics, parameter, input)
-
-                        #for generic in mapped_generics:
-                            #type = replace_type(type, generic, mapped_generics[generic])
-
-                        #if type[0] == "&" and (type[1:] == "boolean" or type[1:] == "integer"):
-                            #type = type[1:]
                         types.append(type)
-                        #print(type)
         elif isinstance(instruction, Return):
             for return_type in function.return_:
                 if len(types) == 0:
@@ -2027,7 +1925,7 @@ def is_type(given, wanted):
         main_given = given[0 : given.index("<")]
 
         good = True
-        if not is_type(main_given, main_wanted):
+        if not main_given == main_wanted:#if not is_type(main_given, main_wanted):
             good = False
 
         types_wanted = wanted[wanted.index("<") + 1 : wanted.rindex(">")].split(",")

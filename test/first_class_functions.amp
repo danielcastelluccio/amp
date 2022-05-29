@@ -1,13 +1,13 @@
 use "std"
 
 main() {
-    let functions = Array(2)
+    let functions = Array<Function>(2)
     functions[0] = test
     functions[1] = test2
 
     let i = 0
     while (i < functions.length) {
-    	let parameters = Array(1)
+    	let parameters = Array<String>(1)
     	parameters[0] = "Welcome child!"
 
 		println(@cast_String(@cast_&Function(functions[i]).call(parameters)))

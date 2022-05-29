@@ -1,7 +1,7 @@
 use "std"
 
 main() {
-    let list = LinkedList()
+    let list = LinkedList<integer>()
     list.append(5)
     list.append(3)
     list.append(2)
@@ -12,10 +12,10 @@ main() {
     list.remove(1)
     print_int_list(list)
     println("List size: " + integer_to_string(list.size()))
-    println("At 0: " + integer_to_string(@cast_integer(list[0])))
+    println("At 0: " + integer_to_string(list[0]))
 }
 
-print_int_list(list: &LinkedList) {
+print_int_list(list: &LinkedList<integer>) {
     let node = @cast_&LinkedList_Node(list.head)
     while (node.next != null()) {
         node = @cast_&LinkedList_Node(node.next)
