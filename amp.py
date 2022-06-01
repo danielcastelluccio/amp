@@ -136,9 +136,9 @@ def getType(statement):
         return "Function"
     elif statement.startswith("use "):
         return "Use"
-    elif "{" in statement and not "(" in statement[0 : statement.index("{")] and ":" in statement:
+    elif "{" in statement and not "(" in statement[0 : statement.index("{")] and ":" in statement and not statement.strip().startswith("while ") and not statement.strip().startswith("if "):
         return "Struct"
-    elif "{" in statement and not "(" in statement[0 : statement.index("{")]:
+    elif "{" in statement and not "(" in statement[0 : statement.index("{")] and not statement.strip().startswith("while ") and not statement.strip().startswith("if "):
         return "Enum"    
     else:
         return "Statement"
@@ -562,7 +562,7 @@ def parse_statement(contents, extra):
     elif contents.startswith("\"") and contents.endswith("\"") and contents.count("\"") == 2:
         instructions.append(Constant(contents[1 : len(contents) - 1]))
     elif contents.startswith("if"):
-        instructions.extend(parse_statement(contents[contents.index("(") + 1 : contents[0 : contents.index("{")].rindex(")")], extra + instructions))
+        instructions.extend(parse_statement(contents[3 : contents.index("{")], extra + instructions))
 
         current_thing = ""
         current_indent = 0
@@ -626,7 +626,7 @@ def parse_statement(contents, extra):
 
         instructions.append(PreStartWhile(id1, id2))
 
-        instructions.extend(parse_statement(contents[contents.index("(") + 1 : contents[0 : contents.index("{")].rindex(")")], extra + instructions))
+        instructions.extend(parse_statement(contents[6 : contents.index("{")], extra + instructions))
 
         current_thing = ""
         current_indent = 0

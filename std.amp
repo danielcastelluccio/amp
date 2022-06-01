@@ -26,7 +26,7 @@ execute_command(file: String, arguments: Array<String>, wait: boolean) {
 	let null_terminated_file = file + "\0"
 	let arguments_new: Array<any> = Array<any>(arguments.length + 1)
 	let i = 0
-	while (i < arguments.length) {
+	while i < arguments.length {
 		let thing = @cast_&String(arguments[i]) + "\0"
 		arguments_new[i] = @cast_any(thing.pointer_consume())
 		i = i + 1
@@ -35,20 +35,18 @@ execute_command(file: String, arguments: Array<String>, wait: boolean) {
 	@execute(null_terminated_file.pointer, arguments_new.pointer, wait)
 
 	let i = 0
-	while (i < arguments_new.length - 1) {
+	while i < arguments_new.length - 1 {
 		let argument = arguments_new[i]
 		@free(argument, length(argument) + 1)
 		i = i + 1
 	}
-
-    print("")
 }
 
 length(string: &any): integer {
     let location = string
     let i = 0
 
-    while (true) {
+    while true {
         if (@get_1(location) == 0) {
             return i
         }
@@ -70,11 +68,11 @@ _+(string1: &String, string2: &String): String {
 
 integer_to_string(integer: integer): String {
     let string = ""
-    if (integer == 0) {
+    if integer == 0 {
         string = "0"
     }
     
-    while (integer > 0) {
+    while integer > 0 {
         let modulo = integer % 10
         integer = integer / 10
         let prepended_string = String(store(modulo + 48), 1)
@@ -85,7 +83,7 @@ integer_to_string(integer: integer): String {
 }
 
 boolean_to_string(boolean: boolean): String {
-    if (boolean == 1) {
+    if boolean == 1 {
         return "true"
     }
     return "false"
@@ -110,10 +108,10 @@ Array<A> {
 	}
 
 	free_custom<A>(array: &Array<A>) {
-		if (A.memory_size() > 0) {
+		if A.memory_size() > 0 {
 			let i = 0
-			while (i < array.length) {
-				if (@not(array[i] == 0)) {
+			while i < array.length {
+				if @not(array[i] == 0) {
 					@free(array[i], A.memory_size())
 				}
 				i = i + 1
@@ -153,20 +151,20 @@ String {
 	}
 
 	free_custom(string: &String) {
-		if (@not(string.static)) {
+		if @not(string.static) {
 			@free(string.pointer, string.length)
 		}
 	}
 }
 
 _==(string1: String, string2: String): boolean {
-    if (string1.length != string2.length) {
+    if string1.length != string2.length {
         return false
     }
 
     let i = 0
     while (i < string1.length) {
-        if (@get_1(string1.pointer + i) != @get_1(string2.pointer + i)) {
+        if @get_1(string1.pointer + i) != @get_1(string2.pointer + i) {
             return false
         }
 
@@ -189,7 +187,7 @@ LinkedList<A> {
 
 	append<A>(linked_list: &LinkedList<A>, data: A) {
 	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
-	    while (node.next != null()) {
+	    while node.next != null() {
 	        node = @cast_&LinkedList_Node<A>(node.next)
 	    }
 	
@@ -201,7 +199,7 @@ LinkedList<A> {
 	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	
 	    let i = 0
-	    while (i < index) {
+	    while i < index {
 	        node = @cast_&LinkedList_Node<A>(node.next)
 	        i = i + 1
 	    }
@@ -215,14 +213,14 @@ LinkedList<A> {
 	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	
 	    let i = 0
-	    while (i < index) {
+	    while i < index {
 	        node = @cast_&LinkedList_Node<A>(node.next)
-	        i = i + 1
+		i = i + 1
 	    }
 	
 	    let temp_next_next = @cast_&LinkedList_Node<A>(node.next).next
-		@cast_&LinkedList_Node<A>(node.next).free_custom()
-		@free(node.next, LinkedList_Node.memory_size())
+	    @cast_&LinkedList_Node<A>(node.next).free_custom()
+	    @free(node.next, LinkedList_Node.memory_size())
 	    node.next = @cast_any(temp_next_next)
 	}
 
@@ -230,7 +228,7 @@ LinkedList<A> {
 	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	    let i = 0
 	
-	    while (node.next != null()) {
+	    while node.next != null() {
 	        node = @cast_&LinkedList_Node<A>(node.next)
 	        i = i + 1
 	    }
@@ -240,11 +238,11 @@ LinkedList<A> {
 
 	free_custom<A>(list: &LinkedList<A>) {
 		let node = list.head
-		while (node != 0) {
-			let new_node = @cast_&LinkedList_Node<A>(node).next
-			@cast_&LinkedList_Node<A>(node).free_custom()
-			@free(node, LinkedList_Node.memory_size())
-			node = new_node
+		while node != 0 {
+		    let new_node = @cast_&LinkedList_Node<A>(node).next
+		    @cast_&LinkedList_Node<A>(node).free_custom()
+		    @free(node, LinkedList_Node.memory_size())
+		    node = new_node
 		}
 	}
 }
@@ -253,7 +251,7 @@ _[]<A>(linked_list: &LinkedList<A>, index: integer): &A {
     let node = @cast_&LinkedList_Node<A>(linked_list.head)
     let i = 0
 
-    while (i < (index + 1)) {
+    while i < (index + 1) {
         node = @cast_&LinkedList_Node<A>(node.next)
         i = i + 1
     }
@@ -266,7 +264,7 @@ LinkedList_Node<A> {
     next: any
 
 	free_custom<A>(node: &LinkedList_Node<A>) {
-		if (@and(A.memory_size() != 0, node.data != 0)) {
+		if @and(A.memory_size() != 0, node.data != 0) {
 			@free(node.data, A.memory_size())
 		}
 	}
@@ -290,7 +288,7 @@ Option<A> {
 	free_custom<A>(option: &Option<A>) {
 		let test = option.data != null()
 		let test2 = A.memory_size() > 0
-		if (@and(test, test2)) {
+		if @and(test, test2) {
 			@free(option.data, A.memory_size())
 		}
 	}
