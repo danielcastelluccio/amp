@@ -1,7 +1,0 @@
-use "std"
-
-main() {
-    if true {
-        println("Hello World!")
-    }
-}
