@@ -1381,13 +1381,19 @@ def process_program(program):
                 j += 1
 
     added_functions = []
-    for function in list(program.tokens):
+    for function in program.tokens:
         if isinstance(function, Function):
             id = function.name + str(function.parameters).replace("&", "") + str(function.generics_applied)
             invocation_map[id] = []
             for instruction in function.tokens:
                 if isinstance(instruction, Invoke):
                     invocation_map[id].append(instruction.name + str(instruction.parameters).replace("&", "") + str(instruction.type_parameters))
+                if isinstance(instruction, Retrieve) and isinstance(instruction.data, list):
+                    for function in program.tokens:
+                        if isinstance(function, Function) and function.name == instruction.name:
+                            invocation_map[id].append(function.name + str(function.parameters).replace("&", "") + str(function.generics))
+
+
 
     for function in list(program.tokens):
         if isinstance(function, Function):
