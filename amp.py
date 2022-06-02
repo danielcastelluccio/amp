@@ -889,7 +889,9 @@ internals = [
     Function("@less", [], [], ["integer", "integer"], ["boolean"], []),
     Function("@exit", [], [], [], [], []),
     Function("@execute", [], [], ["&any", "&any", "boolean"], [], []),
-    Function("@call_function", [], [], ["&any", "&any", "integer"], ["any"], [])
+    Function("@call_function", [], [], ["&any", "&any", "integer"], ["any"], []),
+    Function("@read_file_size", [], [], ["&any", "&any", "integer"], [], []),
+    Function("@get_file_size", [], [], ["&any"], ["integer"], [])
 ]
 
 def create_generic_function(function2, mapped_generics, functions):
@@ -970,6 +972,11 @@ def process_program(program):
         functions.setdefault(id, [])
         functions[id].append(function)
         functions2[token.name] = function
+
+    #for function in program.tokens:
+        #if isinstance(function, Function):
+            #for instruction in function.tokens:
+                #if isinstance(instruction, Invoke):
 
     # TODO: only create the generic functions that we actually need, instead of just making all of them
     for function2 in program.tokens:
@@ -1726,8 +1733,16 @@ def create_linux_binary(program, file_name_base):
     _start = AsmFunction("_start", [])
     _start.instructions.append("push rbp")
     _start.instructions.append("mov rbp, rsp")
-    _start.instructions.append("mov qword [memory], 8")
-    _start.instructions.append("mov qword [memory+16], 16376")
+    _start.instructions.append("mov rax, 12")
+    _start.instructions.append("mov rdi, 0")
+    _start.instructions.append("syscall") # rax not holds current brk
+    _start.instructions.append("mov rbx, rax")
+    _start.instructions.append("mov rdi, rbx")
+    _start.instructions.append("add rdi, 16384")
+    _start.instructions.append("mov rax, 12")
+    _start.instructions.append("syscall") # rax with brk, pointing to 16376 of free memory
+    _start.instructions.append("mov qword [memory], rbx")
+    _start.instructions.append("mov qword [rbx+8], 16384")
     _start.instructions.append("mov rax, [rbp+8]")
     _start.instructions.append("sub rax, 1")
     _start.instructions.append("mov rcx, rax")
@@ -1853,7 +1868,6 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("cmp rdx, 0")
     allocate.instructions.append("je allocate_skip_filter")
 
-
     allocate.instructions.append("inc rax")
     allocate.instructions.append("mul r9")
     
@@ -1862,10 +1876,47 @@ def create_linux_binary(program, file_name_base):
     
     allocate.instructions.append("add rbx, 16") # add some padding which will be used for freeing later
     allocate.instructions.append("mov rcx, [memory]") # move the pointer to the first free value into rcx
-    allocate.instructions.append("mov r9, 0")
+    allocate.instructions.append("mov r9, memory")
     allocate.instructions.append("allocate_mark:") # used for jumping back if the memory block is not big enough
-    allocate.instructions.append("mov rax, memory")
-    allocate.instructions.append("add rax, rcx") # now rax stores beginning of new free memory
+    
+    allocate.instructions.append("cmp rcx, 0")
+    allocate.instructions.append("jne no_alloc")
+    allocate.instructions.append("push rax")
+    allocate.instructions.append("push rbx")
+
+    allocate.instructions.append("mov r11, 16384")
+    allocate.instructions.append("cmp rbx, r11")
+    allocate.instructions.append("jle no_special_case")
+    allocate.instructions.append("mov r11, rbx")
+    allocate.instructions.append("add r11, 16")
+
+    allocate.instructions.append("no_special_case:")
+
+    allocate.instructions.append("mov rax, 12")
+    allocate.instructions.append("mov rdi, 0")
+    allocate.instructions.append("push r11")
+    allocate.instructions.append("syscall")
+    allocate.instructions.append("pop r11")
+    allocate.instructions.append("mov rbx, rax")
+
+    allocate.instructions.append("mov rdi, rbx")
+    allocate.instructions.append("add rdi, r11")
+    allocate.instructions.append("mov rax, 12")
+    allocate.instructions.append("push r11")
+    allocate.instructions.append("syscall")
+    allocate.instructions.append("pop r11")
+    allocate.instructions.append("mov qword [r9], rbx")
+    #allocate.instructions.append("sub r11, 16")
+    allocate.instructions.append("mov qword [rbx+8], r11")
+    allocate.instructions.append("mov rcx, rbx")
+
+    allocate.instructions.append("pop rbx")
+    allocate.instructions.append("pop rax")
+
+    allocate.instructions.append("no_alloc:")
+    
+    #allocate.instructions.append("mov rax, memory")
+    allocate.instructions.append("mov rax, rcx") # now rax stores beginning of new free memory
 
     allocate.instructions.append("mov r11, [rax+8]") # r11 stores the size of the free memory block
     allocate.instructions.append("mov r12, rbx")
@@ -1876,11 +1927,12 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("jle allocate_done")
     allocate.instructions.append("mov r9, rcx") # r9 stores the previous location used
     allocate.instructions.append("mov rcx, [rax]")
+
     allocate.instructions.append("jmp allocate_mark")
     allocate.instructions.append("allocate_done:")
     allocate.instructions.append("mov r10, rcx") # rcx = location
     allocate.instructions.append("add r10, rbx") # rbx = size, r10 = location + size
-    allocate.instructions.append("add r9, memory")
+    #allocate.instructions.append("add r9, memory")
     allocate.instructions.append("sub r11, rbx") # r11 now with new length
     allocate.instructions.append("cmp r11, 16")
     allocate.instructions.append("jge not_zero")
@@ -1892,7 +1944,7 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("not_zero:")
 
     allocate.instructions.append("mov [r9], r10") # store location + size in the previous location's next
-    allocate.instructions.append("add r10, memory")
+    #allocate.instructions.append("add r10, memory")
     allocate.instructions.append("mov r9, [rax]")
     allocate.instructions.append("mov qword [r10], r9") # store at location + size = the next location
     allocate.instructions.append("mov [r10+8], r11") # store length in location + size + 8
@@ -1900,7 +1952,7 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("done:")
     
     allocate.instructions.append("mov r8, rcx") # move the index of the memory into r8
-    allocate.instructions.append("add r8, memory") # make the value an actually relevant memory value
+    #allocate.instructions.append("add r8, memory") # make the value an actually relevant memory value
     allocate.instructions.append("sub rbx, 16")
     allocate.instructions.append("mov rcx, 0")
     allocate.instructions.append("allocate_zero:")
@@ -1952,19 +2004,19 @@ def create_linux_binary(program, file_name_base):
 
     free.instructions.append("add rbx, 16")
     free.instructions.append("mov [rax+8], rbx") # storing length of free space (including the 16 bytes for data storage)
-    free.instructions.append("sub rax, memory")
+    #free.instructions.append("sub rax, memory")
     free.instructions.append("mov [memory], rax") # set new head to our location
     
-    free.instructions.append("add rax, memory")
+    #free.instructions.append("add rax, memory")
     free.instructions.append("add rax, rbx") # rax = freed_tail
-    free.instructions.append("mov rcx, 0") # rcx = previous_current_check
+    free.instructions.append("mov rcx, memory") # rcx = previous_current_check
     free.instructions.append("mov rdx, [memory]") # rdx = current_check
     free.instructions.append("free_loop:")
     
     free.instructions.append("cmp rdx, 0")
     free.instructions.append("je free_done")
     free.instructions.append("mov rbx, rdx")
-    free.instructions.append("add rbx, memory")
+    #free.instructions.append("add rbx, memory")
 
     free.instructions.append("cmp rbx, rax") # if (current_check == freed_tail)
 
@@ -1977,8 +2029,8 @@ def create_linux_binary(program, file_name_base):
     free.instructions.append("push rbx")
     free.instructions.append("push rcx")
 
-    free.instructions.append("add rcx, memory")
-    free.instructions.append("add rdx, memory")
+    #free.instructions.append("add rcx, memory")
+    #free.instructions.append("add rdx, memory")
     free.instructions.append("mov rbx, [rdx]")
     free.instructions.append("mov [rcx], rbx")
 
@@ -2002,22 +2054,22 @@ def create_linux_binary(program, file_name_base):
     free.instructions.append("push r11")
     free.instructions.append("push r12")
 
-    free.instructions.append("mov r11, 0")
+    free.instructions.append("mov r11, memory")
     free.instructions.append("before_loop:")
-    free.instructions.append("add r11, memory")
+    #free.instructions.append("add r11, memory")
     free.instructions.append("mov r12, [r11]")
-    free.instructions.append("sub r11, memory")
-    free.instructions.append("add r12, memory")
+    #free.instructions.append("sub r11, memory")
+    #free.instructions.append("add r12, memory")
     
     free.instructions.append("cmp r12, r9")
     free.instructions.append("jne not_pointing")
 
     free.instructions.append("mov rcx, [r12]")
-    free.instructions.append("mov [r11+memory], rcx")
+    free.instructions.append("mov [r11], rcx")
 
     free.instructions.append("not_pointing:")
 
-    free.instructions.append("add r11, memory")
+    #free.instructions.append("add r11, memory")
     free.instructions.append("mov r11, [r11]")
     free.instructions.append("cmp r11, 0")
     free.instructions.append("je end_before_loop")
@@ -2031,7 +2083,7 @@ def create_linux_binary(program, file_name_base):
     free.instructions.append("free_done_if2:")
 
     free.instructions.append("mov rcx, rdx")
-    free.instructions.append("add rdx, memory")
+    #free.instructions.append("add rdx, memory")
     free.instructions.append("mov rdx, [rdx]")
     free.instructions.append("jmp free_loop")
 
@@ -2050,7 +2102,7 @@ def create_linux_binary(program, file_name_base):
 
     print_memory.instructions.append("loop_thing:")
 
-    print_memory.instructions.append("add rax, memory")
+    #print_memory.instructions.append("add rax, memory")
 
     print_memory.instructions.append("push rbx")
     print_memory.instructions.append("push rcx")
@@ -2058,7 +2110,7 @@ def create_linux_binary(program, file_name_base):
     print_memory.instructions.append("push rax")
     print_memory.instructions.append("push r11")
     print_memory.instructions.append("mov rdi, rax")
-    print_memory.instructions.append("sub rdi, memory")
+    #print_memory.instructions.append("sub rdi, memory")
     print_memory.instructions.append("call print_integer_space")
     print_memory.instructions.append("pop r11")
     print_memory.instructions.append("pop rax")
@@ -2300,6 +2352,48 @@ def create_linux_binary(program, file_name_base):
     call_function.instructions.append("pop rbp")
     call_function.instructions.append("ret")
     asm_program.functions.append(call_function)
+
+    read_file = AsmFunction("@read_file_size_any~any~integer_", [])
+    read_file.instructions.append("push rbp")
+    read_file.instructions.append("mov rbp, rsp")
+    read_file.instructions.append("mov rdi, [rbp+16]")
+    read_file.instructions.append("xor rsi, rsi")
+    read_file.instructions.append("xor rdx, rdx")
+    read_file.instructions.append("mov rax, 2")
+    read_file.instructions.append("syscall")
+    read_file.instructions.append("mov rdi, rax")
+    read_file.instructions.append("mov rsi, [rbp+24]")
+    read_file.instructions.append("mov rdx, [rbp+32]")
+    read_file.instructions.append("mov rax, 0")
+    read_file.instructions.append("syscall")
+    read_file.instructions.append("mov rsp, rbp")
+    read_file.instructions.append("pop rbp")
+    read_file.instructions.append("ret")
+    asm_program.functions.append(read_file)
+
+    get_file_size = AsmFunction("@get_file_size_any_", [])
+    get_file_size.instructions.append("push rbp")
+    get_file_size.instructions.append("mov rbp, rsp")
+    get_file_size.instructions.append("push 144")
+    get_file_size.instructions.append("call @allocate_integer_")
+    get_file_size.instructions.append("mov r9, r8")
+    get_file_size.instructions.append("mov rdi, [rbp+16]")
+    get_file_size.instructions.append("xor rsi, rsi")
+    get_file_size.instructions.append("xor rdx, rdx")
+    get_file_size.instructions.append("mov rax, 2")
+    get_file_size.instructions.append("syscall")
+    get_file_size.instructions.append("mov rdi, rax")
+    get_file_size.instructions.append("mov rsi, r9")
+    get_file_size.instructions.append("mov rax, 5")
+    get_file_size.instructions.append("syscall")
+    get_file_size.instructions.append("mov r8, [r9+48]")
+    get_file_size.instructions.append("push 144")
+    get_file_size.instructions.append("push r9")
+    get_file_size.instructions.append("call @free_any~integer_")
+    get_file_size.instructions.append("mov rsp, rbp")
+    get_file_size.instructions.append("pop rbp")
+    get_file_size.instructions.append("ret")
+    asm_program.functions.append(get_file_size)
     
     functions = ["_start", "@print_memory__"]
     for token in program.tokens:
@@ -2540,7 +2634,7 @@ def create_linux_binary(program, file_name_base):
 
     file.write(inspect.cleandoc("""
         section .bss
-        memory: resb 16384
+        memory: resb 8
     """))
 
     file.close()

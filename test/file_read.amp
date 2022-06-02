@@ -1,0 +1,6 @@
+use "std"
+
+main() {
+    let foo = read_file("test/file_read.amp")
+    print(foo)
+}

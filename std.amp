@@ -22,6 +22,14 @@ read(): String {
     return String(string, 128)
 }
 
+read_file(file: String): String {
+    let file_null_terminated = file + "\0"
+    let size = @get_file_size(file_null_terminated.pointer)
+    let string = @allocate(size)
+    @read_file_size(file_null_terminated.pointer, string, size)
+    return String(string, size)
+}
+
 execute_command(file: String, arguments: Array<String>, wait: boolean) {
 	let null_terminated_file = file + "\0"
 	let arguments_new: Array<any> = Array<any>(arguments.length + 1)
