@@ -1,6 +1,6 @@
 use "std"
 
-main() {
+fn main() {
     if ("test" == "test") {
         println("equal")
     } else {

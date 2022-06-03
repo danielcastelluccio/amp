@@ -1,6 +1,6 @@
 use "std"
 
-main() {
+fn main() {
     let list = LinkedList<integer>()
     list.append(5)
     list.append(3)
@@ -15,7 +15,7 @@ main() {
     println("At 0: " + integer_to_string(list[0]))
 }
 
-print_int_list(list: &LinkedList<integer>) {
+fn print_int_list(list: &LinkedList<integer>) {
     let node = @cast_&LinkedList_Node<integer>(list.head)
     while (node.next != null()) {
         node = @cast_&LinkedList_Node<integer>(node.next)

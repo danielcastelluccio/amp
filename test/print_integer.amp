@@ -1,9 +1,9 @@
 use "std"
 
-main() {
+fn main() {
     println("a" + 35 + 34)
 }
 
-_+(value1: String, value2: integer): String {
+fn _+(value1: String, value2: integer): String {
     return value1 + integer_to_string(value2)
 }

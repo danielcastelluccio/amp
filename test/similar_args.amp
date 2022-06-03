@@ -1,14 +1,14 @@
 use "std"
 
-main() {
+fn main() {
     test1(4)
     test1(true)
 }
 
-test1(value: integer) {
+fn test1(value: integer) {
     println("Printing integer: " + integer_to_string(value))
 }
 
-test1(value: boolean) {
+fn test1(value: boolean) {
     println("Printing boolean: " + boolean_to_string(value))
 }

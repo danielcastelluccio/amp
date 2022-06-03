@@ -1,6 +1,6 @@
 use "std"
 
-main() {
+fn main() {
     let array = Array<String>(1)
     array[0] = "/bin/ls"
 

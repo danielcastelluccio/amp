@@ -1,6 +1,6 @@
 use "std"
 
-main() {
+fn main() {
 	let storage = Storage("Hello World!")
 	println(storage.value)
 
@@ -8,6 +8,6 @@ main() {
 	println(integer_to_string(storage.value))
 }
 
-Storage<A> {
+struct Storage<A> {
 	value: A
 }

@@ -1,6 +1,6 @@
 use "std"
 
-main (arguments: Array<String>) {
+fn main (arguments: Array<String>) {
     let i = 0
     while (i < arguments.length) {
         let argument = @cast_&String(arguments[i])

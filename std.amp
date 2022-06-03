@@ -1,28 +1,28 @@
-print(string: &String) {
+fn print(string: &String) {
     @print_size(string.pointer, string.length)
 }
 
-println(string: &String) {
+fn println(string: &String) {
     print(string)
     print("\n")
 }
 
-error(string: String) {
+fn error(string: String) {
     @error_size(string, length(string))
 }
 
-errorln(string: String) {
+fn errorln(string: String) {
     error(string)
     error("\n")
 }
 
-read(): String {
+fn read(): String {
     let string = @allocate(128)
     @read_size(string, 128)
     return String(string, 128)
 }
 
-read_file(file: String): String {
+fn read_file(file: String): String {
     let file_null_terminated = file + "\0"
     let size = @get_file_size(file_null_terminated.pointer)
     let string = @allocate(size)
@@ -30,9 +30,9 @@ read_file(file: String): String {
     return String(string, size)
 }
 
-execute_command(file: String, arguments: Array<String>, wait: boolean) {
+fn execute_command(file: String, arguments: Array<String>, wait: boolean) {
 	let null_terminated_file = file + "\0"
-	let arguments_new: Array<any> = Array<any>(arguments.length + 1)
+	let arguments_new = Array<any>(arguments.length + 1)
 	let i = 0
 	while i < arguments.length {
 		let thing = @cast_&String(arguments[i]) + "\0"
@@ -50,7 +50,7 @@ execute_command(file: String, arguments: Array<String>, wait: boolean) {
 	}
 }
 
-length(string: &any): integer {
+fn length(string: &any): integer {
     let location = string
     let i = 0
 
@@ -65,7 +65,7 @@ length(string: &any): integer {
     return 999
 }
 
-_+(string1: &String, string2: &String): String {
+fn _+(string1: &String, string2: &String): String {
     let string1_length = string1.length
     let string2_length = string2.length
     let new_memory = @allocate(string1_length + string2_length)
@@ -74,7 +74,7 @@ _+(string1: &String, string2: &String): String {
     return String(new_memory, string1_length + string2_length)
 }
 
-integer_to_string(integer: integer): String {
+fn integer_to_string(integer: integer): String {
     let string = ""
     if integer == 0 {
         string = "0"
@@ -90,32 +90,32 @@ integer_to_string(integer: integer): String {
     return string
 }
 
-boolean_to_string(boolean: boolean): String {
+fn boolean_to_string(boolean: boolean): String {
     if boolean == 1 {
         return "true"
     }
     return "false"
 }
 
-store(value: integer): any {
+fn store(value: integer): any {
     let new_memory = @allocate(1)
     @set_1(value, new_memory)
     return new_memory
 }
 
-not_equal(value1: &any, value2: &any): boolean {
+fn not_equal(value1: &any, value2: &any): boolean {
     return @not(@equal(value1, value2))  
 }
 
-Array<A> {
+struct Array<A> {
     pointer: any
     length: integer
 
-	<A>(size: integer): Array<A> {
+	fn <A>(size: integer): Array<A> {
 	    return Array<A>(@allocate(size * 8), size)
 	}
 
-	free_custom<A>(array: &Array<A>) {
+	fn free_custom<A>(array: &Array<A>) {
 		if A.memory_size() > 0 {
 			let i = 0
 			while i < array.length {
@@ -129,43 +129,43 @@ Array<A> {
 	}
 }
 
-_[]=<A>(array: &Array<A>, index: integer, value: A) {
+fn _[]=<A>(array: &Array<A>, index: integer, value: A) {
     @set_8(@cast_integer(value), array.pointer + (index * 8))
 }
 
-_[]<A>(array: &Array<A>, index: integer): &A {
+fn _[]<A>(array: &Array<A>, index: integer): &A {
     return @cast_&A(@get_8(array.pointer + (index * 8)))
 }
 
-Function {
+struct Function {
     pointer: any
 
-	call(function: &Function, parameters: Array<any>): any {
+	fn call(function: &Function, parameters: Array<any>): any {
 	    return @call_function(function.pointer, parameters.pointer, parameters.length)
 	}
 }
 
-String {
+struct String {
     pointer: any
     length: integer
     static: boolean
 
-	(pointer: any): String {
+	fn (pointer: any): String {
 	    return String(pointer, length(pointer), false)
 	}
 	
-	(pointer: any, length: integer): String {
+	fn (pointer: any, length: integer): String {
 	    return String(pointer, length, false)
 	}
 
-	free_custom(string: &String) {
+	fn free_custom(string: &String) {
 		if @not(string.static) {
 			@free(string.pointer, string.length)
 		}
 	}
 }
 
-_==(string1: String, string2: String): boolean {
+fn _==(string1: String, string2: String): boolean {
     if string1.length != string2.length {
         return false
     }
@@ -182,18 +182,18 @@ _==(string1: String, string2: String): boolean {
     return true
 }
 
-null(): any {
+fn null(): any {
     return 0
 }
 
-LinkedList<A> {
+struct LinkedList<A> {
     head: any
 
-	<A>(): LinkedList<A> {
+	fn <A>(): LinkedList<A> {
 		return LinkedList<A>(LinkedList_Node<A>(null(), null()))
 	}
 
-	append<A>(linked_list: &LinkedList<A>, data: A) {
+	fn append<A>(linked_list: &LinkedList<A>, data: A) {
 	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	    while node.next != null() {
 	        node = @cast_&LinkedList_Node<A>(node.next)
@@ -203,7 +203,7 @@ LinkedList<A> {
 	    node.next = new_node
 	}
 
-	insert<A>(linked_list: &LinkedList<A>, index: integer, data: A) {
+	fn insert<A>(linked_list: &LinkedList<A>, index: integer, data: A) {
 	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	
 	    let i = 0
@@ -217,7 +217,7 @@ LinkedList<A> {
 	    node.next = new_node
 	}
 
-	remove<A>(linked_list: &LinkedList<A>, index: integer) {
+	fn remove<A>(linked_list: &LinkedList<A>, index: integer) {
 	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	
 	    let i = 0
@@ -232,7 +232,7 @@ LinkedList<A> {
 	    node.next = @cast_any(temp_next_next)
 	}
 
-	size<A>(linked_list: &LinkedList<A>): integer {
+	fn size<A>(linked_list: &LinkedList<A>): integer {
 	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
 	    let i = 0
 	
@@ -244,7 +244,7 @@ LinkedList<A> {
 	    return i
 	}
 
-	free_custom<A>(list: &LinkedList<A>) {
+	fn free_custom<A>(list: &LinkedList<A>) {
 		let node = list.head
 		while node != 0 {
 		    let new_node = @cast_&LinkedList_Node<A>(node).next
@@ -255,7 +255,7 @@ LinkedList<A> {
 	}
 }
 
-_[]<A>(linked_list: &LinkedList<A>, index: integer): &A {
+fn _[]<A>(linked_list: &LinkedList<A>, index: integer): &A {
     let node = @cast_&LinkedList_Node<A>(linked_list.head)
     let i = 0
 
@@ -267,33 +267,33 @@ _[]<A>(linked_list: &LinkedList<A>, index: integer): &A {
     return @cast_&A(node.data)
 }
 
-LinkedList_Node<A> {
+struct LinkedList_Node<A> {
     data: any
     next: any
 
-	free_custom<A>(node: &LinkedList_Node<A>) {
+	fn free_custom<A>(node: &LinkedList_Node<A>) {
 		if @and(A.memory_size() != 0, node.data != 0) {
 			@free(node.data, A.memory_size())
 		}
 	}
 }
 
-Option<A> {
+struct Option<A> {
     data: any
 
-	empty<A>(): Option<A> {
+	fn empty<A>(): Option<A> {
 	    return Option<A>(null())
 	}
 	
-	of<A>(data: A): Option<A> {
+	fn of<A>(data: A): Option<A> {
 	    return Option<A>(data)
 	}
 	
-	is_value<A>(option: &Option<A>): boolean {
+	fn is_value<A>(option: &Option<A>): boolean {
 	    return not_equal(option.data, null())
 	}
 	
-	free_custom<A>(option: &Option<A>) {
+	fn free_custom<A>(option: &Option<A>) {
 		let test = option.data != null()
 		let test2 = A.memory_size() > 0
 		if @and(test, test2) {
@@ -301,63 +301,63 @@ Option<A> {
 		}
 	}
 
-	data<A>(option: &Option<A>): &A {
+	fn data<A>(option: &Option<A>): &A {
 		return @cast_&A(option.data)
 	}
 }
 
-_+(value1: &any, value2: &any): any {
+fn _+(value1: &any, value2: &any): any {
     return @add(value1, value2)
 }
 
-_+(value1: integer, value2: integer): integer {
+fn _+(value1: integer, value2: integer): integer {
     return @cast_integer(@add(value1, value2))
 }
 
-_-(value1: any, value2: any): any {
+fn _-(value1: any, value2: any): any {
     return @subtract(value1, value2)
 }
 
-_-(value1: integer, value2: integer): integer {
+fn _-(value1: integer, value2: integer): integer {
     return @cast_integer(@subtract(value1, value2))
 }
 
-_%(value1: integer, value2: integer): integer {
+fn _%(value1: integer, value2: integer): integer {
     return @cast_integer(@modulo(value1, value2))
 }
 
-_/(value1: integer, value2: integer): integer {
+fn _/(value1: integer, value2: integer): integer {
     return @cast_integer(@divide(value1, value2))
 }
 
-_*(value1: integer, value2: integer): integer {
+fn _*(value1: integer, value2: integer): integer {
     return @cast_integer(@multiply(value1, value2))
 }
 
-_<(value1: integer, value2: integer): boolean {
+fn _<(value1: integer, value2: integer): boolean {
     return @less(value1, value2)
 }
 
-_>(value1: integer, value2: integer): boolean {
+fn _>(value1: integer, value2: integer): boolean {
     return @greater(value1, value2)
 }
 
-_==(value1: &any, value2: &any): boolean {
+fn _==(value1: &any, value2: &any): boolean {
     return @equal(value1, value2)
 }
 
-_!=(value1: &any, value2: &any): boolean {
+fn _!=(value1: &any, value2: &any): boolean {
     return not_equal(value1, value2)
 }
 
-integer.memory_size(): integer {
+fn integer.memory_size(): integer {
 	return 0
 }
 
-boolean.memory_size(): integer {
+fn boolean.memory_size(): integer {
 	return 0
 }
 
-any.memory_size(): integer {
+fn any.memory_size(): integer {
 	return 0
 }

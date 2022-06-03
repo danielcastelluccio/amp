@@ -1,6 +1,6 @@
 use "std"
 
-main() {
+fn main() {
     let array = Array<String>(2)
     array[0] = "Hello "
     array[1] = "World!"

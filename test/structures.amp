@@ -1,6 +1,6 @@
 use "std"
 
-main() {
+fn main() {
     let pair = IntPair(1, 2)
     println(integer_to_string(pair.int1))
     println(integer_to_string(pair.int2))
@@ -14,11 +14,11 @@ main() {
     println(integer_to_string(pair.int2))
 }
 
-IntPair {
+struct IntPair {
     int1: integer
     int2: integer
 
-	reset(pair: &IntPair) {
+	fn reset(pair: &IntPair) {
 		pair.int1 = 0
 		pair.int2 = 0
 	}

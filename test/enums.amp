@@ -1,12 +1,12 @@
 use "std"
 
-main() {
+fn main() {
     print_test(Test.TEST1())
     print_test(Test.TEST2())
     print_test(Test.TEST3())
 }
 
-print_test(test: &Test) {
+fn print_test(test: &Test) {
     if (test.TEST1()) {
         println("is TEST1")
     } else if (test.TEST2()) {
@@ -16,7 +16,7 @@ print_test(test: &Test) {
     }
 }
 
-Test {
+enum Test {
     TEST1
     TEST2
     TEST3

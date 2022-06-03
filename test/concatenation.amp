@@ -1,6 +1,6 @@
 use "std"
 
-main() {
+fn main() {
     let string = ""
 
     while (string.length < 4) {

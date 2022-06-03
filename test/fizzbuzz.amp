@@ -1,6 +1,6 @@
 use "std"
 
-main() {
+fn main() {
     let i = 0
 
     while (i < 10) {
@@ -10,7 +10,7 @@ main() {
     }
 }
 
-fizzbuzz(int: integer): String {
+fn fizzbuzz(int: integer): String {
     if ((int % 15) == 0) {
         return "FizzBuzz"
     }

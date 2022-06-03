@@ -1,6 +1,6 @@
 use "std"
 
-main() {
+fn main() {
     let functions = Array<Function>(2)
     functions[0] = test
     functions[1] = test2
@@ -15,11 +15,11 @@ main() {
     }
 }
 
-test(test: String): String {
+fn test(test: String): String {
     return "Hello from test function! Main function says: " + test
 }
 
 
-test2(test: String): String {
+fn test2(test: String): String {
     return "Hello from test2 function! Main function says: " + test
 }

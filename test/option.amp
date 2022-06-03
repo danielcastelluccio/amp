@@ -1,7 +1,7 @@
 use "std"
 
-main() {
-    let option = Option.empty()
+fn main() {
+    let option = Option.empty<String>()
 
     println(boolean_to_string(option.is_value()))
 
