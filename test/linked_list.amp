@@ -17,7 +17,7 @@ fn main() {
 
 fn print_int_list(list: &LinkedList<integer>) {
     let node = @cast_&LinkedList_Node<integer>(list.head)
-    while (node.next != null()) {
+    while node.next != null() {
         node = @cast_&LinkedList_Node<integer>(node.next)
         println(integer_to_string(@cast_integer(node.data)))
     }

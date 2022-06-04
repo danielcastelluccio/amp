@@ -1,7 +1,7 @@
 use "std"
 
 fn main() {
-    if ("test" == "test") {
+    if "test" == "test" {
         println("equal")
     } else {
         println("not equal")

@@ -5,9 +5,9 @@ fn main() {
 
     println(boolean_to_string(option.is_value()))
 
-    let option2 = Option.of("Hello Option!")
-    if (option2.is_value()) {
-        println(option2.data())
+    let option = Option.of("Hello Option!")
+    if option.is_value() {
+        println(option.data())
     } else {
         println("not a thing (this should never print with this code)")
     }

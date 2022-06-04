@@ -3,7 +3,7 @@ use "std"
 fn main() {
     let i = 0
 
-    while (i < 10) {
+    while i < 10 {
         i = i + 1
         let fizzbuzz = fizzbuzz(i)
         println(fizzbuzz)
@@ -11,13 +11,13 @@ fn main() {
 }
 
 fn fizzbuzz(int: integer): String {
-    if ((int % 15) == 0) {
+    if int % 15 == 0 {
         return "FizzBuzz"
     }
-    if ((int % 5) == 0) {
+    if int % 5 == 0 {
         return "Buzz"
     }
-    if ((int % 3) == 0) {
+    if int % 3 == 0 {
         return "Fizz"
     }
     return integer_to_string(int)

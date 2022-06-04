@@ -208,7 +208,6 @@ def parse(contents, type, extra):
         
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
             if character == '\n' and current_indent == 0:
-                #print(current_thing + " " + getType(current_thing))
                 instructions.extend(parse(current_thing, getType(current_thing), instructions))
                 current_thing = ""
             else:
@@ -623,7 +622,7 @@ def parse_statement(contents, extra):
                         if_id += 1
 
                         instructions2.append(PreCheckIf(id))
-                        instructions2.extend(parse_statement(element[element.index("(") + 1 : element.rindex(")")], extra + instructions))
+                        instructions2.extend(parse_statement(element[8:], extra + instructions))
                         instructions2.append(CheckIf(false_id, True))
                     current_thing = ""
             elif character == '}':
@@ -864,10 +863,10 @@ def parse_statement(contents, extra):
                     parsed = parse_statement(name[0 : name.rindex(".")], extra + instructions)
                     if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
                         for instruction in (extra + instructions):
-                            if isinstance(instruction, Declare):
-                                if instruction.name == parsed[0].name:
-                                    instructions.extend(parsed)
-                                    name = "_." + name[name.rindex(".") + 1 : len(name)]
+                            if isinstance(instruction, Declare) and instruction.name == parsed[0].name:
+                                instructions.extend(parsed)
+                                name = "_." + name[name.rindex(".") + 1 : len(name)]
+                                break
                     else:
                         instructions.extend(parsed)
                         name = "_." + name[name.rindex(".") + 1 : len(name)]
@@ -1527,8 +1526,10 @@ def type_check(function, instructions, program_types, program_structs, functions
             variables[instruction.name] = instruction
             name = variables[instruction.name].type
             name_bare = name[0 : name.index("<") if "<" in name else len(name)]
+
             if len(name_bare) > 0 and name_bare[0] == "&":
                 name_bare = name_bare[1:]
+
             given_type_parameters = [] if not "<" in name else name[name.index("<") + 1 : name.index(">")].split(",")
             for struct in program_structs:
                 if struct.name == name_bare and not len(given_type_parameters) == len(struct.generics):
@@ -1693,8 +1694,13 @@ def type_check(function, instructions, program_types, program_structs, functions
 
                     instruction.type_parameters = []
                     for generic in function2.generics:
-                        #print(function.name + " " + function2.name)
-                        instruction.type_parameters.append(mapped[generic])
+                        if generic in mapped:
+                            instruction.type_parameters.append(mapped[generic])
+
+                if not len(function2.generics) == len(mapped):
+                    print("PROCESS: Invoke of " + function2.name + " in " + function.name + " cannot resolve type parameters.")
+                    return 1
+
 
                 if len(function2.return_) > 0:
                     for type in function2.return_:
@@ -1716,19 +1722,13 @@ def type_check(function, instructions, program_types, program_structs, functions
             if not len(types) == 0:
                 print("PROCESS: Return in " + function.name + " has data in stack.")
                 return 1
-                
+
     if len(types) > 0:
         return types.pop()
 
 wanted_generic_functions = {}
 
 def add_to_generic_functions(name, generic_parameters, mapped_generics):
-    #parameters_mapped = list(parameters)
-
-    #for i in range(0, len(parameters_mapped)):
-        #for generic in mapped_generics:
-            #parameters_mapped[i] = replace_type(parameters_mapped[i], generic, mapped_generics[generic])
-
     id = name + str(generic_parameters)
     if not id in wanted_generic_functions:
         wanted_generic_functions[id] = [] 

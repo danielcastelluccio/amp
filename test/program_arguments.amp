@@ -2,7 +2,7 @@ use "std"
 
 fn main (arguments: Array<String>) {
     let i = 0
-    while (i < arguments.length) {
+    while i < arguments.length {
         let argument = @cast_&String(arguments[i])
         println(argument + ", size: " + integer_to_string(argument.length))
         i = i + 1
