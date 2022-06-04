@@ -91,7 +91,7 @@ fn integer_to_string(integer: integer): String {
 }
 
 fn boolean_to_string(boolean: boolean): String {
-    if boolean == 1 {
+    if boolean {
         return "true"
     }
     return "false"
@@ -120,7 +120,7 @@ struct Array<A> {
 			let i = 0
 			while i < array.length {
 				if @not(array[i] == 0) {
-					@free(array[i], A.memory_size())
+                    let _ = @cast_A(@cast_any(@cast_&any(array[i])))
 				}
 				i = i + 1
 			}
@@ -227,8 +227,9 @@ struct LinkedList<A> {
 	    }
 	
 	    let temp_next_next = @cast_&LinkedList_Node<A>(node.next).next
-	    @cast_&LinkedList_Node<A>(node.next).free_custom()
-	    @free(node.next, LinkedList_Node.memory_size())
+
+        let node_to_free = @cast_LinkedList_Node<A>(@cast_any(node.next))
+
 	    node.next = @cast_any(temp_next_next)
 	}
 
@@ -248,8 +249,9 @@ struct LinkedList<A> {
 		let node = list.head
 		while node != 0 {
 		    let new_node = @cast_&LinkedList_Node<A>(node).next
-		    @cast_&LinkedList_Node<A>(node).free_custom()
-		    @free(node, LinkedList_Node.memory_size())
+
+            let linked_node = @cast_LinkedList_Node<A>(@cast_any(node))
+
 		    node = new_node
 		}
 	}
@@ -272,9 +274,7 @@ struct LinkedList_Node<A> {
     next: any
 
 	fn free_custom<A>(node: &LinkedList_Node<A>) {
-		if @and(A.memory_size() != 0, node.data != 0) {
-			@free(node.data, A.memory_size())
-		}
+        let _ = @cast_A(@cast_any(node.data))
 	}
 }
 
@@ -294,10 +294,8 @@ struct Option<A> {
 	}
 	
 	fn free_custom<A>(option: &Option<A>) {
-		let test = option.data != null()
-		let test2 = A.memory_size() > 0
-		if @and(test, test2) {
-			@free(option.data, A.memory_size())
+		if option.data != null() {
+            let _ = @cast_A(@cast_any(option.data))
 		}
 	}
 

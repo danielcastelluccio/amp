@@ -777,13 +777,13 @@ def parse_statement(contents, extra):
             instructions.append(Invoke("_!=", 2, []))
         elif special_sign == "<":
             before = contents[0 : special_index].strip()
-            after = contents[special_index + 2 : len(contents)].strip()
+            after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("_<", 2, []))
         elif special_sign == ">":
             before = contents[0 : special_index].strip()
-            after = contents[special_index + 2 : len(contents)].strip()
+            after = contents[special_index + 1 : len(contents)].strip()
             instructions.extend(parse_statement(after, extra + instructions))
             instructions.extend(parse_statement(before, extra + instructions))
             instructions.append(Invoke("_>", 2, []))
@@ -1004,11 +1004,8 @@ def process_program(program):
 
     added_generics = []
 
-    #for thing in wanted_generic_functions:
-        #print(thing + " " + str(wanted_generic_functions[thing]))
-    #print(wanted_generic_functions)
-
-    create_generic_functions(program, functions, added_generics, program_types, program_structs, functions2)
+    if create_generic_functions(program, functions, added_generics, program_types, program_structs, functions2) == 1:
+        return 1
 
     # auto freer
     for function in program.tokens:
@@ -1088,6 +1085,7 @@ def process_program(program):
 
                     for usage in dict(variable_usages):
                         if variable_usages[usage] == stack:
+                            #print(instruction.name)
                             if not (variables[instruction.name][0] == "&" or variables[usage] in primitives):
                                 owned_variables.remove(usage)
 
@@ -1379,6 +1377,7 @@ def process_program(program):
 
 
 def create_generic_functions(program, functions, added_generics, program_types, program_structs, functions2):
+    return_value = 0
     for function2 in list(program.tokens):
         if isinstance(function2, Function):
             id1 = function2.name + str(function2.parameters)
@@ -1400,7 +1399,8 @@ def create_generic_functions(program, functions, added_generics, program_types, 
                         apply_mapped_generics(new_function, mapped_generics)
                         program.tokens.append(new_function)
                         added_generics.append(new_function)
-                        type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True)
+                        if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
+                            return_value = 1
 
                         if function2.name + ".free_1" in functions:
                             if len(mapped_generics) > 0:
@@ -1423,7 +1423,8 @@ def create_generic_functions(program, functions, added_generics, program_types, 
                                 new_function.generics = []
                                 apply_mapped_generics(new_function, mapped_generics)
                                 added_generics.append(new_function)
-                                type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True)
+                                if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
+                                    return_value = 1
 
                         if "_.free_custom_1" in functions:
                             flag = False
@@ -1447,10 +1448,16 @@ def create_generic_functions(program, functions, added_generics, program_types, 
                                         new_function.generics = []
                                         apply_mapped_generics(new_function, mapped_generics)
                                         added_generics.append(new_function)
-                                        type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True)
+                                        if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
+                                            return_value = 1
+
+                                        functions[new_function.name + "_" + str(len(new_function.parameters))].append(new_function)
 
     if len(wanted_generic_functions) > 0:
-        create_generic_functions(program, functions, added_generics, program_types, program_structs, functions2)
+        if create_generic_functions(program, functions, added_generics, program_types, program_structs, functions2) == 1:
+            return_value == 1
+
+    return return_value
 
 
 invocation_map = {}
@@ -1607,7 +1614,7 @@ def type_check(function, instructions, program_types, program_structs, functions
                 i = 0
                 while i < instruction.parameter_count:
                     if len(types) == 0:
-                        print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function.parameters[i] + " as a parameter, given nothing.")
+                        print("PROCESS: Invoke of " + instruction.name + " in " + function.name + " expects " + function2.parameters[i] + " as a parameter, given nothing.")
                         return 1
 
                     given_type = types.pop()
