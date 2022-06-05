@@ -99,7 +99,7 @@ fn boolean_to_string(boolean: boolean): String {
 
 fn store(value: integer): any {
     let new_memory = @allocate(1)
-    @set_1(value, new_memory)
+    @set_1(new_memory, value)
     return new_memory
 }
 
@@ -130,7 +130,7 @@ struct Array<A> {
 }
 
 fn _[]=<A>(array: &Array<A>, index: integer, value: A) {
-    @set_8(@cast_integer(value), array.pointer + (index * 8))
+    @set_8(array.pointer + (index * 8), @cast_integer(value))
 }
 
 fn _[]<A>(array: &Array<A>, index: integer): &A {
@@ -223,7 +223,7 @@ struct LinkedList<A> {
 	    let i = 0
 	    while i < index {
 	        node = @cast_&LinkedList_Node<A>(node.next)
-		i = i + 1
+		    i = i + 1
 	    }
 	
 	    let temp_next_next = @cast_&LinkedList_Node<A>(node.next).next

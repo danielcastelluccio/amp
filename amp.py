@@ -293,12 +293,12 @@ def parse(contents, type, extra):
 
                         instructions.append(Declare("instance", "&" + name_full))
                         instructions.append(Declare(item_name, item.split(":")[1].strip()))
+                        instructions.append(Retrieve(item_name, None))
+                        instructions.append(Invoke("@cast_integer", 1, []))
                         instructions.append(Retrieve("instance", None))
                         instructions.append(Constant(8 * len(items)))
                         instructions.append(Invoke("@add", 2, ["&any", "&any"], ["any"]))
-                        instructions.append(Retrieve(item_name, None))
-                        instructions.append(Invoke("@cast_integer", 1, []))
-                        instructions.append(Invoke("@set_8", 2, ["integer", "any"]))
+                        instructions.append(Invoke("@set_8", 2, ["any", "integer"]))
                         instructions.append(Return(0))
 
                         locals.append(item_name)
@@ -392,12 +392,12 @@ def parse(contents, type, extra):
             if len(items[item]) == 1:
                 generics.append(items[item])
 
+            instructions.append(Retrieve(item, None))
+            instructions.append(Invoke("@cast_integer", 1, []))
             instructions.append(Constant(8 * items_list.index(item)))
             instructions.append(Invoke("@cast_any", 1, []))
             instructions.append(Retrieve("instance", None))
             instructions.append(Invoke("@add", 2, ["&any", "&any"], ["any"]))
-            instructions.append(Retrieve(item, None))
-            instructions.append(Invoke("@cast_integer", 1, []))
             instructions.append(Invoke("@set_8", 2, []))
 
         instructions.append(Retrieve("instance", None))
@@ -887,7 +887,7 @@ internals = [
     Function("@add", [], [], ["&any", "&any"], ["any"], []),
     Function("@subtract", [], [], ["&any", "&any"], ["any"], []),
     Function("@get_8", [], [], ["&any"], ["integer"], []),
-    Function("@set_8", [], [], ["integer", "any"], [], []),
+    Function("@set_8", [], [], ["any", "integer"], [], []),
     Function("@allocate", [], [], ["integer"], ["any"], []),
     Function("@free", [], [], ["&any", "integer"], [], []),
     Function("@print_memory", [], [], [], [], []),
@@ -899,7 +899,7 @@ internals = [
     Function("@greater", [], [], ["integer", "integer"], ["boolean"], []),
     Function("@modulo", [], [], ["integer", "integer"], ["integer"], []),
     Function("@divide", [], [], ["integer", "integer"], ["integer"], []),
-    Function("@set_1", [], [], ["integer", "any"], [], []),
+    Function("@set_1", [], [], ["any", "integer"], [], []),
     Function("@not", [], [], ["boolean"], ["boolean"], []),
     Function("@and", [], [], ["boolean", "boolean"], ["boolean"], []),
     Function("@multiply", [], [], ["integer", "integer"], ["integer"], []),
@@ -2370,22 +2370,22 @@ def create_linux_binary(program, file_name_base):
     greater.instructions.append("ret")
     asm_program.functions.append(greater)
 
-    set_1 = AsmFunction("@set_1_integer~any_", [])
+    set_1 = AsmFunction("@set_1_any~integer_", [])
     set_1.instructions.append("push rbp")
     set_1.instructions.append("mov rbp, rsp")
-    set_1.instructions.append("mov r8, [rbp+16]")
-    set_1.instructions.append("mov r9, [rbp+24]")
+    set_1.instructions.append("mov r8, [rbp+24]")
+    set_1.instructions.append("mov r9, [rbp+16]")
     set_1.instructions.append("mov [r9], r8b")
     set_1.instructions.append("mov rsp, rbp")
     set_1.instructions.append("pop rbp")
     set_1.instructions.append("ret")
     asm_program.functions.append(set_1)
 
-    set_8 = AsmFunction("@set_8_integer~any_", [])
+    set_8 = AsmFunction("@set_8_any~integer_", [])
     set_8.instructions.append("push rbp")
     set_8.instructions.append("mov rbp, rsp")
-    set_8.instructions.append("mov r8, [rbp+16]")
-    set_8.instructions.append("mov r9, [rbp+24]")
+    set_8.instructions.append("mov r8, [rbp+24]")
+    set_8.instructions.append("mov r9, [rbp+16]")
     set_8.instructions.append("mov [r9], r8")
     set_8.instructions.append("mov rsp, rbp")
     set_8.instructions.append("pop rbp")
