@@ -167,15 +167,16 @@ def parse(contents, type, extra):
 
         return Program(things)
     elif type == "Function":
-        name = contents.split(" ")[1].split("(")[0]
+        name = contents[3 : contents.index("(")]
+
         current_thing = ""
         instructions = []
         current_indent = 0
         generics = []
 
         if "<" in name and ">" in name:
-            for generic in name[name.index("<") + 1 : name.index(">")]:
-                generics.append(generic)
+            for generic in name[name.index("<") + 1 : name.index(">")].split(","):
+                generics.append(generic.strip())
 
             name = name[0 : name.index("<")]
 
@@ -184,12 +185,18 @@ def parse(contents, type, extra):
         arguments = arguments_old[arguments_old.index("(") : arguments_old.rindex(")")]
 
         current_argument = ""
+        current_indent = 0
         for character in arguments:
-            if character == "," or character == ")":
+            if (character == "," and current_indent == 0) or character == ")":
                 arguments_array.append(current_argument)
                 current_argument = ""
 
-            if (not character == " " and not character == "(" and not character == ")" and not character == ","):
+            if character == "<":
+                current_indent += 1
+            elif character == ">":
+                current_indent -= 1
+
+            if (not character == " " and not character == "(" and not character == ")" and (not character == "," or current_indent > 0)):
                 current_argument += character
         
         if arguments:
@@ -229,16 +236,35 @@ def parse(contents, type, extra):
         if len(instructions) == 0 or not isinstance(instructions[-1], Return):
             instructions.append(Return(0))
 
-        return_ = arguments_old[arguments_old.rindex(":") + 1 : len(arguments_old)] if ":" in arguments_old[arguments_old.rindex(")") : len(arguments_old)] else ""
-        return [Function(name, instructions, locals, parameters, "".join(return_.split(" ")).split(",") if return_.strip() else [], generics)]
+        return_ = (arguments_old[arguments_old.rindex(":") + 1 : len(arguments_old)] if ":" in arguments_old[arguments_old.rindex(")") : len(arguments_old)] else "").replace(" ", "")
+        return_split = []
+        index = 0
+        built = ""
+        for character in return_:
+            if character == "<":
+                index += 1
+            elif character == ">":
+                index -= 1
+
+            if character == "," and index == 0:
+                return_split.append(built)
+                built = ""
+            else:
+                built += character
+
+        if built.strip():
+            return_split.append(built)
+
+        return [Function(name, instructions, locals, parameters, return_split, generics)]
     elif type == "Use":
         use = contents[contents.index(" ") + 1 : len(contents)]
         use = use[1 : len(use) - 1]
         return [Use(use)]
     elif type == "Struct":
-        name = contents.split(" ")[1]
+        name = contents[7 : first_non_quote_index(contents, "{")]
+        name = name.strip()
         type_parameters = []
-        name_full = name
+        name_full = name.replace(" ", "")
         if "<" in name:
             for parameter in name[name.index("<") + 1 : name.rindex(">")].split(","):
                 parameter = parameter.strip()
@@ -426,7 +452,8 @@ def parse(contents, type, extra):
 
         for item in items:
             if not items[item] in primitives:
-                instructions.append(Invoke(items[item] + ".memory_size", 0, [], "integer"))
+                item_simplified = items[item][0 : items[item].index("<") if "<" in items[item] else len(items[item])]
+                instructions.append(Invoke(item_simplified + ".memory_size", 0, [], "integer"))
                 instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(8 * items_list.index(item)))
                 instructions.append(Invoke("@add", 2, ["&any", "&any"], ["any"]))
@@ -552,9 +579,9 @@ def parse_statement(contents, extra):
             comma_count = 0
             return_instructions = []
             for character in return_value_statement:
-                if character == "(":
+                if character == "(" or character == "<":
                     parenthesis_index += 1
-                elif character == "(":
+                elif character == ")" or character == ">":
                     parenthesis_index -= 1
                 elif character == "," and parenthesis_index == 0:
                     return_instructions = parse_statement(built_return, extra + instructions) + return_instructions
@@ -830,6 +857,9 @@ def parse_statement(contents, extra):
             if "<" in name:
                 type_parameters = name[name.index("<") + 1 : name.index(">")].split(",")
 
+            for i in range(0, len(type_parameters)):
+                type_parameters[i] = type_parameters[i].strip()
+
             if name:
                 arguments_array = []
                 arguments = contents[len(name) : ]
@@ -923,8 +953,7 @@ def create_generic_function(function2, mapped_generics, functions):
         for i in range(0, len(new_function.return_)):
             new_function.return_[i] = replace_type(new_function.return_[i], generic, mapped_generics[generic])
 
-        for generic in new_function.generics:
-            new_function.generics_applied.append(mapped_generics[generic])
+        new_function.generics_applied.append(mapped_generics[generic])
 
     new_function.generics = []
     id = new_function.name + "_" + str(len(new_function.parameters))
@@ -1385,8 +1414,8 @@ def create_generic_functions(program, functions, added_generics, program_types, 
 
             if id1 in wanted_generic_functions:
                 generic_variants = wanted_generic_functions[id1]
-                del wanted_generic_functions[id1]
                 #print(id1 + " " + str(wanted_generic_functions[id1]))
+                del wanted_generic_functions[id1]
 
                 id = function2.name + "_" + str(len(function2.parameters))
                 #limited_types = ["integer", "boolean", "any", "String", "Function"]
@@ -1399,6 +1428,7 @@ def create_generic_functions(program, functions, added_generics, program_types, 
                         apply_mapped_generics(new_function, mapped_generics)
                         program.tokens.append(new_function)
                         added_generics.append(new_function)
+                        #print(new_function.applied_generics)
                         if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
                             return_value = 1
 
@@ -1711,6 +1741,8 @@ def type_check(function, instructions, program_types, program_structs, functions
 
                 if len(function2.return_) > 0:
                     for type in function2.return_:
+                        #print(function.name + " " + function2.name)
+                        #print(type)
                         for key in mapped:
                             type = replace_type(type, key, mapped[key])
                         types.append(type)
@@ -1781,9 +1813,12 @@ def is_type(given, wanted, generics = []):
         types_wanted = wanted[wanted.index("<") + 1 : wanted.rindex(">")].split(",")
         types_given = given[given.index("<") + 1 : given.rindex(">")].split(",")
 
-        for i in range(0, len(types_wanted)):
-            if not is_type(types_given[i], types_wanted[i], generics):
-                good = False
+        if len(types_wanted) == len(types_given):
+            for i in range(0, len(types_wanted)):
+                if not is_type(types_given[i], types_wanted[i], generics):
+                    good = False
+        else:
+            good = False
 
         return good
 
@@ -2541,7 +2576,7 @@ def create_linux_binary(program, file_name_base):
     index_thing = 0
     
     def get_asm_name(name):
-        bad = "+=%/*<>!-[]"
+        bad = "+=%/*<>!-[],"
         new_name = ""
         for letter in name:
             if letter in bad:

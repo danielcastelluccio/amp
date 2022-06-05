@@ -158,6 +158,16 @@ struct String {
 	    return String(pointer, length, false)
 	}
 
+    fn hash(string: &String): integer {
+        let total = 0
+        let i = 0
+        while i < string.length {
+            total = total + @get_1(string.pointer + i)
+            i = i + 1
+        }
+        return total
+    }
+
 	fn free_custom(string: &String) {
 		if @not(string.static) {
 			@free(string.pointer, string.length)
@@ -276,6 +286,33 @@ struct LinkedList_Node<A> {
 	fn free_custom<A>(node: &LinkedList_Node<A>) {
         let _ = @cast_A(@cast_any(node.data))
 	}
+}
+
+struct HashMap<A, B> {
+    size: integer
+    array: Array<B>
+
+    fn <A, B>(): HashMap<A, B> {
+        return HashMap<A, B>(20)
+    }
+
+    fn <A, B>(size: integer): HashMap<A, B> {
+        return HashMap<A, B>(size, Array<B>(size))
+    }
+}
+
+fn _[]<A, B>(hash_map: &HashMap<A, B>, key: &A): &B {
+    let position = key.hash()
+    position = position % hash_map.size
+    
+    return hash_map.array[position]
+}
+
+fn _[]=<A, B>(hash_map: &HashMap<A, B>, key: A, value: B) {
+    let position = key.hash()
+    position = position % hash_map.size
+
+    hash_map.array[position] = value
 }
 
 struct Option<A> {

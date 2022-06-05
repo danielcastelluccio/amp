@@ -1,6 +1,6 @@
 use "std"
 
 fn main() {
-    let foo = read_file("test/file_read.amp")
-    print(foo)
+    let contents = read_file("test/file_read.amp")
+    print(contents)
 }

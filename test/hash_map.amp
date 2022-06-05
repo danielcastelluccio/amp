@@ -1,0 +1,9 @@
+use "std"
+
+fn main() {
+    let hash_map = HashMap<String, String>()
+    hash_map["first"] = "Hello "
+    hash_map["second"] = "World!"
+    print(hash_map["first"])
+    println(hash_map["second"])
+}
