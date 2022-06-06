@@ -112,7 +112,7 @@ class EndWhile(Instruction):
 if_id = 0
 primitives = ["integer", "boolean", "any", "&any"]
     
-def parse_file(file):
+def parse_file(file, top_level):
     file = open(file, "r")
     contents_split = file.read().split("\n")
     contents = "" 
@@ -125,9 +125,11 @@ def parse_file(file):
 
     program = parse(contents, "Program", None)
     
-    for token in program.tokens:
-        if isinstance(token, Use):
-            program.tokens.extend(parse_file(token.file + ".amp").tokens)
+    #included = []
+    if top_level:
+        for token in program.tokens:
+            if isinstance(token, Use):
+                program.tokens.extend(parse_file(token.file + ".amp", False).tokens)
     
     return program
 
@@ -138,6 +140,8 @@ def getType(statement):
         return "Use"
     elif statement.startswith("struct "):
         return "Struct"
+    elif statement.startswith("access "):
+        return "Access"
     elif statement.startswith("enum "):
         return "Enum"    
     else:
@@ -181,7 +185,7 @@ def parse(contents, type, extra):
             name = name[0 : name.index("<")]
 
         arguments_array = []
-        arguments_old = contents[len(name) : contents.index("{")]
+        arguments_old = contents[len(name) : contents.index("{") if "{" in contents else len(contents)]
         arguments = arguments_old[arguments_old.index("(") : arguments_old.rindex(")")]
 
         current_argument = ""
@@ -211,30 +215,35 @@ def parse(contents, type, extra):
             if argument:
                 parameters.append(argument.split(":")[1].strip())
 
-        in_quotes = False
-        
-        for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
-            if character == '\n' and current_indent == 0:
-                instructions.extend(parse(current_thing, getType(current_thing), instructions))
-                current_thing = ""
-            else:
-                current_thing += character
+        has_body = False
+        if "{" in contents:
+            has_body = True
+            in_quotes = False
+            for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
+                if character == '\n' and current_indent == 0:
+                    instructions.extend(parse(current_thing, getType(current_thing), instructions))
+                    current_thing = ""
+                else:
+                    current_thing += character
 
-            if character == '"':
-                in_quotes = not in_quotes
-            elif character == '{' and not in_quotes:
-                current_indent += 1
-            elif character == '}' and not in_quotes:
-                current_indent -= 1
+                if character == '"':
+                    in_quotes = not in_quotes
+                elif character == '{' and not in_quotes:
+                    current_indent += 1
+                elif character == '}' and not in_quotes:
+                    current_indent -= 1
                 
         locals = []
                 
-        for instruction in instructions:
-            if isinstance(instruction, Declare):
-                locals.append(instruction.name)
+        if has_body:
+            for instruction in instructions:
+                if isinstance(instruction, Declare):
+                    locals.append(instruction.name)
 
-        if len(instructions) == 0 or not isinstance(instructions[-1], Return):
-            instructions.append(Return(0))
+            if len(instructions) == 0 or not isinstance(instructions[-1], Return):
+                instructions.append(Return(0))
+        else:
+            instructions = []
 
         return_ = (arguments_old[arguments_old.rindex(":") + 1 : len(arguments_old)] if ":" in arguments_old[arguments_old.rindex(")") : len(arguments_old)] else "").replace(" ", "")
         return_split = []
@@ -470,6 +479,50 @@ def parse(contents, type, extra):
         tokens.append(function)
 
         tokens.append(StructMarker(name, type_parameters))
+
+        return tokens
+    elif type == "Access":
+        name = contents[7 : first_non_quote_index(contents, "{")]
+        name = name.strip()
+        type_parameters = []
+        name_full = name.replace(" ", "")
+        if "<" in name:
+            for parameter in name[name.index("<") + 1 : name.rindex(">")].split(","):
+                parameter = parameter.strip()
+                type_parameters.append(parameter)
+
+            name = name[0 : name.index("<")]
+
+        tokens = []
+
+        function_code = []
+
+        body = contents[contents.index("{") + 1 : contents.rindex("}")]
+
+        element = ""
+        bracket_index = 0
+        for character in body:
+            if character == "\n" and bracket_index == 0:
+                element = element.strip()
+                if element:
+                    element = element.strip()
+                    function = parse(element, "Function", extra + tokens)[0]
+                    if function.name and len(function.parameters) > 0 and is_type(name, function.parameters[0]) and not function.parameters[0] == "any":
+                        function.name = "_." + function.name
+                    else:
+                        if function.name:
+                            function.name = name + "." + function.name
+                        else:
+                            function.name = name
+                    tokens.append(function)
+                    element = ""
+            elif character == "{":
+                bracket_index += 1
+            elif character == "}":
+                bracket_index -= 1
+
+            if not character == "\n" or not bracket_index == 0:
+                element += character
 
         return tokens
     elif type == "Enum":
@@ -1014,12 +1067,6 @@ def process_program(program):
             program_types.append(token.name)
             program_enums.append(token.name)
     
-    for function in internals:
-        id = function.name + "_" + str(len(function.parameters))
-        functions.setdefault(id, [])
-        functions[id].append(function)
-        functions2[token.name] = function
-
     wanted_generic_functions["Array['any', 'integer']"] = [{"A": "String"}]
 
     # type checking
@@ -1581,7 +1628,7 @@ def type_check(function, instructions, program_types, program_structs, functions
                             
         elif isinstance(instruction, Assign):
             if len(types) == 0:
-                print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + (variables[instruction.name] if variables[instruction.name] else "a value") + ", given nothing.")
+                print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + (variables[instruction.name].type if variables[instruction.name].type else "a value") + ", given nothing.")
                 return 1
             
             given_type = types.pop()
@@ -1612,6 +1659,10 @@ def type_check(function, instructions, program_types, program_structs, functions
         elif isinstance(instruction, Invoke):
             if instruction.name.startswith("@cast_") and ((instruction.name[6 : instruction.name.index("<") if "<" in instruction.name else len(instruction.name)] in program_types) or (instruction.name[7 : instruction.name.index("<") if "<" in instruction.name else len(instruction.name)] in program_types)):
                 name = instruction.name[6 : len(instruction.name)]
+
+                if len(types) == 0:
+                    print("PROCESS: Cast in " + function.name + " expects a value, given none.")
+                    return 1
 
                 given_type = types.pop()
                 if given_type[0] == "&" and not name[0] == "&" and not (name == "integer" or name == "boolean" or name == "any"):
@@ -2590,7 +2641,8 @@ def create_linux_binary(program, file_name_base):
 
     if_id_binary = 0
     for token in program.tokens:
-        if isinstance(token, Function):
+        if isinstance(token, Function) and len(token.tokens) > 0:
+            #print(token.name + " " + str(token.tokens))
             if_id_binary += if_id
             asm_function = AsmFunction("main" if token.name == "main" else get_asm_name(token.name + "_" + "~".join(token.parameters).replace("&", "") + "_" + "~".join(token.generics_applied)), [])
             
@@ -2807,7 +2859,7 @@ def create_linux_binary(program, file_name_base):
     file.close()
 
 file_name_base = sys.argv[1][0 : sys.argv[1].index(".")]
-program = parse_file(sys.argv[1])
+program = parse_file(sys.argv[1], True)
 if process_program(program) == 1:
     exit()
 

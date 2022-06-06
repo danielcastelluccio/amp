@@ -1,3 +1,5 @@
+use "core"
+
 fn print(string: &String) {
     @print_size(string.pointer, string.length)
 }
@@ -50,21 +52,6 @@ fn execute_command(file: String, arguments: Array<String>, wait: boolean) {
 	}
 }
 
-fn length(string: &any): integer {
-    let location = string
-    let i = 0
-
-    while true {
-        if (@get_1(location) == 0) {
-            return i
-        }
-        location = location + 1
-        i = i + 1
-    }
-
-    return 999
-}
-
 fn _+(string1: &String, string2: &String): String {
     let string1_length = string1.length
     let string2_length = string2.length
@@ -107,26 +94,10 @@ fn not_equal(value1: &any, value2: &any): boolean {
     return @not(@equal(value1, value2))  
 }
 
-struct Array<A> {
-    pointer: any
-    length: integer
-
-	fn <A>(size: integer): Array<A> {
+access Array<A> {
+    fn <A>(size: integer): Array<A> {
 	    return Array<A>(@allocate(size * 8), size)
-	}
-
-	fn free_custom<A>(array: &Array<A>) {
-		if A.memory_size() > 0 {
-			let i = 0
-			while i < array.length {
-				if @not(array[i] == 0) {
-                    let _ = @cast_A(@cast_any(@cast_&any(array[i])))
-				}
-				i = i + 1
-			}
-		}
-		@free(array.pointer, array.length * 8)
-	}
+    }
 }
 
 fn _[]=<A>(array: &Array<A>, index: integer, value: A) {
@@ -137,44 +108,28 @@ fn _[]<A>(array: &Array<A>, index: integer): &A {
     return @cast_&A(@get_8(array.pointer + (index * 8)))
 }
 
-struct Function {
-    pointer: any
-
-	fn call(function: &Function, parameters: Array<any>): any {
+access Function {
+    fn call(function: &Function, parameters: Array<any>): any {
 	    return @call_function(function.pointer, parameters.pointer, parameters.length)
-	}
+    }
 }
 
-struct String {
-    pointer: any
-    length: integer
-    static: boolean
-
-	fn (pointer: any): String {
-	    return String(pointer, length(pointer), false)
-	}
-	
-	fn (pointer: any, length: integer): String {
+access String {
+    fn (pointer: any, length: integer): String {
 	    return String(pointer, length, false)
-	}
+    }
 
     fn hash(string: &String): integer {
         let total = 0
         let i = 0
         while i < string.length {
-            total = total + @get_1(string.pointer + i)
+            total = total + @cast_integer(@get_1(string.pointer + i))
             i = i + 1
         }
         return total
     }
-
-	fn free_custom(string: &String) {
-		if @not(string.static) {
-			@free(string.pointer, string.length)
-		}
-	}
 }
-
+	
 fn _==(string1: String, string2: String): boolean {
     if string1.length != string2.length {
         return false

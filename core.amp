@@ -1,0 +1,86 @@
+struct String {
+    pointer: any
+    length: integer
+    static: boolean
+
+    fn (pointer: any): String {
+	    return String(pointer, length(pointer), false)
+    }
+
+	fn free_custom(string: &String) {
+		if @not(string.static) {
+			@free(string.pointer, string.length)
+		}
+	}
+}
+
+fn length(string: &any): integer {
+    let location = string
+    let i = 0
+
+    while true {
+        if @equal(@get_1(location), 0) {
+            return i
+        }
+        location = @add(location, 1)
+        i = @cast_integer(@add(i, 1))
+    }
+
+    return 999
+}
+
+
+struct Function {
+    pointer: any
+}
+
+struct Array<A> {
+    pointer: any
+    length: integer
+
+	fn free_custom<A>(array: &Array<A>) {
+		if @greater(A.memory_size(), 0) {
+			let i = 0
+			while @less(i, array.length) {
+                let value = @get_8(@add(array.pointer, @multiply(i, 8)))
+				if @not(@equal(value, 0)) {
+                    let _ = @cast_A(value)
+				}
+				i = @cast_integer(@add(i, 1))
+			}
+		}
+
+		@free(array.pointer, @cast_integer(@multiply(array.length, 8)))
+	}
+}
+
+fn @print_size(buffer: &any, length: integer)
+fn @error_size(buffer: &any, length: integer)
+fn @read_size(buffer: &any, length: integer)
+
+fn @get_file_size(file: &any): integer
+fn @read_file_size(file: &any, buffer: &any, size: integer)
+
+fn @allocate(size: integer): any
+fn @free(pointer: &any, size: integer)
+
+fn @copy(pointer_from: &any, pointer_to: &any, size: integer)
+fn @set_1(pointer: &any, value: integer)
+fn @get_1(pointer: &any): any
+fn @set_8(pointer: &any, value: integer)
+fn @get_8(pointer: &any): any
+
+fn @add(value1: &any, value2: &any): any
+fn @subtract(value1: &any, value2: &any): any
+fn @modulo(value1: integer, value2: integer): any
+fn @divide(value1: integer, value2: integer): any
+fn @multiply(value1: integer, value2: integer): any
+
+fn @equal(value1: &any, value2: &any): boolean
+fn @less(value1: integer, value2: integer): boolean
+fn @greater(value1: integer, value2: integer): boolean
+fn @not(value: boolean): boolean
+
+fn @execute(pointer_command: &any, pointer_arguments: &any, wait: boolean)
+
+fn @call_function(pointer_function: &any, pointer_arguments: &any, arguments_length: integer): any
