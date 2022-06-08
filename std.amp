@@ -52,27 +52,14 @@ fn execute_command(file: String, arguments: Array<String>, wait: boolean) {
 	}
 }
 
-fn integer_to_string(integer: integer): String {
-    let string = ""
-    if integer == 0 {
-        string = "0"
-    }
-    
-    while integer > 0 {
-        let modulo = integer % 10
-        integer = integer / 10
-        let prepended_string = String(store(modulo + 48), 1)
-        string = prepended_string +string
-    }
-
-    return string
-}
-
-fn boolean_to_string(boolean: boolean): String {
-    if boolean {
-        return "true"
-    }
-    return "false"
+// lower bound included, upper not included
+fn random_integer_range(start: integer, end: integer): integer {
+    let random = @random(8)
+    let value = @cast_integer(@get_8(random))
+    value = value % (end - start)
+    value = value + start
+    @free(random, 8)
+    return value
 }
 
 fn store(value: integer): any {
@@ -128,23 +115,23 @@ access String {
         @copy(string2.pointer, new_memory + string1_length, string2_length)
         return String(new_memory, string1_length + string2_length)
     }
-}
 	
-fn _==(string1: String, string2: String): boolean {
-    if string1.length != string2.length {
-        return false
-    }
-
-    let i = 0
-    while i < string1.length {
-        if @get_1(string1.pointer + i) != @get_1(string2.pointer + i) {
+    fn ==(string1: String, string2: String): boolean {
+        if string1.length != string2.length {
             return false
         }
 
-        i = i + 1
-    }
+        let i = 0
+        while i < string1.length {
+            if @get_1(string1.pointer + i) != @get_1(string2.pointer + i) {
+                return false
+            }
 
-    return true
+            i = i + 1
+        }
+
+        return true
+    }
 }
 
 fn null(): any {
@@ -342,10 +329,35 @@ access integer {
     fn *(value1: integer, value2: integer): integer {
         return @cast_integer(@multiply(value1, value2))
     }
+
+    fn to_string(integer: integer): String {
+        let string = ""
+        if integer == 0 {
+            string = "0"
+        }
+
+        while integer > 0 {
+            let modulo = integer % 10
+            integer = integer / 10
+            let prepended_string = String(store(modulo + 48), 1)
+            string = prepended_string +string
+        }
+
+        return string
+    }
 }
 
 fn integer.memory_size(): integer {
 	return 0
+}
+
+access boolean {
+    fn to_string(boolean: boolean): String {
+        if boolean {
+            return "true"
+        }
+        return "false"
+    }
 }
 
 fn boolean.memory_size(): integer {

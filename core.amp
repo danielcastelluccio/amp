@@ -84,3 +84,6 @@ fn @not(value: boolean): boolean
 fn @execute(pointer_command: &any, pointer_arguments: &any, wait: boolean)
 
 fn @call_function(pointer_function: &any, pointer_arguments: &any, arguments_length: integer): any
+
+fn @random(length: integer): any
+fn @print_integer(value: integer)

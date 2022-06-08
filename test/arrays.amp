@@ -5,5 +5,5 @@ fn main() {
     array[0] = "Hello "
     array[1] = "World!"
     println(array[0] + array[1])
-    println("Array Length: " + integer_to_string(array.length))
+    println("Array Length: " + array.length.to_string())
 }

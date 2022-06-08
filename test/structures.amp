@@ -2,16 +2,16 @@ use "std"
 
 fn main() {
     let pair = IntPair(1, 2)
-    println(integer_to_string(pair.int1))
-    println(integer_to_string(pair.int2))
+    println(pair.int1.to_string())
+    println(pair.int2.to_string())
 
     pair.int2 = 4
-    println(integer_to_string(pair.int2))
+    println(pair.int2.to_string())
 
     pair.reset()
 
-    println(integer_to_string(pair.int1))
-    println(integer_to_string(pair.int2))
+    println(pair.int1.to_string())
+    println(pair.int2.to_string())
 }
 
 struct IntPair {

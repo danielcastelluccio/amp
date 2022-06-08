@@ -3,7 +3,7 @@ use "std"
 fn main() {
 	let string, boolean = foo()
 	println(string)
-	println(boolean_to_string(boolean))
+	println(boolean.to_string())
 }
 
 fn foo(): String, boolean {

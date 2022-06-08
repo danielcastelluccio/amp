@@ -6,6 +6,6 @@ fn main() {
 
 access String {
     fn +(value1: String, value2: integer): String {
-        return value1 + integer_to_string(value2)
+        return value1 + value2.to_string()
     }
 }

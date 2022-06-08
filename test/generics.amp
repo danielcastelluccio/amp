@@ -5,7 +5,7 @@ fn main() {
 	println(storage.value)
 
 	let storage = Storage(2)
-	println(integer_to_string(storage.value))
+	println(storage.value.to_string())
 }
 
 struct Storage<A> {

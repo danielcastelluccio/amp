@@ -1,0 +1,5 @@
+use "std"
+
+fn main() {
+    println(random_integer_range(5, 10).to_string())
+}

@@ -3,7 +3,7 @@ use "std"
 fn main() {
     let option = Option.empty<String>()
 
-    println(boolean_to_string(option.is_value()))
+    println(option.is_value().to_string())
 
     let option = Option.of("Hello Option!")
     if option.is_value() {

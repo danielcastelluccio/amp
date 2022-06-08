@@ -755,7 +755,7 @@ def parse_statement(contents, extra):
         last_character = ""
         for index, character in enumerate(contents):
             if character == "(":
-                if last_character == ">" and (special_sign == "<" or special_sign == ">"):
+                if (last_character == ">" and (special_sign == "<" or special_sign == ">")) or special_sign == "[]":
                     special_sign = ""
                     special_index = -1
                 current_parenthesis += 1
@@ -2329,7 +2329,7 @@ def create_linux_binary(program, file_name_base):
     print_memory.instructions.append("push r11")
     print_memory.instructions.append("mov rdi, rax")
     #print_memory.instructions.append("sub rdi, memory")
-    print_memory.instructions.append("call print_integer_space")
+    #print_memory.instructions.append("call print_integer_space")
     print_memory.instructions.append("pop r11")
     print_memory.instructions.append("pop rax")
     print_memory.instructions.append("pop r9")
@@ -2342,7 +2342,7 @@ def create_linux_binary(program, file_name_base):
     print_memory.instructions.append("push rax")
     print_memory.instructions.append("push r11")
     print_memory.instructions.append("mov rdi, [rax+8]")
-    print_memory.instructions.append("call print_integer")
+    #print_memory.instructions.append("call print_integer")
     print_memory.instructions.append("pop r11")
     print_memory.instructions.append("pop rax")
     print_memory.instructions.append("pop r9")
@@ -2425,7 +2425,7 @@ def create_linux_binary(program, file_name_base):
     less.instructions.append("mov rbp, rsp")
     less.instructions.append("mov r8, [rbp+16]")
     less.instructions.append("cmp r8, [rbp+24]")
-    less.instructions.append("jge less_not_less")
+    less.instructions.append("jae less_not_less")
     less.instructions.append("less_less:")
     less.instructions.append("mov r8, 1")
     less.instructions.append("mov rsp, rbp")
@@ -2442,8 +2442,8 @@ def create_linux_binary(program, file_name_base):
     greater.instructions.append("push rbp")
     greater.instructions.append("mov rbp, rsp")
     greater.instructions.append("mov r8, [rbp+16]")
-    greater.instructions.append("cmp r8, [rbp+24]")
-    greater.instructions.append("jle greater_not_greater")
+    greater.instructions.append("cmp r8, qword [rbp+24]")
+    greater.instructions.append("jbe greater_not_greater")
     greater.instructions.append("greater_greater:")
     greater.instructions.append("mov r8, 1")
     greater.instructions.append("mov rsp, rbp")
@@ -2482,6 +2482,7 @@ def create_linux_binary(program, file_name_base):
     get.instructions.append("push rbp")
     get.instructions.append("mov rbp, rsp")
     get.instructions.append("mov r9, [rbp+16]")
+    get.instructions.append("mov r8, 0")
     get.instructions.append("mov r8b, [r9]")
     get.instructions.append("mov rsp, rbp")
     get.instructions.append("pop rbp")
@@ -2612,8 +2613,27 @@ def create_linux_binary(program, file_name_base):
     get_file_size.instructions.append("pop rbp")
     get_file_size.instructions.append("ret")
     asm_program.functions.append(get_file_size)
+
+    random = AsmFunction("@random_integer_", [])
+    random.instructions.append("push rbp")
+    random.instructions.append("mov rbp, rsp")
+    random.instructions.append("push qword [rbp+16]")
+    random.instructions.append("call @allocate_integer_")
+    random.instructions.append("mov rdx, r8")
+    random.instructions.append("push rdx")
+    random.instructions.append("push qword [rbp+16]")
+    random.instructions.append("push rdx")
+    random.instructions.append("push random")
+    random.instructions.append("call @read_file_size_any~any~integer_")
+    random.instructions.append("add rsp, 24")
+    random.instructions.append("pop rdx")
+    random.instructions.append("mov r8, rdx")
+    random.instructions.append("mov rsp, rbp")
+    random.instructions.append("pop rbp")
+    random.instructions.append("ret")
+    asm_program.functions.append(random)
     
-    functions = ["_start", "@print_memory__"]
+    functions = ["_start", "@print_memory__", "@read_file_size_any~any~integer_"]
     for token in program.tokens:
         if isinstance(token, Function):
             for instruction in token.tokens:
@@ -2808,7 +2828,11 @@ def create_linux_binary(program, file_name_base):
     syscall
     add     rsp, 40
     ret
-    print_integer:
+    @print_integer_integer_:
+    pop     rsi
+    pop     rdi
+    push    rdi
+    push    rsi
     mov     r9, -3689348814741910323
     sub     rsp, 40
     mov     BYTE [rsp+31], 10
@@ -2850,6 +2874,8 @@ def create_linux_binary(program, file_name_base):
 
     for data in asm_program.data:
         file.write(data.name + ": db " + data.value + "\n")
+
+    file.write("random: db \"/dev/random\"\n")
 
     file.write(inspect.cleandoc("""
         section .bss

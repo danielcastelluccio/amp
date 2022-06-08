@@ -11,14 +11,14 @@ fn main() {
     list.insert(2, 4)
     list.remove(1)
     print_int_list(list)
-    println("List size: " + integer_to_string(list.size()))
-    println("At 0: " + integer_to_string(list[0]))
+    println("List size: " + list.size().to_string())
+    println("At 0: " + list[0].to_string())
 }
 
 fn print_int_list(list: &LinkedList<integer>) {
     let node = @cast_&LinkedList_Node<integer>(list.head)
     while node.next != null() {
         node = @cast_&LinkedList_Node<integer>(node.next)
-        println(integer_to_string(@cast_integer(node.data)))
+        println(@cast_integer(node.data).to_string())
     }
 }
