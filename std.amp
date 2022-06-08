@@ -347,10 +347,6 @@ access integer {
     }
 }
 
-fn integer.memory_size(): integer {
-	return 0
-}
-
 access boolean {
     fn to_string(boolean: boolean): String {
         if boolean {
@@ -358,12 +354,4 @@ access boolean {
         }
         return "false"
     }
-}
-
-fn boolean.memory_size(): integer {
-	return 0
-}
-
-fn any.memory_size(): integer {
-	return 0
 }

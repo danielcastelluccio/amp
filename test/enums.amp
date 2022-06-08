@@ -1,9 +1,9 @@
 use "std"
 
 fn main() {
-    print_test(Test.TEST1())
-    print_test(Test.TEST2())
-    print_test(Test.TEST3())
+    print_test(Test::TEST1())
+    print_test(Test::TEST2())
+    print_test(Test::TEST3())
 }
 
 fn print_test(test: &Test) {

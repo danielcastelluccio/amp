@@ -39,7 +39,7 @@ struct Array<A> {
     length: integer
 
 	fn free_custom<A>(array: &Array<A>) {
-		if @greater(A.memory_size(), 0) {
+		if @greater(A::memory_size(), 0) {
 			let i = 0
 			while @less(i, array.length) {
                 let value = @get_8(@add(array.pointer, @multiply(i, 8)))
@@ -52,6 +52,18 @@ struct Array<A> {
 
 		@free(array.pointer, @cast_integer(@multiply(array.length, 8)))
 	}
+}
+
+fn integer::memory_size(): integer {
+	return 0
+}
+
+fn boolean::memory_size(): integer {
+	return 0
+}
+
+fn any::memory_size(): integer {
+	return 0
 }
 
 fn @print_size(buffer: &any, length: integer)

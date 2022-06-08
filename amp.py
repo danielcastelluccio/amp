@@ -350,7 +350,7 @@ def parse(contents, type, extra):
                             function.name = "_." + function.name
                         else:
                             if function.name:
-                                function.name = name + "." + function.name
+                                function.name = name + "::" + function.name
                             else:
                                 function.name = name
 
@@ -387,7 +387,7 @@ def parse(contents, type, extra):
                         generics.append(items[item2])
 
                     if not item == item2:
-                        instructions.append(Invoke(items[item2] + ".memory_size", 0, [], "integer"))
+                        instructions.append(Invoke(items[item2] + "::memory_size", 0, [], "integer"))
                         instructions.append(Retrieve("instance", None))
                         instructions.append(Constant(8 * items_list.index(item2)))
                         instructions.append(Invoke("@add", 2, []))
@@ -395,7 +395,7 @@ def parse(contents, type, extra):
                         instructions.append(Invoke("@cast_" + items[item2], 1, []))
                         instructions.append(Invoke("@free", 2, []))
 
-            instructions.append(Invoke(name + ".memory_size", 0, [], "integer"))
+            instructions.append(Invoke(name + "::memory_size", 0, [], "integer"))
             instructions.append(Retrieve("instance", None))
             instructions.append(Invoke("@cast_any", 1, []))
             instructions.append(Invoke("@free", 2, []))
@@ -449,7 +449,7 @@ def parse(contents, type, extra):
         instructions.append(Constant(len(items_list) * 8))
         instructions.append(Return(1))
 
-        function = Function(name + ".memory_size", instructions, [], [], ["integer"], [])
+        function = Function(name + "::memory_size", instructions, [], [], ["integer"], [])
         tokens.append(function)
 
         ###############
@@ -462,7 +462,7 @@ def parse(contents, type, extra):
         for item in items:
             if not items[item] in primitives:
                 item_simplified = items[item][0 : items[item].index("<") if "<" in items[item] else len(items[item])]
-                instructions.append(Invoke(item_simplified + ".memory_size", 0, [], "integer"))
+                instructions.append(Invoke(item_simplified + "::memory_size", 0, [], "integer"))
                 instructions.append(Retrieve("instance", None))
                 instructions.append(Constant(8 * items_list.index(item)))
                 instructions.append(Invoke("@add", 2, ["&any", "&any"], ["any"]))
@@ -511,7 +511,7 @@ def parse(contents, type, extra):
                         function.name = "_." + function.name
                     else:
                         if function.name:
-                            function.name = name + "." + function.name
+                            function.name = name + "::" + function.name
                         else:
                             function.name = name
                     tokens.append(function)
@@ -536,7 +536,7 @@ def parse(contents, type, extra):
             if item:
                 item = item.strip()
 
-                get_name = name + "." + item
+                get_name = name + "::" + item
                 instructions = []
                 locals = []
 
@@ -568,7 +568,7 @@ def parse(contents, type, extra):
         instructions.append(Constant(8))
         instructions.append(Return(1))
 
-        function = Function(name + ".memory_size", instructions, [], [], ["integer"], [])
+        function = Function(name + "::memory_size", instructions, [], [], ["integer"], [])
         tokens.append(function)
 
         ###############
@@ -944,15 +944,15 @@ def parse_statement(contents, extra):
                 
                 if "." in name:
                     parsed = parse_statement(name[0 : name.rindex(".")], extra + instructions)
-                    if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
-                        for instruction in (extra + instructions):
-                            if isinstance(instruction, Declare) and instruction.name == parsed[0].name:
-                                instructions.extend(parsed)
-                                name = "_." + name[name.rindex(".") + 1 : len(name)]
-                                break
-                    else:
-                        instructions.extend(parsed)
-                        name = "_." + name[name.rindex(".") + 1 : len(name)]
+                    #if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
+                        #for instruction in (extra + instructions):
+                            #if isinstance(instruction, Declare) and instruction.name == parsed[0].name:
+                                #instructions.extend(parsed)
+                                #name = "_." + name[name.rindex(".") + 1 : len(name)]
+                                #break
+                    #else:
+                    instructions.extend(parsed)
+                    name = "_." + name[name.rindex(".") + 1 : len(name)]
 
                 if "<" in name:
                     name = name[0 : name.index("<")]
@@ -1024,9 +1024,9 @@ def apply_mapped_generics(new_function, mapped_generics):
             elif isinstance(token, Invoke):
                 if token.name.startswith("@cast_"):
                     token.name = "@cast_" + replace_type(token.name[6:], generic, mapped_generics[generic])
-                elif ".memory_size" in token.name:
-                    index = token.name.index(".memory_size")
-                    token.name = replace_type(token.name[0 : index], generic, mapped_generics[generic]) + ".memory_size"
+                elif "::memory_size" in token.name:
+                    index = token.name.index("::memory_size")
+                    token.name = replace_type(token.name[0 : index], generic, mapped_generics[generic]) + "::memory_size"
 
                 for i in range(0, len(token.parameters)):
                     token.parameters[i] = replace_type(token.parameters[i], generic, mapped_generics[generic])
@@ -1141,7 +1141,7 @@ def process_program(program):
                 elif isinstance(instruction, Assign):
                     if instruction.name in owned_variables and not variables[instruction.name] in primitives and not variables[instruction.name][0] == "&":
                         index = function.tokens.index(instruction)
-                        function.tokens.insert(index, Invoke(normalize(variables[instruction.name]) + ".memory_size", 0, [], ["integer"]))
+                        function.tokens.insert(index, Invoke(normalize(variables[instruction.name]) + "::memory_size", 0, [], ["integer"]))
                         function.tokens.insert(index + 1, Retrieve(instruction.name, None))
                         function.tokens.insert(index + 2, Invoke("@free", 2, ["&any", "integer"], []))
 
@@ -1194,7 +1194,7 @@ def process_program(program):
                             if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
                                 name = function.name
                                 if owned_variable_scopes[variable] == id:
-                                    function.tokens.insert(index, Invoke(normalize(variables[variable]) + ".memory_size", 0, [], ["integer"]))
+                                    function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
                                     function.tokens.insert(index + 1, Retrieve(variable, None))
                                     function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                     index += 3
@@ -1214,7 +1214,7 @@ def process_program(program):
                             if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
                                 name = function.name
                                 if owned_variable_scopes[variable] == id:
-                                    function.tokens.insert(index, Invoke(normalize(variables[variable]) + ".memory_size", 0, [], ["integer"]))
+                                    function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
                                     function.tokens.insert(index + 1, Retrieve(variable, None))
                                     function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                     index += 3
@@ -1262,7 +1262,7 @@ def process_program(program):
                                     del variable_usages[usage]
 
                             if stack in value_usages and parameter[0] == "&" and not values[value_usages[stack]] in primitives and not values[value_usages[stack]] in program_enums:
-                                function.tokens.insert(post_method_index, Invoke(normalize(values[value_usages[stack]]) + ".memory_size", 0, [], ["integer"]))
+                                function.tokens.insert(post_method_index, Invoke(normalize(values[value_usages[stack]]) + "::memory_size", 0, [], ["integer"]))
                                 function.tokens.insert(post_method_index + 1, Retrieve(value_usages[stack], None))
                                 function.tokens.insert(post_method_index + 2, Invoke("@free", 2, ["any", "integer"], []))
 
@@ -1314,7 +1314,7 @@ def process_program(program):
                         if not variables[variable] in primitives and not variables[variable][0] == "&":
                             name = function.name
                             if owned_variable_scopes[variable] == "":
-                                function.tokens.insert(index, Invoke(normalize(variables[variable]) + ".memory_size", 0, [], ["integer"]))
+                                function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
                                 function.tokens.insert(index + 1, Retrieve(variable, None))
                                 function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                 index += 3
@@ -1540,7 +1540,7 @@ def create_generic_functions(program, functions, added_generics, program_types, 
 invocation_map = {}
 
 def is_used(function, functions):
-    if function.name == "main" or (function.name == "String" and function.parameters[0] == "any") or (function.name == "Function" and function.parameters[0] == "any") or function.name == "Function.free" or (function.name == "Array" and function.parameters[0] == "any" and function.parameters[1] == "integer") or function.name == "String.memory_size":
+    if function.name == "main" or (function.name == "String" and function.parameters[0] == "any") or (function.name == "Function" and function.parameters[0] == "any") or function.name == "Function.free" or (function.name == "Array" and function.parameters[0] == "any" and function.parameters[1] == "integer") or function.name == "String::memory_size":
         return True
 
     for other_function in functions:
@@ -1649,6 +1649,7 @@ def type_check(function, instructions, program_types, program_structs, functions
                 instruction.data = functions2[instruction.name].parameters
             else:
                 if not instruction.name in variables:
+                    print(function.parameters)
                     print("PROCESS: Variable " + instruction.name + " in " + function.name + " not found.")
                     return 1
                 types.append(variables[instruction.name].type)
@@ -2647,7 +2648,7 @@ def create_linux_binary(program, file_name_base):
     index_thing = 0
     
     def get_asm_name(name):
-        bad = "+=%/*<>!-[],"
+        bad = "+=%/*<>!-[],:"
         new_name = ""
         for letter in name:
             if letter in bad:

@@ -1,11 +1,11 @@
 use "std"
 
 fn main() {
-    let option = Option.empty<String>()
+    let option = Option::empty<String>()
 
     println(option.is_value().to_string())
 
-    let option = Option.of("Hello Option!")
+    let option = Option::of("Hello Option!")
     if option.is_value() {
         println(option.data())
     } else {
