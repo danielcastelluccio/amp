@@ -1,0 +1,9 @@
+use "std"
+
+fn main() {
+    test(String)
+}
+
+fn test(type: Type) {
+    println(type.name)
+}
