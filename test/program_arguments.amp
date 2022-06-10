@@ -3,7 +3,7 @@ use "std"
 fn main(arguments: Array<String>) {
     let i = 0
     while i < arguments.length {
-        let argument = @cast_&String(arguments[i])
+        let argument = arguments[i]
         println(argument + ", size: " + argument.length.to_string())
         i = i + 1
     }

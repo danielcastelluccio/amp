@@ -37,7 +37,7 @@ fn execute_command(file: String, arguments: Array<String>, wait: boolean) {
 	let arguments_new = Array<any>(arguments.length + 1)
 	let i = 0
 	while i < arguments.length {
-		let thing = @cast_&String(arguments[i]) + "\0"
+		let thing = arguments[i] + "\0"
 		arguments_new[i] = @cast_any(thing.pointer_consume())
 		i = i + 1
 	}
@@ -78,7 +78,7 @@ access Array<A> {
     }
 
     fn []=<A>(array: &Array<A>, index: integer, value: A) {
-        @set_8(array.pointer + (index * 8), @cast_integer(value))
+        @set_8(array.pointer + (index * 8), value)
     }
 
     fn []<A>(array: &Array<A>, index: integer): &A {

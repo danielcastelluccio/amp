@@ -329,7 +329,7 @@ def parse(contents, type, extra):
                         instructions.append(Declare("instance", "&" + name_full))
                         instructions.append(Declare(item_name, item.split(":")[1].strip()))
                         instructions.append(Retrieve(item_name, None))
-                        instructions.append(Invoke("@cast_integer", 1, []))
+                        #instructions.append(Invoke("@cast_integer", 1, []))
                         instructions.append(Retrieve("instance", None))
                         instructions.append(Constant(8 * len(items)))
                         instructions.append(Invoke("@add", 2, ["&any", "&any"], ["any"]))
@@ -432,7 +432,7 @@ def parse(contents, type, extra):
                 generics.append(items[item])
 
             instructions.append(Retrieve(item, None))
-            instructions.append(Invoke("@cast_integer", 1, []))
+            #instructions.append(Invoke("@cast_integer", 1, []))
             instructions.append(Constant(8 * items_list.index(item)))
             instructions.append(Invoke("@cast_any", 1, []))
             instructions.append(Retrieve("instance", None))
@@ -556,6 +556,7 @@ def parse(contents, type, extra):
                 locals = []
 
                 instructions.append(Constant(len(items_list)))
+                instructions.append(Invoke("@cast_any", 1, []))
                 instructions.append(Invoke("@cast_" + name, 1, []))
                 instructions.append(Return(1))
 
@@ -1174,11 +1175,11 @@ def process_program(program):
                 elif isinstance(instruction, Assign):
                     if instruction.name in owned_variables and not variables[instruction.name] in primitives and not variables[instruction.name][0] == "&":
                         index = function.tokens.index(instruction)
-                        #function.tokens.insert(index, Invoke(normalize(variables[instruction.name]) + "::type", 0, [], ["Type"]))
-                        #function.tokens.insert(index + 1, Invoke("_memory_size", 1, ["&Type"], ["integer"]))
-                        function.tokens.insert(index, Invoke(normalize(variables[instruction.name]) + "::memory_size", 0, [], ["integer"]))
-                        function.tokens.insert(index + 1, Retrieve(instruction.name, None))
-                        function.tokens.insert(index + 2, Invoke("@free", 2, ["&any", "integer"], []))
+                        #TODO: fix bug
+                        #if instruction.name == "string" or instruction.name == "option":
+                            #function.tokens.insert(index, Invoke(normalize(variables[instruction.name]) + "::memory_size", 0, [], ["integer"]))
+                            #function.tokens.insert(index + 1, Retrieve(instruction.name, None))
+                            #function.tokens.insert(index + 2, Invoke("@free", 2, ["&any", "integer"], []))
 
                     owned_variables.add(instruction.name)
 
@@ -1305,8 +1306,6 @@ def process_program(program):
                                 if not function.name == "Type.free" or True:
                                     #print(function.name + " " + foo)
                                     function.tokens.insert(post_method_index, Invoke(normalize(values[value_usages[stack]]) + "::memory_size", 0, [], ["integer"]))
-                                    #function.tokens.insert(post_method_index, Invoke(normalize(values[value_usages[stack]]) + "::type", 0, [], ["Type"]))
-                                    #function.tokens.insert(post_method_index + 1, Invoke("_memory_size", 1, ["&Type"], ["integer"]))
                                     function.tokens.insert(post_method_index + 1, Retrieve(value_usages[stack], None))
                                     function.tokens.insert(post_method_index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                     post_method_index += 3
@@ -1361,8 +1360,6 @@ def process_program(program):
                             name = function.name
                             if owned_variable_scopes[variable] == "":
                                 function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
-                                #function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::type", 0, [], ["Type"]))
-                                #function.tokens.insert(index + 1, Invoke("_memory_size", 1, ["&Type"], ["integer"]))
                                 function.tokens.insert(index + 1, Retrieve(variable, None))
                                 function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                 index += 3
@@ -1743,7 +1740,9 @@ def type_check(function, instructions, program_types, program_structs, functions
                     return 1
 
                 given_type = types.pop()
-                if given_type[0] == "&" and not name[0] == "&" and not (name == "integer" or name == "boolean" or name == "any"):
+                given_type_stripped = given_type.replace("&", "")
+                name_stripped = name.replace("&", "")
+                if (given_type[0] == "&" and not name[0] == "&" and not name in primitives) or (not name_stripped == "any" and not given_type_stripped == "any"):
                     print("PROCESS: Attempted to cast in " + function.name + " from " + given_type + " to " + name + ".")
                     return 1
                 
@@ -2523,7 +2522,7 @@ def create_linux_binary(program, file_name_base):
     greater.instructions.append("ret")
     asm_program.functions.append(greater)
 
-    set_1 = AsmFunction("@set_1_any~integer_", [])
+    set_1 = AsmFunction("@set_1_any~any_", [])
     set_1.instructions.append("push rbp")
     set_1.instructions.append("mov rbp, rsp")
     set_1.instructions.append("mov r8, [rbp+24]")
@@ -2534,7 +2533,7 @@ def create_linux_binary(program, file_name_base):
     set_1.instructions.append("ret")
     asm_program.functions.append(set_1)
 
-    set_8 = AsmFunction("@set_8_any~integer_", [])
+    set_8 = AsmFunction("@set_8_any~any_", [])
     set_8.instructions.append("push rbp")
     set_8.instructions.append("mov rbp, rsp")
     set_8.instructions.append("mov r8, [rbp+24]")

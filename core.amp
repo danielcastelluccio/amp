@@ -94,9 +94,9 @@ fn @allocate(size: integer): any
 fn @free(pointer: &any, size: integer)
 
 fn @copy(pointer_from: &any, pointer_to: &any, size: integer)
-fn @set_1(pointer: &any, value: integer)
+fn @set_1(pointer: &any, value: any)
 fn @get_1(pointer: &any): any
-fn @set_8(pointer: &any, value: integer)
+fn @set_8(pointer: &any, value: any)
 fn @get_8(pointer: &any): any
 
 fn @add(value1: &any, value2: &any): any

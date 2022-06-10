@@ -10,7 +10,7 @@ fn main() {
     	let parameters = Array<String>(1)
     	parameters[0] = "Welcome child!"
 
-		println(@cast_String(@cast_&Function(functions[i]).call(parameters)))
+		println(@cast_String(functions[i].call(parameters)))
         i = i + 1
     }
 }
