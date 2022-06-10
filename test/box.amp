@@ -1,0 +1,21 @@
+use "std"
+
+fn main() {
+    let array = Array<Box>(3)
+    array[0] = Box("Hello!")
+    array[1] = Box(64)
+    array[2] = Box(false)
+
+    let i = 0
+    while i < array.length {
+        let item = array[i]
+        if item.type == String {
+            println(@cast_&String(item.value))
+        } else if item.type == integer {
+            println(@cast_integer(item.value).to_string())
+        } else if item.type == boolean {
+            println(@cast_boolean(item.value).to_string())
+        }
+        i = i + 1
+    }
+}

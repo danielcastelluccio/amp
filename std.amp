@@ -116,7 +116,7 @@ access String {
         return String(new_memory, string1_length + string2_length)
     }
 	
-    fn ==(string1: String, string2: String): boolean {
+    fn ==(string1: &String, string2: &String): boolean {
         if string1.length != string2.length {
             return false
         }
@@ -281,6 +281,25 @@ struct Option<A> {
 	fn data<A>(option: &Option<A>): &A {
 		return @cast_&A(option.data)
 	}
+}
+
+struct Box {
+    value: any
+    type: Type
+
+    fn <A>(value: A): Box {
+        return Box(value, A)
+    }
+
+    fn free_custom(box: &Box) {
+        //let _ = 
+    }
+}
+
+access Type {
+    fn ==(type1: &Type, type2: &Type): boolean {
+        return type1.name == type2.name
+    }
 }
 
 access any {
