@@ -1,0 +1,35 @@
+use "std"
+
+struct Node {
+    left: ?Node
+    right: ?Node
+
+    fn free_custom(node: &Node) {
+        if node.left != null() {
+            let _ = @cast_Node(node.left)
+        }
+        if node.right != null() {
+            let _ = @cast_Node(node.right)
+        }
+    }
+}
+
+fn invert(node: ?Node) {
+    if node == 0 {
+        return
+    }
+
+    let temp = node.left
+    node.left = node.right
+    node.right = temp
+
+    invert(node.left)
+    invert(node.right)
+}
+
+fn main() {
+    let node = Node(Node(null(), null()), null())
+    invert(node)
+    println("Left: " + (node.left != 0).to_string())
+    println("Right: " + (node.right != 0).to_string())
+}

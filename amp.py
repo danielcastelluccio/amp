@@ -323,7 +323,10 @@ def parse(contents, type, extra):
                         instructions.append(Invoke("@cast_" + item_type, 1, []))
                         instructions.append(Return(1))
 
-                        if not item_type in primitives or item_type == "any":
+                        if item_type[0] == "?":
+                            item_type = item_type[1:]
+
+                        if (not item_type in primitives or item_type == "any"):
                             item_type = "&" + item_type
 
                         locals.append("instance")
@@ -331,7 +334,6 @@ def parse(contents, type, extra):
                         function = Function(get_name, instructions, locals, ["&" + name_full], [item_type], type_parameters)
                         tokens.append(function)
 
-                        set_name = name + "." + item_name
                         instructions = []
                         locals = []
 
@@ -348,7 +350,7 @@ def parse(contents, type, extra):
                         locals.append(item_name)
                         locals.append("instance")
 
-                        function = Function("_" + item_name + "=", instructions, locals, ["&" + name_full, item.split(":")[1].strip()], [], type_parameters)
+                        function = Function("_" + item_name + "=", instructions, locals, ["&" + name_full, item.split(":")[1].strip().replace("&", "")], [], type_parameters)
                         tokens.append(function)
 
                         items[item.split(":")[0]] = item.split(":")[1].strip()
@@ -391,13 +393,11 @@ def parse(contents, type, extra):
             generics = []
 
             for item2 in items:
-                if not items[item2] in primitives:
+                if not items[item2] in primitives and not items[item2][0] == "&" and not items[item2][0] == "?":
                     if len(items[item2]) == 1:
                         generics.append(items[item2])
 
                     if not item == item2:
-                        #instructions.append(Invoke(items[item2] + "::type", 0, [], ["Type"]))
-                        #instructions.append(Invoke("_memory_size", 1, ["&Type"], ["integer"]))
                         instructions.append(Invoke(items[item2] + "::memory_size", 0, [], "integer"))
                         instructions.append(Retrieve("instance", None))
                         instructions.append(Constant(8 * items_list.index(item2)))
@@ -453,7 +453,11 @@ def parse(contents, type, extra):
 
         locals.append("instance")
 
-        function = Function(name, instructions, locals, list(items.values()), [name_full], type_parameters)
+        new_items = []
+        for item in items.values():
+            new_items.append(item.replace("&", ""))
+
+        function = Function(name, instructions, locals, new_items, [name_full], type_parameters)
         tokens.append(function)
 
         ##################
@@ -482,7 +486,7 @@ def parse(contents, type, extra):
         instructions.append(Declare("instance", "&" + name_full))
 
         for item in items:
-            if not items[item] in primitives:
+            if not items[item] in primitives and not items[item][0] == "&" and not items[item][0] == "?":
                 item_simplified = items[item][0 : items[item].index("<") if "<" in items[item] else len(items[item])]
                 #instructions.append(Invoke(item_simplified + "::type", 0, [], ["Type"]))
                 #instructions.append(Invoke("_memory_size", 1, ["&Type"], ["integer"]))
@@ -989,17 +993,15 @@ def parse_statement(contents, extra):
                     type_parameters[i] = type_parameters[i].strip()
 
                 if name:
-                    arguments_array = []
                     arguments = contents[len(name) : ]
                     arguments = arguments[arguments.index("(") + 1 : len(arguments) - 1]
 
-                    current_argument = ""
+                    argument_count = 0
                     current_parenthesis = 0
                     in_quotations = False
                     for character in arguments:
                         if character == "," and current_parenthesis == 0 and not in_quotations:
-                            arguments_array.append(current_argument)
-                            current_argument = ""
+                            argument_count += 1
                         elif character == "\"":
                             in_quotations = not in_quotations
                         elif character == "(":
@@ -1007,31 +1009,19 @@ def parse_statement(contents, extra):
                         elif character == ")":
                             current_parenthesis -= 1
 
-                        if (not character == " " and not character == ",") or (not current_parenthesis == 0) or (in_quotations):
-                            current_argument += character
-
                     if arguments:
-                        arguments_array.append(current_argument)
-                    
-                    for parameter in arguments_array[::-1]:
-                        if parameter:
-                            instructions.extend(parse_statement(parameter, extra + instructions))
+                        argument_count += 1
+
+                    instructions.extend(parse_statement(arguments, extra + instructions))
                     
                     if "." in name:
                         parsed = parse_statement(name[0 : name.rindex(".")], extra + instructions)
-                        #if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
-                            #for instruction in (extra + instructions):
-                                #if isinstance(instruction, Declare) and instruction.name == parsed[0].name:
-                                    #instructions.extend(parsed)
-                                    #name = "_." + name[name.rindex(".") + 1 : len(name)]
-                                    #break
-                        #else:
                         instructions.extend(parsed)
                         name = "_." + name[name.rindex(".") + 1 : len(name)]
 
                     if "<" in name:
                         name = name[0 : name.index("<")]
-                    instructions.append(Invoke(name, len(arguments_array) + (1 if name.startswith("_.") else 0), [], [], type_parameters))
+                    instructions.append(Invoke(name, argument_count + (1 if name.startswith("_.") else 0), [], [], type_parameters))
                 else:
                     instructions.extend(parse_statement(contents[1 : len(contents) - 1], extra +  instructions))
             else:
@@ -1224,7 +1214,7 @@ def process_program(program):
                     if function.locals.index(instruction.name) < len(function.parameters):
                         variable_loops[instruction.name] = ""
                 elif isinstance(instruction, Assign):
-                    if instruction.name in owned_variables and not variables[instruction.name] in primitives and not variables[instruction.name][0] == "&":
+                    if instruction.name in owned_variables and not variables[instruction.name] in primitives and not variables[instruction.name][0] == "&" and not variables[instruction.name][0] == "?":
                         index = function.tokens.index(instruction)
                         function.tokens.insert(index, Invoke(normalize(variables[instruction.name]) + "::memory_size", 0, [], ["integer"]))
                         function.tokens.insert(index + 1, Retrieve(instruction.name, None))
@@ -1247,7 +1237,7 @@ def process_program(program):
 
                     for usage in dict(variable_usages):
                         if variable_usages[usage] == stack:
-                            if not (variables[instruction.name][0] == "&" or variables[usage] in primitives):
+                            if not (variables[instruction.name][0] == "?" or variables[instruction.name][0] == "&" or variables[usage] in primitives):
                                 owned_variables.remove(usage)
 
                                 current_loop = ""
@@ -1276,7 +1266,7 @@ def process_program(program):
 
                         index = function.tokens.index(instruction)
                         for variable in owned_variables:
-                            if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
+                            if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable][0] == "?" and not variables[variable] in program_enums:
                                 name = function.name
                                 if owned_variable_scopes[variable] == id:
                                     function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
@@ -1295,14 +1285,17 @@ def process_program(program):
                         scopes.pop()
 
                         index = function.tokens.index(instruction)
+                        added = []
                         for variable in owned_variables:
-                            if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
+                            if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable][0] == "?" and not variables[variable] in program_enums:
                                 name = function.name
                                 if variable in owned_variable_scopes and owned_variable_scopes[variable] == id:
                                     function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
                                     function.tokens.insert(index + 1, Retrieve(variable, None))
                                     function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                     index += 3
+                                    added.append(variable)
+                                    owned_variables.remove(variable)
                     pass
                 elif isinstance(instruction, Retrieve):
                     stack += 1
@@ -1334,7 +1327,7 @@ def process_program(program):
                         for parameter in instruction.parameters:
                             for usage in dict(variable_usages):
                                 if variable_usages[usage] == stack:
-                                    if not (parameter[0] == "&" or variables[usage] in primitives):
+                                    if not (parameter[0] == "&" or parameter[0] == "?" or variables[usage] in primitives):
                                         owned_variables.remove(usage)
 
                                         current_loop = ""
@@ -1361,7 +1354,7 @@ def process_program(program):
                             for return_type in instruction.return_:
                                 stack += 1
 
-                                if not return_type[0] == "&":
+                                if not return_type[0] == "&" and not return_type[0] == "?":
                                     id = "_" + str(index_thing)
                                     type = return_type
 
@@ -1396,7 +1389,7 @@ def process_program(program):
                     index = function.tokens.index(instruction)
 
                     for variable in owned_variables:
-                        if not variables[variable] in primitives and not variables[variable][0] == "&":
+                        if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable][0] == "?":
                             name = function.name
                             if variable in owned_variable_scopes and owned_variable_scopes[variable] == "":
                                 function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
@@ -1795,7 +1788,7 @@ def type_check(function, instructions, program_types, program_structs, functions
                 given_type = types.pop()
                 given_type_stripped = given_type.replace("&", "")
                 name_stripped = name.replace("&", "")
-                if (given_type[0] == "&" and not name[0] == "&" and not name in primitives) or (not name_stripped == "any" and not given_type_stripped == "any"):
+                if ((given_type[0] == "&" and not name[0] == "&" and not name in primitives) or (not name_stripped == "any" and not given_type_stripped == "any")) and (given_type_stripped == name_stripped and given_type == name):
                     print("PROCESS: Attempted to cast in " + function.name + " from " + given_type + " to " + name + ".")
                     return 1
                 
@@ -1867,6 +1860,9 @@ def type_check(function, instructions, program_types, program_structs, functions
                                 named_functions.remove(function3)
 
                 function2 = named_functions[0]
+
+                #if function.name == "main":
+                    #print(function2.parameters)
 
                 set_params = False
                 if len(instruction.parameters) == 0:
@@ -1966,10 +1962,13 @@ def is_type(given, wanted, generics = []):
     if wanted == "any" and not given[0] == "&":
         return True
 
-    if wanted[0] == "&" and (wanted[1 : len(wanted)] == given or wanted[1:] == "any"):
+    if wanted[0] == "?" and given == "any":
         return True
 
-    if wanted in generics or (wanted[0] == "&" and wanted[1:] in generics):
+    if (wanted[0] == "&" or wanted[0] == "?") and (wanted[1 : len(wanted)] == given or wanted[1:] == "any"):
+        return True
+
+    if wanted in generics or ((wanted[0] == "&" or wanted[0] == "?") and wanted[1:] in generics):
         return True
 
     if "<" in wanted and "<" in given:
@@ -1995,7 +1994,8 @@ def is_type(given, wanted, generics = []):
     main_wanted = wanted[0 : wanted.index("<") if "<" in wanted else len(wanted)]
     main_given = given[0 : given.index("<") if "<" in given else len(given)]
 
-    return main_given == main_wanted or (main_wanted[0] == "&" and main_given == main_wanted[1:])
+    return main_given == main_wanted or ((main_wanted[0] == "&" or main_wanted[0] == "?") and main_given == main_wanted[1:]) or ((main_wanted[0] == "&" or main_wanted[0] == "?") and (main_given[0] == "&" or main_given[0] == "?") and main_given[1:] == main_wanted[1:])
+
 
 def get_mapped_type(given, wanted, generics = []):
     mapped = {}
