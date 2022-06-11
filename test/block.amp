@@ -1,0 +1,9 @@
+use "std"
+
+fn main() {
+    let foo, bar = {
+        "test", true
+    }
+    println(foo)
+    println(bar.to_string())
+}

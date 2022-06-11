@@ -647,7 +647,7 @@ def parse_statement(contents, extra):
         expression = contents[contents.index("=") + 1 : len(contents)]
         expression = expression.lstrip()
         instructions.extend(parse_statement(expression, extra + instructions))
-        for name in names[::-1]:
+        for name in names:
             instructions.append(Assign(name))
     elif contents.startswith("return ") or contents == "return":
         return_value_statement = contents[7 : len(contents)]
@@ -663,14 +663,10 @@ def parse_statement(contents, extra):
                     parenthesis_index -= 1
                 elif character == "," and parenthesis_index == 0:
                     return_instructions = parse_statement(built_return, extra + instructions) + return_instructions
-                    built_return = ""
                     comma_count += 1
                     continue
 
-                built_return += character
-
-            if built_return:
-                return_instructions = parse_statement(built_return, extra + instructions) + return_instructions
+            return_instructions = parse_statement(return_value_statement, extra + instructions) + return_instructions
 
             instructions.extend(return_instructions)
             instructions.append(Return(comma_count + 1))
@@ -771,222 +767,260 @@ def parse_statement(contents, extra):
         instructions.extend(instructions2)
 
         instructions.append(EndWhile(id1, id2))
-    else:
-        special_sign = ""
-        special_index = -1
-        special_index2 = -1
-        special_index3 = -1
-        current_parenthesis = 0
-        last_character = ""
-        for index, character in enumerate(contents):
-            if character == "(":
-                if (last_character == ">" and (special_sign == "<" or special_sign == ">")) or special_sign == "[]":
-                    special_sign = ""
-                    special_index = -1
-                current_parenthesis += 1
-            elif character == ")":
-                current_parenthesis -= 1
-            elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
-                special_sign = "+"
-                special_index = index
-            elif character == "-" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
-                special_sign = "-"
-                special_index = index
-            elif character == "*" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
-                special_sign = "*"
-                special_index = index
-            elif character == "/" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
-                special_sign = "/"
-                special_index = index
-            elif character == "%" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
-                special_sign = "%"
-                special_index = index
-            elif character == "=" and last_character == "=" and current_parenthesis == 0:
-                special_sign = "=="
-                special_index = index - 1
-            elif character == "=" and last_character == "!" and current_parenthesis == 0:
-                special_sign = "!="
-                special_index = index - 1
-            elif character == "<" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
-                special_sign = "<"
-                special_index = index
-            elif character == ">" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
-                special_sign = ">"
-                special_index = index
-            elif character == "[" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
-                special_sign = "[]"
-                special_index = index
-            elif character == "]" and current_parenthesis == 0 and special_index2 == -1:
-                special_index2 = index
-            elif character == "=" and current_parenthesis == 0 and special_sign == "[]":
-                if not last_character == "=":
-                    special_sign = "[]="
-                    special_index3 = index
-            elif character == "." and current_parenthesis == 0 and (special_index == -1 or special_sign == ".") and not "(" in contents[index : (contents.rindex("=") if "=" in contents[index:] else len(contents))]:
-                special_sign = "."
-                special_index = index
-            elif character == "=" and current_parenthesis == 0 and special_sign == ".":
-                if not last_character == "=":
-                    special_sign = ".="
-                    special_index2 = index
-            
-            last_character = character
+    elif contents.startswith("{"):
+        current_thing = ""
+        current_indent = 0
+        for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
+            if character == '\n' and current_indent == 0:
+                instructions.extend(parse(current_thing, getType(current_thing), extra + instructions))
+                current_thing = ""
+            else:
+                current_thing += character
 
-        if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!" and not special_sign == "[]=" and not special_sign == ".=":
-                name = contents.split(" ")[0]
-                expression = contents[contents.index("=") + 1 : len(contents)]
-                expression = expression.lstrip()
-                instructions.extend(parse_statement(expression, extra + instructions))
-                instructions.append(Assign(name))
-        elif special_sign == "+":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_.+", 2, []))
-        elif special_sign == "-":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_.-", 2, []))
-        elif special_sign == "*":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.append(Invoke("_.*", 2, []))
-        elif special_sign == "/":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_./", 2, []))
-        elif special_sign == "%":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_.%", 2, []))
-        elif special_sign == "==":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 2 : len(contents)].strip()
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_.==", 2, []))
-        elif special_sign == "!=":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 2 : len(contents)].strip()
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_.!=", 2, []))
-        elif special_sign == "<":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_.<", 2, []))
-        elif special_sign == ">":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_.>", 2, []))
-        elif special_sign == "[]":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : special_index2].strip()
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_.[]", 2, []))
-        elif special_sign == "[]=":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : special_index2].strip()
-            after2 = contents[special_index3 + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(after2, extra + instructions))
-            instructions.extend(parse_statement(after, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_.[]=", 3, []))
-        elif special_sign == ".":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 :].strip()
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_" + after, 1, []))
-        elif special_sign == ".=":
-            before = contents[0 : special_index].strip()
-            after = contents[special_index + 1 : special_index2].strip()
-            after2 = contents[special_index2 + 1 : len(contents)].strip()
-            instructions.extend(parse_statement(after2, extra + instructions))
-            instructions.extend(parse_statement(before, extra + instructions))
-            instructions.append(Invoke("_" + after + "=", 2, []))
-        elif "(" in contents and contents.endswith(")"):
-            max = 0
-            index_thing = -1
+            if character == '{':
+                current_indent += 1
+            elif character == '}':
+                current_indent -= 1
+    else:
+        split = False
+        if "," in contents:
+            current_indent = 0
+            current_thing = ""
+            instructions2 = []
+            for character in contents:
+                if character == "(" or character == "<":
+                    current_indent += 1
+                elif character == ")" or character == ">":
+                    current_indent -= 1
+                
+                if character == "," and current_indent == 0:
+                    split = True
+                    instructions2 = parse(current_thing, getType(current_thing), extra + instructions + instructions2) + instructions2
+                    current_thing = ""
+                else:
+                    current_thing += character
+
+            if current_thing and split:
+                instructions2 = parse(current_thing, getType(current_thing), extra + instructions + instructions2) + instructions2
+
+            instructions.extend(instructions2)
+
+        if not split:
+            special_sign = ""
+            special_index = -1
+            special_index2 = -1
+            special_index3 = -1
+            current_parenthesis = 0
+            last_character = ""
             for index, character in enumerate(contents):
                 if character == "(":
-                    if max == 0:
-                        index_thing = index
-                    max += 1
+                    if (last_character == ">" and (special_sign == "<" or special_sign == ">")) or special_sign == "[]":
+                        special_sign = ""
+                        special_index = -1
+                    current_parenthesis += 1
                 elif character == ")":
-                    max -= 1
-                    
-            
-            name = contents[0 : index_thing]
-            type_parameters = []
-            if "<" in name:
-                type_parameters = name[name.index("<") + 1 : name.index(">")].split(",")
+                    current_parenthesis -= 1
+                elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                    special_sign = "+"
+                    special_index = index
+                elif character == "-" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                    special_sign = "-"
+                    special_index = index
+                elif character == "*" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                    special_sign = "*"
+                    special_index = index
+                elif character == "/" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                    special_sign = "/"
+                    special_index = index
+                elif character == "%" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                    special_sign = "%"
+                    special_index = index
+                elif character == "=" and last_character == "=" and current_parenthesis == 0:
+                    special_sign = "=="
+                    special_index = index - 1
+                elif character == "=" and last_character == "!" and current_parenthesis == 0:
+                    special_sign = "!="
+                    special_index = index - 1
+                elif character == "<" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                    special_sign = "<"
+                    special_index = index
+                elif character == ">" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                    special_sign = ">"
+                    special_index = index
+                elif character == "[" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                    special_sign = "[]"
+                    special_index = index
+                elif character == "]" and current_parenthesis == 0 and special_index2 == -1:
+                    special_index2 = index
+                elif character == "=" and current_parenthesis == 0 and special_sign == "[]":
+                    if not last_character == "=":
+                        special_sign = "[]="
+                        special_index3 = index
+                elif character == "." and current_parenthesis == 0 and (special_index == -1 or special_sign == ".") and not "(" in contents[index : (contents.rindex("=") if "=" in contents[index:] else len(contents))]:
+                    special_sign = "."
+                    special_index = index
+                elif character == "=" and current_parenthesis == 0 and special_sign == ".":
+                    if not last_character == "=":
+                        special_sign = ".="
+                        special_index2 = index
+                
+                last_character = character
 
-            for i in range(0, len(type_parameters)):
-                type_parameters[i] = type_parameters[i].strip()
-
-            if name:
-                arguments_array = []
-                arguments = contents[len(name) : ]
-                arguments = arguments[arguments.index("(") + 1 : len(arguments) - 1]
-
-                current_argument = ""
-                current_parenthesis = 0
-                in_quotations = False
-                for character in arguments:
-                    if character == "," and current_parenthesis == 0 and not in_quotations:
-                        arguments_array.append(current_argument)
-                        current_argument = ""
-                    elif character == "\"":
-                        in_quotations = not in_quotations
-                    elif character == "(":
-                        current_parenthesis += 1
+            if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!" and not special_sign == "[]=" and not special_sign == ".=":
+                    name = contents.split(" ")[0]
+                    expression = contents[contents.index("=") + 1 : len(contents)]
+                    expression = expression.lstrip()
+                    instructions.extend(parse_statement(expression, extra + instructions))
+                    instructions.append(Assign(name))
+            elif special_sign == "+":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : len(contents)].strip()
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_.+", 2, []))
+            elif special_sign == "-":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : len(contents)].strip()
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_.-", 2, []))
+            elif special_sign == "*":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : len(contents)].strip()
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.append(Invoke("_.*", 2, []))
+            elif special_sign == "/":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : len(contents)].strip()
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_./", 2, []))
+            elif special_sign == "%":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : len(contents)].strip()
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_.%", 2, []))
+            elif special_sign == "==":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 2 : len(contents)].strip()
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_.==", 2, []))
+            elif special_sign == "!=":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 2 : len(contents)].strip()
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_.!=", 2, []))
+            elif special_sign == "<":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : len(contents)].strip()
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_.<", 2, []))
+            elif special_sign == ">":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : len(contents)].strip()
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_.>", 2, []))
+            elif special_sign == "[]":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : special_index2].strip()
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_.[]", 2, []))
+            elif special_sign == "[]=":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : special_index2].strip()
+                after2 = contents[special_index3 + 1 : len(contents)].strip()
+                instructions.extend(parse_statement(after2, extra + instructions))
+                instructions.extend(parse_statement(after, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_.[]=", 3, []))
+            elif special_sign == ".":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 :].strip()
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_" + after, 1, []))
+            elif special_sign == ".=":
+                before = contents[0 : special_index].strip()
+                after = contents[special_index + 1 : special_index2].strip()
+                after2 = contents[special_index2 + 1 : len(contents)].strip()
+                instructions.extend(parse_statement(after2, extra + instructions))
+                instructions.extend(parse_statement(before, extra + instructions))
+                instructions.append(Invoke("_" + after + "=", 2, []))
+            elif "(" in contents and contents.endswith(")"):
+                max = 0
+                index_thing = -1
+                for index, character in enumerate(contents):
+                    if character == "(":
+                        if max == 0:
+                            index_thing = index
+                        max += 1
                     elif character == ")":
-                        current_parenthesis -= 1
-
-                    if (not character == " " and not character == ",") or (not current_parenthesis == 0) or (in_quotations):
-                        current_argument += character
-
-                if arguments:
-                    arguments_array.append(current_argument)
+                        max -= 1
+                        
                 
-                for parameter in arguments_array[::-1]:
-                    if parameter:
-                        instructions.extend(parse_statement(parameter, extra + instructions))
-                
-                if "." in name:
-                    parsed = parse_statement(name[0 : name.rindex(".")], extra + instructions)
-                    #if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
-                        #for instruction in (extra + instructions):
-                            #if isinstance(instruction, Declare) and instruction.name == parsed[0].name:
-                                #instructions.extend(parsed)
-                                #name = "_." + name[name.rindex(".") + 1 : len(name)]
-                                #break
-                    #else:
-                    instructions.extend(parsed)
-                    name = "_." + name[name.rindex(".") + 1 : len(name)]
-
+                name = contents[0 : index_thing]
+                type_parameters = []
                 if "<" in name:
-                    name = name[0 : name.index("<")]
-                instructions.append(Invoke(name, len(arguments_array) + (1 if name.startswith("_.") else 0), [], [], type_parameters))
+                    type_parameters = name[name.index("<") + 1 : name.index(">")].split(",")
+
+                for i in range(0, len(type_parameters)):
+                    type_parameters[i] = type_parameters[i].strip()
+
+                if name:
+                    arguments_array = []
+                    arguments = contents[len(name) : ]
+                    arguments = arguments[arguments.index("(") + 1 : len(arguments) - 1]
+
+                    current_argument = ""
+                    current_parenthesis = 0
+                    in_quotations = False
+                    for character in arguments:
+                        if character == "," and current_parenthesis == 0 and not in_quotations:
+                            arguments_array.append(current_argument)
+                            current_argument = ""
+                        elif character == "\"":
+                            in_quotations = not in_quotations
+                        elif character == "(":
+                            current_parenthesis += 1
+                        elif character == ")":
+                            current_parenthesis -= 1
+
+                        if (not character == " " and not character == ",") or (not current_parenthesis == 0) or (in_quotations):
+                            current_argument += character
+
+                    if arguments:
+                        arguments_array.append(current_argument)
+                    
+                    for parameter in arguments_array[::-1]:
+                        if parameter:
+                            instructions.extend(parse_statement(parameter, extra + instructions))
+                    
+                    if "." in name:
+                        parsed = parse_statement(name[0 : name.rindex(".")], extra + instructions)
+                        #if isinstance(parsed[0], Retrieve) and len(parsed) == 1:
+                            #for instruction in (extra + instructions):
+                                #if isinstance(instruction, Declare) and instruction.name == parsed[0].name:
+                                    #instructions.extend(parsed)
+                                    #name = "_." + name[name.rindex(".") + 1 : len(name)]
+                                    #break
+                        #else:
+                        instructions.extend(parsed)
+                        name = "_." + name[name.rindex(".") + 1 : len(name)]
+
+                    if "<" in name:
+                        name = name[0 : name.index("<")]
+                    instructions.append(Invoke(name, len(arguments_array) + (1 if name.startswith("_.") else 0), [], [], type_parameters))
+                else:
+                    instructions.extend(parse_statement(contents[1 : len(contents) - 1], extra +  instructions))
             else:
-                instructions.extend(parse_statement(contents[1 : len(contents) - 1], extra +  instructions))
-        else:
-            if contents:
-                instructions.append(Retrieve(contents, None))
+                if contents:
+                    instructions.append(Retrieve(contents, None))
         
     return instructions
     
@@ -1850,7 +1884,7 @@ def type_check(function, instructions, program_types, program_structs, functions
 
 
                 if len(function2.return_) > 0:
-                    for type in function2.return_:
+                    for type in function2.return_[::-1]:
                         for key in mapped:
                             type = replace_type(type, key, mapped[key], mapped)
                         types.append(type)
@@ -2797,7 +2831,7 @@ def create_linux_binary(program, file_name_base):
                 elif isinstance(instruction, Invoke) and not instruction.name.startswith("@cast_"):
                     asm_function.instructions.append("call " + get_asm_name(instruction.name + "_" + "~".join(instruction.parameters).replace("&", "") + "_" + "~".join(instruction.type_parameters)))
                     asm_function.instructions.append("add rsp, " + str(instruction.parameter_count * 8))
-                    for i in range(0, len(instruction.return_)):
+                    for i in range(len(instruction.return_) - 1, -1, -1):
                         asm_function.instructions.append("push r" + str(8 + i))
                 elif isinstance(instruction, Duplicate):
                     asm_function.instructions.append("pop r8")
