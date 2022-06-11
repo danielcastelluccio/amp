@@ -1118,7 +1118,7 @@ def process_program(program):
     # auto freer
     for function in program.tokens:
         if isinstance(function, Function) and len(function.generics) == 0:
-            owned_variables = set()
+            owned_variables = []
             owned_variable_scopes = {}
             scopes = []
             variable_usages = {}
@@ -1163,25 +1163,25 @@ def process_program(program):
                 elif isinstance(instruction, Declare):
                     variables[instruction.name] = instruction.type
                     if function.locals.index(instruction.name) < len(function.parameters):
-                        owned_variables.add(instruction.name)
+                        if not instruction.name in owned_variables:
+                            owned_variables.append(instruction.name)
 
                     if not len(scopes) == 0:
                         owned_variable_scopes[instruction.name] = scopes[len(scopes) - 1]
                     else:
                         owned_variable_scopes[instruction.name] = ""
-
+                    
                     if function.locals.index(instruction.name) < len(function.parameters):
                         variable_loops[instruction.name] = ""
                 elif isinstance(instruction, Assign):
                     if instruction.name in owned_variables and not variables[instruction.name] in primitives and not variables[instruction.name][0] == "&":
                         index = function.tokens.index(instruction)
-                        #TODO: fix bug
-                        #if instruction.name == "string" or instruction.name == "option":
-                            #function.tokens.insert(index, Invoke(normalize(variables[instruction.name]) + "::memory_size", 0, [], ["integer"]))
-                            #function.tokens.insert(index + 1, Retrieve(instruction.name, None))
-                            #function.tokens.insert(index + 2, Invoke("@free", 2, ["&any", "integer"], []))
+                        function.tokens.insert(index, Invoke(normalize(variables[instruction.name]) + "::memory_size", 0, [], ["integer"]))
+                        function.tokens.insert(index + 1, Retrieve(instruction.name, None))
+                        function.tokens.insert(index + 2, Invoke("@free", 2, ["&any", "integer"], []))
 
-                    owned_variables.add(instruction.name)
+                    if not instruction.name in owned_variables:
+                        owned_variables.append(instruction.name)
 
                     if len(loops) > 0:
                         variable_loops[instruction.name] = loops[len(loops) - 1]
@@ -1197,7 +1197,6 @@ def process_program(program):
 
                     for usage in dict(variable_usages):
                         if variable_usages[usage] == stack:
-                            #print(instruction.name)
                             if not (variables[instruction.name][0] == "&" or variables[usage] in primitives):
                                 owned_variables.remove(usage)
 
@@ -1230,8 +1229,6 @@ def process_program(program):
                             if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
                                 name = function.name
                                 if owned_variable_scopes[variable] == id:
-                                    #function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::type", 0, [], ["Type"]))
-                                    #function.tokens.insert(index + 1, Invoke("_memory_size", 1, ["&Type"], ["integer"]))
                                     function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
                                     function.tokens.insert(index + 1, Retrieve(variable, None))
                                     function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
@@ -1251,12 +1248,10 @@ def process_program(program):
                         for variable in owned_variables:
                             if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable] in program_enums:
                                 name = function.name
-                                if owned_variable_scopes[variable] == id:
-                                    #function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::type", 0, [], ["Type"]))
-                                    #function.tokens.insert(index + 1, Invoke("_memory_size", 1, ["&Type"], ["integer"]))
+                                if variable in owned_variable_scopes and owned_variable_scopes[variable] == id:
                                     function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
-                                    function.tokens.insert(index + 2, Retrieve(variable, None))
-                                    function.tokens.insert(index + 3, Invoke("@free", 2, ["any", "integer"], []))
+                                    function.tokens.insert(index + 1, Retrieve(variable, None))
+                                    function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                     index += 3
                     pass
                 elif isinstance(instruction, Retrieve):
@@ -1302,16 +1297,10 @@ def process_program(program):
                                     del variable_usages[usage]
 
                             if stack in value_usages and parameter[0] == "&" and not values[value_usages[stack]] in primitives and not values[value_usages[stack]] in program_enums:
-                                foo = values[value_usages[stack]]
-                                if not function.name == "Type.free" or True:
-                                    #print(function.name + " " + foo)
-                                    function.tokens.insert(post_method_index, Invoke(normalize(values[value_usages[stack]]) + "::memory_size", 0, [], ["integer"]))
-                                    function.tokens.insert(post_method_index + 1, Retrieve(value_usages[stack], None))
-                                    function.tokens.insert(post_method_index + 2, Invoke("@free", 2, ["any", "integer"], []))
-                                    post_method_index += 3
-
-                                #else:
-                                    #print(function.name + " " + foo)
+                                function.tokens.insert(post_method_index, Invoke(normalize(values[value_usages[stack]]) + "::memory_size", 0, [], ["integer"]))
+                                function.tokens.insert(post_method_index + 1, Retrieve(value_usages[stack], None))
+                                function.tokens.insert(post_method_index + 2, Invoke("@free", 2, ["any", "integer"], []))
+                                post_method_index += 3
 
                             if stack in value_usages:
                                 del value_usages[stack]
@@ -1355,17 +1344,19 @@ def process_program(program):
 
                     new_list = []
                     index = function.tokens.index(instruction)
+
                     for variable in owned_variables:
                         if not variables[variable] in primitives and not variables[variable][0] == "&":
                             name = function.name
-                            if owned_variable_scopes[variable] == "":
+                            if variable in owned_variable_scopes and owned_variable_scopes[variable] == "":
                                 function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
                                 function.tokens.insert(index + 1, Retrieve(variable, None))
                                 function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
                                 index += 3
 
                     for variable in temp_vars:
-                        owned_variables.add(variable)
+                        if not variable in owned_variables:
+                            owned_variables.append(variable)
 
             for error in loop_errors:
                 print("PROCESS: Variable " + error + " in " + function.name + " used while not owned (due to a loop).")
@@ -2257,10 +2248,16 @@ def create_linux_binary(program, file_name_base):
     free = AsmFunction("@free_any~integer_", [])
     free.instructions.append("push rbp")
     free.instructions.append("mov rbp, rsp")
+    #free.instructions.append("mov rdi, [rbp+16]")
+    #free.instructions.append("call print_integer_space")
+    #free.instructions.append("mov rdi, [rbp+24]")
+    #free.instructions.append("call @print_integer_integer_")
 
     free.instructions.append("mov rbx, [rbp+24]") # length
     free.instructions.append("cmp rbx, 0")
     free.instructions.append("jne _continue_free")
+    #free.instructions.append("mov rdi, 999999")
+    #free.instructions.append("call @print_integer_integer_")
     free.instructions.append("mov rsp, rbp")
     free.instructions.append("pop rbp")
     free.instructions.append("ret")
