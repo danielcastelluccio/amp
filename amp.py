@@ -1,5 +1,6 @@
 import sys
 import os
+import subprocess
 import string
 import inspect
 from enum import Enum
@@ -108,6 +109,14 @@ class EndWhile(Instruction):
     def __init__(self, id1, id2):
         self.id1 = id1
         self.id2 = id2
+
+class StartBlock(Instruction):
+    def __init__(self, id):
+        self.id = id
+
+class EndBlock(Instruction):
+    def __init__(self, id):
+        self.id = id
 
 if_id = 0
 primitives = ["integer", "boolean", "any", "&any"]
@@ -770,6 +779,9 @@ def parse_statement(contents, extra):
     elif contents.startswith("{"):
         current_thing = ""
         current_indent = 0
+        id_thing = if_id
+        if_id += 1
+        instructions.append(StartBlock(id_thing))
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
             if character == '\n' and current_indent == 0:
                 instructions.extend(parse(current_thing, getType(current_thing), extra + instructions))
@@ -781,19 +793,23 @@ def parse_statement(contents, extra):
                 current_indent += 1
             elif character == '}':
                 current_indent -= 1
+        instructions.append(EndBlock(id_thing))
     else:
         split = False
         if "," in contents:
             current_indent = 0
             current_thing = ""
             instructions2 = []
+            in_quotes = False
             for character in contents:
+                if character == "\"":
+                    in_quotes = not in_quotes
                 if character == "(" or character == "<":
                     current_indent += 1
                 elif character == ")" or character == ">":
                     current_indent -= 1
                 
-                if character == "," and current_indent == 0:
+                if character == "," and current_indent == 0 and not in_quotes:
                     split = True
                     instructions2 = parse(current_thing, getType(current_thing), extra + instructions + instructions2) + instructions2
                     current_thing = ""
@@ -1660,6 +1676,8 @@ def type_check(function, instructions, program_types, program_structs, functions
 
     types = []
     variables = {}
+    variable_scopes = {}
+    scopes = [-1]
 
     if len(function.generics) > 0:
         return 0
@@ -1688,6 +1706,7 @@ def type_check(function, instructions, program_types, program_structs, functions
             elif isinstance(instruction.value, tuple):
                 types.append("Function")
         elif isinstance(instruction, CheckIf):
+            scopes.append(instruction.false_id)
             if instruction.checking:
                 if len(types) == 0:
                     print("PROCESS: If in " + function.name + " expects boolean, given nothing.")
@@ -1697,7 +1716,16 @@ def type_check(function, instructions, program_types, program_structs, functions
                 if not is_type(given_type, "boolean"):
                     print("PROCESS: If in " + function.name + " expects boolean, given " + given_type + ".")
                     return 1
+        elif isinstance(instruction, EndIf):
+            if scopes[-1] == instruction.id:
+                scopes.pop()
+        elif isinstance(instruction, StartBlock):
+            scopes.append(instruction.id)
+        elif isinstance(instruction, EndBlock):
+            if scopes[-1] == instruction.id:
+                scopes.pop()
         elif isinstance(instruction, StartWhile):
+            scopes.append(instruction.id1)
             if len(types) == 0:
                 print("PROCESS: While in " + function.name + " expects boolean, given nothing.")
                 return 1
@@ -1706,8 +1734,12 @@ def type_check(function, instructions, program_types, program_structs, functions
             if not is_type(given_type, "boolean"):
                 print("PROCESS: While in " + function.name + " expects boolean, given " + given_type + ".")
                 return 1
+        elif isinstance(instruction, EndWhile):
+            if scopes[-1] == instruction.id1:
+                scopes.pop()
         elif isinstance(instruction, Declare):
             variables[instruction.name] = instruction
+            variable_scopes[instruction.name] = scopes[-1]
             name = variables[instruction.name].type
             name_bare = name[0 : name.index("<") if "<" in name else len(name)]
 
@@ -1744,14 +1776,10 @@ def type_check(function, instructions, program_types, program_structs, functions
                 print("PROCESS: Assign of " + instruction.name + " in " + function.name + " expects " + variables[instruction.name].type + ", given " + given_type + ".")
                 return 1
         elif isinstance(instruction, Retrieve):
-            if instruction.name in functions2 and not instruction.name in variables:
-                types.append("Function")
-                instruction.data = functions2[instruction.name].parameters
-            else:
-                if not instruction.name in variables:
-                    print("PROCESS: Variable " + instruction.name + " in " + function.name + " not found.")
-                    return 1
-                types.append(variables[instruction.name].type)
+            if not instruction.name in variables or not variable_scopes[instruction.name] in scopes:
+                print("PROCESS: Variable " + instruction.name + " in " + function.name + " not found.")
+                return 1
+            types.append(variables[instruction.name].type)
         elif isinstance(instruction, Duplicate):
             top = types.pop()
             types.append(top)
@@ -3020,8 +3048,12 @@ elif system == "Linux":
     code = os.system("nasm -felf64 build/" + file_name_base + ".asm && ld build/" + file_name_base + ".o -o build/" + file_name_base)
 
     if "-r" in sys.argv and code == 0:
-        arguments = " ".join(sys.argv[sys.argv.index("-r") + 1 :: ])
-        os.system("./build/" + file_name_base + " " + arguments)
+        arguments = sys.argv[sys.argv.index("-r") + 1 :: ]
+        #os.system("./build/" + file_name_base + " " + arguments)
+        arguments.insert(0, "./build/" + file_name_base)
+        thing = subprocess.run(arguments)
+        if thing.returncode != 0:
+            print("Exit Code: " + str(thing.returncode))
 elif system == "Darwin":
     #format = "macho64"
     pass

@@ -2,7 +2,8 @@ use "std"
 
 fn main() {
     let foo, bar = {
-        "test", true
+        let thing = "test"
+        thing, true
     }
     println(foo)
     println(bar.to_string())
