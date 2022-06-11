@@ -24,12 +24,30 @@ fn read(): String {
     return String(string, 128)
 }
 
-fn read_file(file: String): String {
-    let file_null_terminated = file + "\0"
-    let size = @get_file_size(file_null_terminated.pointer)
-    let string = @allocate(size)
-    @read_file_size(file_null_terminated.pointer, string, size)
-    return String(string, size)
+struct File {
+    id: any
+
+    
+    fn open(file: String): File {
+        let file_null_terminated = file + "\0"
+        let id = @open_file(file_null_terminated.pointer)
+        return File(id)
+    }
+
+    fn read(file: &File): String {
+        let size = @get_file_size(file.id)
+        let string = @allocate(size)
+        @read_file_size(file.id, string, size)
+        return String(string, size)
+    }
+
+    fn close(file: &File) {
+        @close_file(file)
+    }
+
+    fn free_custom(file: &File) {
+        file.close()
+    }
 }
 
 fn execute_command(file: String, arguments: Array<String>, wait: boolean) {

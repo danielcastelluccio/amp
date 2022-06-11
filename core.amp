@@ -88,7 +88,9 @@ fn @error_size(buffer: &any, length: integer)
 fn @read_size(buffer: &any, length: integer)
 
 fn @get_file_size(file: &any): integer
+fn @open_file(file: &any): any
 fn @read_file_size(file: &any, buffer: &any, size: integer)
+fn @close_file(file: &any)
 
 fn @allocate(size: integer): any
 fn @free(pointer: &any, size: integer)

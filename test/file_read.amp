@@ -1,6 +1,7 @@
 use "std"
 
 fn main() {
-    let contents = read_file("test/file_read.amp")
+    let file = File::open("test/file_read.amp")
+    let contents = file.read()
     print(contents)
 }
