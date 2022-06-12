@@ -111,6 +111,8 @@ fn @equal(value1: &any, value2: &any): boolean
 fn @less(value1: integer, value2: integer): boolean
 fn @greater(value1: integer, value2: integer): boolean
 fn @not(value: boolean): boolean
+fn @or(value1: boolean, value2: boolean): boolean
+fn @and(value1: boolean, value2: boolean): boolean
 
 fn @execute(pointer_command: &any, pointer_arguments: &any, wait: boolean)
 
@@ -118,3 +120,5 @@ fn @call_function(pointer_function: &any, pointer_arguments: &any, arguments_len
 
 fn @random(length: integer): any
 fn @print_integer(value: integer)
+
+fn @exit()

@@ -133,6 +133,70 @@ access String {
         @copy(string2.pointer, new_memory + string1_length, string2_length)
         return String(new_memory, string1_length + string2_length)
     }
+
+    fn clone(string: &String): String {
+        let string_length = string.length
+        let new_memory = @allocate(string_length)
+        @copy(string.pointer, new_memory, string_length)
+        return String(new_memory, string_length)
+    }
+
+    fn [](string: &String, index: integer): String {
+        let new_memory = @allocate(1)
+        @copy(string.pointer + index, new_memory, 1)
+        return String(new_memory, 1)
+    }
+
+    fn substring(string: &String, start_index: integer, end_index: integer): String {
+        let string_length = end_index - start_index
+        let new_memory = @allocate(string_length)
+        @copy(string.pointer + start_index, new_memory, string_length)
+        return String(new_memory, string_length)
+    }
+
+    fn index(string: &String, character: String): integer {
+        let i = 0
+        while i < string.length {
+            if string[i] == character {
+                return i
+            }
+            i = i + 1
+        }
+
+        return 999
+    }
+
+    fn split(string: &String, character: String): Array<String> {
+        let list = LinkedList<String>()
+        let buffer = ""
+        let i = 0
+        while i < string.length {
+            if string[i] == character {
+                list.append(buffer)
+                buffer = ""
+            } else {
+                buffer = buffer + string[i]
+            }
+            i = i + 1
+        }
+
+        list.append(buffer)
+
+        return list.to_array()
+    }
+
+    fn strip(string: &String): String {
+        let actual_string = string.clone()
+        while actual_string[0] == " " {
+            actual_string = actual_string.substring(1, actual_string.length)
+        }
+
+        while actual_string[actual_string.length - 1] == " " {
+            actual_string = actual_string.substring(0, actual_string.length - 1)
+        }
+
+        return actual_string
+    }
 	
     fn ==(string1: &String, string2: &String): boolean {
         if string1.length != string2.length {
@@ -157,28 +221,48 @@ fn null(): any {
 }
 
 struct LinkedList<A> {
-    head: any
+    head: ?LinkedList_Node<A>
 
 	fn <A>(): LinkedList<A> {
 		return LinkedList<A>(LinkedList_Node<A>(null(), null()))
 	}
 
 	fn append<A>(linked_list: &LinkedList<A>, data: A) {
-	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
+	    let node = linked_list.head
 	    while node.next != null() {
-	        node = @cast_&LinkedList_Node<A>(node.next)
+	        node = node.next
 	    }
 	
 	    let new_node = LinkedList_Node<A>(data, null())
 	    node.next = new_node
 	}
 
+	fn append_all<A>(linked_list: &LinkedList<A>, list: LinkedList<A>) {
+	    let node = linked_list.head
+	    while node.next != null() {
+	        node = node.next
+	    }
+	
+        let list_node = list.head
+        let i = 0
+        while i < list.size() {
+            list_node = list_node.next
+
+            let temp_node = node
+	        let new_node = LinkedList_Node<A>(list_node.data, null())
+            node = new_node
+	        temp_node.next = new_node
+            list_node.data = 0
+            i = i + 1
+        }
+	}
+
 	fn insert<A>(linked_list: &LinkedList<A>, index: integer, data: A) {
-	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
+	    let node = linked_list.head
 	
 	    let i = 0
 	    while i < index {
-	        node = @cast_&LinkedList_Node<A>(node.next)
+	        node = node.next
 	        i = i + 1
 	    }
 	
@@ -188,27 +272,25 @@ struct LinkedList<A> {
 	}
 
 	fn remove<A>(linked_list: &LinkedList<A>, index: integer) {
-	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
+	    let node = linked_list.head
 	
 	    let i = 0
 	    while i < index {
-	        node = @cast_&LinkedList_Node<A>(node.next)
+	        node = node.next
 		    i = i + 1
 	    }
 	
-	    let temp_next_next = @cast_&LinkedList_Node<A>(node.next).next
-
-        let node_to_free = @cast_LinkedList_Node<A>(@cast_any(node.next))
-
-	    node.next = @cast_any(temp_next_next)
+	    let temp_next_next = node.next.next
+        let node_to_free = node.next
+	    node.next = temp_next_next
 	}
 
 	fn size<A>(linked_list: &LinkedList<A>): integer {
-	    let node = @cast_&LinkedList_Node<A>(linked_list.head)
+	    let node = linked_list.head
 	    let i = 0
 	
 	    while node.next != null() {
-	        node = @cast_&LinkedList_Node<A>(node.next)
+	        node = node.next
 	        i = i + 1
 	    }
 	
@@ -216,23 +298,38 @@ struct LinkedList<A> {
 	}
 
     fn []<A>(linked_list: &LinkedList<A>, index: integer): &A {
-        let node = @cast_&LinkedList_Node<A>(linked_list.head)
+        let node = linked_list.head
         let i = 0
 
-        while i < (index + 1) {
-            node = @cast_&LinkedList_Node<A>(node.next)
+        while i < index + 1 {
+            node = node.next
             i = i + 1
         }
 
         return @cast_&A(node.data)
     }
 
+    fn to_array<A>(linked_list: LinkedList<A>): Array<A> {
+        let i = 0
+        let size = linked_list.size()
+        let array = Array<A>(size)
+        let node = linked_list.head
+        while i < size {
+            node = node.next
+            array[i] = node.data
+            node.data = 0
+            i = i + 1
+        }
+
+        return array
+    }
+
 	fn free_custom<A>(list: &LinkedList<A>) {
 		let node = list.head
 		while node != 0 {
-		    let new_node = @cast_&LinkedList_Node<A>(node).next
+		    let new_node = node.next
 
-            let linked_node = @cast_LinkedList_Node<A>(@cast_any(node))
+            let linked_node = @cast_LinkedList_Node<A>(node)
 
 		    node = new_node
 		}
@@ -240,11 +337,13 @@ struct LinkedList<A> {
 }
 
 struct LinkedList_Node<A> {
-    data: any
-    next: any
+    data: ?A
+    next: ?LinkedList_Node<A>
 
 	fn free_custom<A>(node: &LinkedList_Node<A>) {
-        let _ = @cast_A(@cast_any(node.data))
+        if node.data != 0 {
+            let _ = @cast_A(node.data)
+        }
 	}
 }
 

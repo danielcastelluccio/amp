@@ -164,6 +164,7 @@ def parse(contents, type, extra):
         current_indent = 0
         in_quotes = False
 
+        prev_character = ''
         for character in contents:
             if character == '\n' and current_indent == 0:
                 things.extend(parse(current_thing, getType(current_thing), things))
@@ -171,12 +172,13 @@ def parse(contents, type, extra):
             else:
                 current_thing += character
 
-            if character == '"':
+            if character == '"' and not prev_character == '\\':
                 in_quotes = not in_quotes
             elif character == '{' and not in_quotes:
                 current_indent += 1
             elif character == '}' and not in_quotes:
                 current_indent -= 1
+            prev_character = character
 
         return Program(things)
     elif type == "Function":
@@ -314,6 +316,12 @@ def parse(contents, type, extra):
                         locals = []
                         
                         item_type = item.split(":")[1].strip()
+                        if item_type[0] == "?":
+                            item_type = item_type[1:]
+
+                        if (not item_type in primitives or item_type == "any"):
+                            item_type = "&" + item_type
+
 
                         instructions.append(Declare("instance", "&" + name_full))
                         instructions.append(Retrieve("instance", None))
@@ -322,12 +330,6 @@ def parse(contents, type, extra):
                         instructions.append(Invoke("@get_8", 1, ["any"], ["integer"]))
                         instructions.append(Invoke("@cast_" + item_type, 1, []))
                         instructions.append(Return(1))
-
-                        if item_type[0] == "?":
-                            item_type = item_type[1:]
-
-                        if (not item_type in primitives or item_type == "any"):
-                            item_type = "&" + item_type
 
                         locals.append("instance")
                         
@@ -398,7 +400,7 @@ def parse(contents, type, extra):
                         generics.append(items[item2])
 
                     if not item == item2:
-                        instructions.append(Invoke(items[item2] + "::memory_size", 0, [], "integer"))
+                        instructions.append(Invoke(items[item2][0 : items[item2].index("<") if "<" in items[item2] else len(items[item2])] + "::memory_size", 0, [], "integer"))
                         instructions.append(Retrieve("instance", None))
                         instructions.append(Constant(8 * items_list.index(item2)))
                         instructions.append(Invoke("@add", 2, []))
@@ -632,7 +634,7 @@ def parse(contents, type, extra):
 def first_non_quote_index(string, wanted_character):
     in_quote = False
     for index, character in enumerate(string):
-        if character == '"':
+        if character == '"' and not string[index - 1] == '\\':
             in_quote = not in_quote
         elif character == wanted_character and not in_quote:
             return index
@@ -690,7 +692,7 @@ def parse_statement(contents, extra):
         instructions.append(Constant(int(contents)))
     elif contents == "true" or contents == "false":
         instructions.append(Constant(contents == "true"))
-    elif contents.startswith("\"") and contents.endswith("\"") and contents.count("\"") == 2:
+    elif contents.startswith("\"") and contents.endswith("\"") and contents.count("\"") - contents.count("\\\"") == 2:
         instructions.append(Constant(contents[1 : len(contents) - 1]))
     elif contents.startswith("if"):
         instructions.extend(parse_statement(contents[3 : first_non_quote_index(contents, "{")], extra + instructions))
@@ -709,7 +711,9 @@ def parse_statement(contents, extra):
         if_id += 1
 
         instructions.append(CheckIf(false_id, True))
+        in_quotes = False
 
+        prev_character = ''
         for character in contents[first_non_quote_index(contents, "{") + 1 : contents.rindex("}")]:
             if character == '\n' and current_indent == 0:
                 instructions2.extend(parse(current_thing, getType(current_thing), extra + instructions))
@@ -717,7 +721,10 @@ def parse_statement(contents, extra):
             else:
                 current_thing += character
 
-            if character == '{':
+            if character == '"' and not prev_character == '\\':
+                in_quotes = not in_quotes
+
+            if character == '{' and not in_quotes:
                 current_indent += 1
                 if current_indent == 0:
                     element = current_thing[0 : len(current_thing) - 1].strip()
@@ -739,11 +746,13 @@ def parse_statement(contents, extra):
                         instructions2.extend(parse_statement(element[8:], extra + instructions))
                         instructions2.append(CheckIf(false_id, True))
                     current_thing = ""
-            elif character == '}':
+            elif character == '}' and not in_quotes:
                 current_indent -= 1
                 if current_indent < 0:
                     instructions2.append(EndIfBlock(end_id))
                     current_thing = ""
+
+            prev_character = character
 
         instructions.extend(instructions2)
 
@@ -757,7 +766,7 @@ def parse_statement(contents, extra):
 
         instructions.append(PreStartWhile(id1, id2))
 
-        instructions.extend(parse_statement(contents[6 : contents.index("{")], extra + instructions))
+        instructions.extend(parse_statement(contents[6 : first_non_quote_index(contents, "{")], extra + instructions))
 
         current_thing = ""
         current_indent = 0
@@ -765,17 +774,24 @@ def parse_statement(contents, extra):
 
         instructions.append(StartWhile(id1, id2))
 
-        for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
+        in_quotes = False
+        prev_character = ''
+        for character in contents[first_non_quote_index(contents, "{") + 1 : contents.rindex("}")]:
             if character == '\n' and current_indent == 0:
                 instructions2.extend(parse(current_thing, getType(current_thing), extra + instructions2))
                 current_thing = ""
             else:
                 current_thing += character
 
-            if character == '{':
+            if character == '"' and not prev_character == '\\':
+                in_quotes = not in_quotes
+
+            if character == '{' and not in_quotes:
                 current_indent += 1
-            elif character == '}':
+            elif character == '}' and not in_quotes:
                 current_indent -= 1
+
+            prev_character = character
 
         instructions.extend(instructions2)
 
@@ -786,6 +802,8 @@ def parse_statement(contents, extra):
         id_thing = if_id
         if_id += 1
         instructions.append(StartBlock(id_thing))
+        in_quotes = False
+        prev_character = ''
         for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
             if character == '\n' and current_indent == 0:
                 instructions.extend(parse(current_thing, getType(current_thing), extra + instructions))
@@ -793,10 +811,14 @@ def parse_statement(contents, extra):
             else:
                 current_thing += character
 
-            if character == '{':
+            if character == '"' and not prev_character == '\\':
+                in_quotes = not in_quotes
+
+            if character == '{' and not in_quotes:
                 current_indent += 1
-            elif character == '}':
+            elif character == '}' and not in_quotes:
                 current_indent -= 1
+            prev_character = character
         instructions.append(EndBlock(id_thing))
     else:
         split = False
@@ -808,9 +830,9 @@ def parse_statement(contents, extra):
             for character in contents:
                 if character == "\"":
                     in_quotes = not in_quotes
-                if character == "(" or character == "<":
+                if (character == "(" or character == "<") and not in_quotes:
                     current_indent += 1
-                elif character == ")" or character == ">":
+                elif (character == ")" or character == ">") and not in_quotes:
                     current_indent -= 1
                 
                 if character == "," and current_indent == 0 and not in_quotes:
@@ -832,13 +854,16 @@ def parse_statement(contents, extra):
             special_index3 = -1
             current_parenthesis = 0
             last_character = ""
+            in_quotes = False
             for index, character in enumerate(contents):
-                if character == "(":
+                if character == "\"":
+                    in_quotes = not in_quotes
+                if character == "(" and not in_quotes:
                     if (last_character == ">" and (special_sign == "<" or special_sign == ">")) or special_sign == "[]":
                         special_sign = ""
                         special_index = -1
                     current_parenthesis += 1
-                elif character == ")":
+                elif character == ")" and not in_quotes:
                     current_parenthesis -= 1
                 elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                     special_sign = "+"
@@ -868,15 +893,16 @@ def parse_statement(contents, extra):
                     special_sign = ">"
                     special_index = index
                 elif character == "[" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
-                    special_sign = "[]"
+                    special_sign = "["
                     special_index = index
-                elif character == "]" and current_parenthesis == 0 and special_index2 == -1:
+                elif character == "]" and current_parenthesis == 0 and special_index2 == -1 and special_sign == "[":
                     special_index2 = index
+                    special_sign = "[]"
                 elif character == "=" and current_parenthesis == 0 and special_sign == "[]":
                     if not last_character == "=":
                         special_sign = "[]="
                         special_index3 = index
-                elif character == "." and current_parenthesis == 0 and (special_index == -1 or special_sign == ".") and not "(" in contents[index : (contents.rindex("=") if "=" in contents[index:] else len(contents))]:
+                elif character == "." and current_parenthesis == 0 and (special_index == -1 or special_sign == "." or special_sign == "[]") and not "(" in contents[index : (contents.rindex("=") if "=" in contents[index:] else len(contents))]:
                     special_sign = "."
                     special_index = index
                 elif character == "=" and current_parenthesis == 0 and special_sign == ".":
@@ -1004,9 +1030,9 @@ def parse_statement(contents, extra):
                             argument_count += 1
                         elif character == "\"":
                             in_quotations = not in_quotations
-                        elif character == "(":
+                        elif character == "(" and not in_quotations:
                             current_parenthesis += 1
-                        elif character == ")":
+                        elif character == ")" and not in_quotations:
                             current_parenthesis -= 1
 
                     if arguments:
@@ -1327,14 +1353,14 @@ def process_program(program):
                         for parameter in instruction.parameters:
                             for usage in dict(variable_usages):
                                 if variable_usages[usage] == stack:
-                                    if not (parameter[0] == "&" or parameter[0] == "?" or variables[usage] in primitives):
+                                    if not (parameter[0] == "&" or variables[usage] in primitives):
                                         owned_variables.remove(usage)
 
                                         current_loop = ""
                                         if len(loops) > 0:
                                             current_loop = loops[len(loops) - 1]
 
-                                        if not variable_loops[usage] == current_loop:
+                                        if not variable_loops[usage] == current_loop and not owned_variable_scopes[usage] == current_loop:
                                             loop_errors[usage] = current_loop
 
                                     del variable_usages[usage]
@@ -1391,6 +1417,8 @@ def process_program(program):
                     for variable in owned_variables:
                         if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable][0] == "?":
                             name = function.name
+                            #if name == "_.append":
+                                #print(variable)
                             if variable in owned_variable_scopes and owned_variable_scopes[variable] == "":
                                 function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
                                 function.tokens.insert(index + 1, Retrieve(variable, None))
@@ -1788,7 +1816,7 @@ def type_check(function, instructions, program_types, program_structs, functions
                 given_type = types.pop()
                 given_type_stripped = given_type.replace("&", "")
                 name_stripped = name.replace("&", "")
-                if ((given_type[0] == "&" and not name[0] == "&" and not name in primitives) or (not name_stripped == "any" and not given_type_stripped == "any")) and (given_type_stripped == name_stripped and given_type == name):
+                if ((given_type[0] == "&" and not name[0] == "&" and not name in primitives) or (not name_stripped == "any" and not given_type_stripped == "any")) and (given_type_stripped == name_stripped and given_type == name) and not given_type == name:
                     print("PROCESS: Attempted to cast in " + function.name + " from " + given_type + " to " + name + ".")
                     return 1
                 
@@ -1976,7 +2004,7 @@ def is_type(given, wanted, generics = []):
         main_given = given[0 : given.index("<")]
 
         good = True
-        if not main_given == main_wanted and not main_given == main_wanted[1:]:
+        if not main_given == main_wanted and not main_given == main_wanted[1:] and not main_given[1:] == main_wanted[1:]:
             good = False
 
         types_wanted = wanted[wanted.index("<") + 1 : wanted.rindex(">")].split(",")
@@ -2835,6 +2863,9 @@ def create_linux_binary(program, file_name_base):
                             elif byte == 0x30 and encoded[index - 1] == 0x5c:
                                 put.pop()
                                 put.append("0x0")
+                            elif byte == 0x22 and encoded[index - 1] == 0x5c:
+                                put.pop()
+                                put.append("0x22")
                             else:
                                 put.append(hex(byte))
 

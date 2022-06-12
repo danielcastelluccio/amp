@@ -1,0 +1,34 @@
+use "std"
+use "compiler/parser"
+
+struct UseToken {
+    path: String
+}
+
+struct FunctionToken {
+    name: String
+    parameters: Array<String>
+}
+
+fn main(arguments: Array<String>) {
+    if arguments.length < 1 {
+        println("Must provide a file to compile.")
+        @exit()
+    }
+
+    let program = LinkedList<Box>()
+
+    let file = File::open(arguments[0].clone())
+    parse_file(file, program)
+
+    let i = 0
+    while i < program.size() {
+        if program[i].type == UseToken {
+            println(@cast_&UseToken(program[i].value).path)
+        } else if program[i].type == FunctionToken {
+            println(@cast_&FunctionToken(program[i].value).name)
+            //println(@cast_&FunctionToken(program[i].value).parameters[0])
+        }
+        i = i + 1
+    }
+}

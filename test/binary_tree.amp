@@ -14,7 +14,7 @@ struct Node {
     }
 }
 
-fn invert(node: ?Node) {
+fn invert(node: &Node) {
     if node == 0 {
         return
     }
