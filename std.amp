@@ -41,6 +41,10 @@ struct File {
         return String(string, size)
     }
 
+    fn write(file: &File, string: &String) {
+        @write_file_size(file.id, string.pointer, string.length)
+    }
+
     fn close(file: &File) {
         @close_file(file)
     }
@@ -166,6 +170,19 @@ access String {
         return 999
     }
 
+    fn last_index(string: &String, character: String): integer {
+        let index = 999
+        let i = 0
+        while i < string.length {
+            if string[i] == character {
+                index = i
+            }
+            i = i + 1
+        }
+
+        return index
+    }
+
     fn split(string: &String, character: String): Array<String> {
         let list = LinkedList<String>()
         let buffer = ""
@@ -187,15 +204,30 @@ access String {
 
     fn strip(string: &String): String {
         let actual_string = string.clone()
-        while actual_string[0] == " " {
+        while @or(actual_string[0] == " ", actual_string[0] == "\n") {
             actual_string = actual_string.substring(1, actual_string.length)
         }
 
-        while actual_string[actual_string.length - 1] == " " {
+        while @or(actual_string[actual_string.length - 1] == " ", actual_string[actual_string.length - 1] == "\n") {
             actual_string = actual_string.substring(0, actual_string.length - 1)
         }
 
         return actual_string
+    }
+
+    fn replace(string: &String, from: &String, to: &String): String {
+        let built_string = ""
+        let i = 0
+        while i < string.length {
+            if string[i] == from {
+                built_string = built_string + to
+            } else {
+                built_string = built_string + string[i]
+            }
+            i = i + 1
+        }
+
+        return built_string
     }
 	
     fn ==(string1: &String, string2: &String): boolean {
@@ -316,12 +348,24 @@ struct LinkedList<A> {
         let node = linked_list.head
         while i < size {
             node = node.next
-            array[i] = node.data
+            array[i] = @cast_A(node.data)
             node.data = 0
             i = i + 1
         }
 
         return array
+    }
+
+    fn clone<A>(linked_list: &LinkedList<A>): LinkedList<A> {
+        let new_list = LinkedList<A>()
+
+        let node = linked_list.head
+        while node.next != 0 {
+            node = node.next
+            new_list.append(node.data.clone())
+        }
+
+        return new_list
     }
 
 	fn free_custom<A>(list: &LinkedList<A>) {

@@ -827,8 +827,9 @@ def parse_statement(contents, extra):
             current_thing = ""
             instructions2 = []
             in_quotes = False
+            prev_character = ''
             for character in contents:
-                if character == "\"":
+                if character == "\"" and not prev_character == "\\":
                     in_quotes = not in_quotes
                 if (character == "(" or character == "<") and not in_quotes:
                     current_indent += 1
@@ -841,6 +842,8 @@ def parse_statement(contents, extra):
                     current_thing = ""
                 else:
                     current_thing += character
+
+                prev_character = character
 
             if current_thing and split:
                 instructions2 = parse(current_thing, getType(current_thing), extra + instructions + instructions2) + instructions2
@@ -865,7 +868,7 @@ def parse_statement(contents, extra):
                     current_parenthesis += 1
                 elif character == ")" and not in_quotes:
                     current_parenthesis -= 1
-                elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign) and not in_quotes:
                     special_sign = "+"
                     special_index = index
                 elif character == "-" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
@@ -892,7 +895,7 @@ def parse_statement(contents, extra):
                 elif character == ">" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                     special_sign = ">"
                     special_index = index
-                elif character == "[" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                elif character == "[" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign) and not in_quotes:
                     special_sign = "["
                     special_index = index
                 elif character == "]" and current_parenthesis == 0 and special_index2 == -1 and special_sign == "[":
@@ -1025,15 +1028,18 @@ def parse_statement(contents, extra):
                     argument_count = 0
                     current_parenthesis = 0
                     in_quotations = False
+                    prev_character = ''
                     for character in arguments:
                         if character == "," and current_parenthesis == 0 and not in_quotations:
                             argument_count += 1
-                        elif character == "\"":
+                        elif character == "\"" and not prev_character == "\\":
                             in_quotations = not in_quotations
                         elif character == "(" and not in_quotations:
                             current_parenthesis += 1
                         elif character == ")" and not in_quotations:
                             current_parenthesis -= 1
+
+                        prev_character = character
 
                     if arguments:
                         argument_count += 1
@@ -1086,11 +1092,11 @@ internals = [
     Function("@get_file_size", [], [], ["&any"], ["integer"], [])
 ]
 
-def create_generic_function(function2, mapped_generics, functions):
+def create_generic_function(function2, mapped_generics, generics, functions):
     new_function = copy.deepcopy(function2)
 
     new_function.generics_applied = []
-    for generic in mapped_generics:
+    for generic in generics:
         for i in range(0, len(new_function.parameters)):
             new_function.parameters[i] = replace_type(new_function.parameters[i], generic, mapped_generics[generic], mapped_generics)
 
@@ -1115,8 +1121,6 @@ def apply_mapped_generics(new_function, mapped_generics):
             elif isinstance(token, Retrieve):
                 thing = token.name
                 token.name = replace_type(token.name, generic, mapped_generics[generic], mapped_generics)
-                #print(thing + " " + token.name)
-                #print(mapped_generics)
             elif isinstance(token, Invoke):
                 if token.name.startswith("@cast_"):
                     token.name = "@cast_" + replace_type(token.name[6:], generic, mapped_generics[generic], mapped_generics)
@@ -1360,7 +1364,7 @@ def process_program(program):
                                         if len(loops) > 0:
                                             current_loop = loops[len(loops) - 1]
 
-                                        if not variable_loops[usage] == current_loop and not owned_variable_scopes[usage] == current_loop:
+                                        if not variable_loops[usage] == current_loop and (not owned_variable_scopes[usage] in scopes and not owned_variable_scopes[usage] == ""):
                                             loop_errors[usage] = current_loop
 
                                     del variable_usages[usage]
@@ -1466,10 +1470,12 @@ def process_program(program):
                 elif isinstance(instruction, Duplicate):
                     types.append(types[len(types) - 1])
                 elif isinstance(instruction, Assign):
-                    given_type = types.pop()
-                    if instruction.name in variables:
-                        if variables[instruction.name].type == "":
-                            variables[instruction.name].type = given_type
+                    if len(types) > 0:
+                        given_type = types.pop()
+
+                        if instruction.name in variables:
+                            if variables[instruction.name].type == "":
+                                variables[instruction.name].type = given_type
 
                     if instruction.name in variables_realtime:
                         variables[instruction.name] = variables_realtime[instruction.name]
@@ -1546,8 +1552,6 @@ def process_program(program):
                         if isinstance(function, Function) and function.name == instruction.value[0]:
                             invocation_map[id].append(function.name + str(function.parameters).replace("&", "") + str(function.generics))
 
-
-
     for function in list(program.tokens):
         if isinstance(function, Function):
             if not is_used(function, program.tokens) or len(function.generics) > 0 or (function.name + str(function.parameters) + str(function.generics_applied) in added_functions):
@@ -1571,6 +1575,7 @@ def process_program(program):
 
     return return_value
 
+added_functions2 = []
 
 def create_generic_functions(program, functions, added_generics, program_types, program_structs, functions2):
     return_value = 0
@@ -1581,74 +1586,72 @@ def create_generic_functions(program, functions, added_generics, program_types, 
 
             if id1 in wanted_generic_functions:
                 generic_variants = wanted_generic_functions[id1]
-                #print(id1 + " " + str(wanted_generic_functions[id1]))
                 del wanted_generic_functions[id1]
 
                 id = function2.name + "_" + str(len(function2.parameters))
-                #limited_types = ["integer", "boolean", "any", "String", "Function"]
                 for generic_variant in generic_variants:
-                    #print(function2.name + " " + str(generic_variant))
                     mapped_generics = generic_variant 
 
                     if len(mapped_generics) > 0:
-                        new_function = create_generic_function(function2, mapped_generics, functions)
-                        apply_mapped_generics(new_function, mapped_generics)
-                        program.tokens.append(new_function)
-                        added_generics.append(new_function)
-                        #print(new_function.applied_generics)
-                        if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
-                            return_value = 1
+                        new_function = create_generic_function(function2, mapped_generics, function2.generics, functions)
+                        if not new_function.name + " " + str(new_function.parameters) + " " + str(new_function.generics_applied) in added_functions2:
+                            added_functions2.append(new_function.name + " " + str(new_function.parameters) + " " + str(new_function.generics_applied))
+                            apply_mapped_generics(new_function, mapped_generics)
+                            program.tokens.append(new_function)
+                            added_generics.append(new_function)
+                            if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
+                                return_value = 1
 
-                        if function2.name + ".free_1" in functions:
-                            if len(mapped_generics) > 0:
-                                new_function = copy.deepcopy(functions[function2.name + ".free_1"][0])
-                                for generic in mapped_generics:
-                                    for i in range(0, len(new_function.parameters)):
-                                        new_function.parameters[i] = replace_type(new_function.parameters[i], generic, mapped_generics[generic], mapped_generics)
-                                    for i in range(0, len(new_function.return_)):
-                                        new_function.return_[i] = new_function.return_[i].replace(generic, mapped_generics[generic])
+                            if function2.name + ".free_1" in functions:
+                                if len(mapped_generics) > 0:
+                                    new_function = copy.deepcopy(functions[function2.name + ".free_1"][0])
+                                    for generic in mapped_generics:
+                                        for i in range(0, len(new_function.parameters)):
+                                            new_function.parameters[i] = replace_type(new_function.parameters[i], generic, mapped_generics[generic], mapped_generics)
+                                        for i in range(0, len(new_function.return_)):
+                                            new_function.return_[i] = new_function.return_[i].replace(generic, mapped_generics[generic])
 
-                                program.tokens.append(new_function)
-                                new_function.name = new_function.name[0 : new_function.name.index(".")] + ("<" + ",".join(new_function.generics) + ">" if len(new_function.generics) > 0 else "") + ".free"
-                                new_function.generics = []
-                                for generic in mapped_generics:
-                                    new_function.name = replace_type(new_function.name, generic, mapped_generics[generic], mapped_generics)
-                                    new_function.generics.append(mapped_generics[generic])
+                                    program.tokens.append(new_function)
+                                    new_function.name = new_function.name[0 : new_function.name.index(".")] + ("<" + ",".join(new_function.generics) + ">" if len(new_function.generics) > 0 else "") + ".free"
+                                    new_function.generics = []
+                                    for generic in mapped_generics:
+                                        new_function.name = replace_type(new_function.name, generic, mapped_generics[generic], mapped_generics)
+                                        new_function.generics.append(mapped_generics[generic])
 
-                                new_function.name = new_function.name + ".free"
+                                    new_function.name = new_function.name + ".free"
 
-                                new_function.generics = []
-                                apply_mapped_generics(new_function, mapped_generics)
-                                added_generics.append(new_function)
-                                if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
-                                    return_value = 1
+                                    new_function.generics = []
+                                    apply_mapped_generics(new_function, mapped_generics)
+                                    added_generics.append(new_function)
+                                    if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
+                                        return_value = 1
 
-                        if "_.free_custom_1" in functions:
-                            flag = False
-                            for free_custom in functions["_.free_custom_1"]:
-                                if not flag and len(free_custom.generics) > 0 and is_type(function2.name, free_custom.parameters[0][1 : ]):
-                                    if len(mapped_generics) > 0:
-                                        flag = True
-                                        new_function = copy.deepcopy(free_custom)
-                                        for generic in mapped_generics:
-                                            for i in range(0, len(new_function.parameters)):
-                                                new_function.parameters[i] = replace_type(new_function.parameters[i], generic, mapped_generics[generic], mapped_generics)
-                                            for i in range(0, len(new_function.return_)):
-                                                new_function.return_[i] = replace_type(new_function.return_[i], generic, mapped_generics[generic], mapped_generics)
+                            if "_.free_custom_1" in functions:
+                                flag = False
+                                for free_custom in functions["_.free_custom_1"]:
+                                    if not flag and len(free_custom.generics) > 0 and is_type(function2.name, free_custom.parameters[0][1 : ]):
+                                        if len(mapped_generics) > 0:
+                                            flag = True
+                                            new_function = copy.deepcopy(free_custom)
+                                            for generic in mapped_generics:
+                                                for i in range(0, len(new_function.parameters)):
+                                                    new_function.parameters[i] = replace_type(new_function.parameters[i], generic, mapped_generics[generic], mapped_generics)
+                                                for i in range(0, len(new_function.return_)):
+                                                    new_function.return_[i] = replace_type(new_function.return_[i], generic, mapped_generics[generic], mapped_generics)
 
-                                        program.tokens.append(new_function)
-                                        new_function.generics_applied = []
-                                        for generic in mapped_generics:
-                                            new_function.name = replace_type(new_function.name, generic, mapped_generics[generic], mapped_generics)
-                                            new_function.generics_applied.append(mapped_generics[generic])
+                                            program.tokens.append(new_function)
+                                            new_function.generics_applied = []
+                                            for generic in mapped_generics:
+                                                new_function.name = replace_type(new_function.name, generic, mapped_generics[generic], mapped_generics)
+                                                new_function.generics_applied.append(mapped_generics[generic])
 
-                                        new_function.generics = []
-                                        apply_mapped_generics(new_function, mapped_generics)
-                                        added_generics.append(new_function)
-                                        if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
-                                            return_value = 1
+                                            new_function.generics = []
+                                            apply_mapped_generics(new_function, mapped_generics)
+                                            added_generics.append(new_function)
+                                            if type_check(new_function, new_function.tokens, program_types, program_structs, functions, functions2, True) == 1:
+                                                return_value = 1
 
-                                        functions[new_function.name + "_" + str(len(new_function.parameters))].append(new_function)
+                                            functions[new_function.name + "_" + str(len(new_function.parameters))].append(new_function)
 
     if len(wanted_generic_functions) > 0:
         if create_generic_functions(program, functions, added_generics, program_types, program_structs, functions2) == 1:
@@ -1679,9 +1682,7 @@ def replace_type(type, given, wanted, mapped_generics = {}):
         for generic in type[type.index("<") + 1 : type.index(">")].split(","):
             generics.append(generic)
 
-    #if len(mapped_generics) > 0:
-        #print("test")
-    if main in mapped_generics or (len(main) > 1 and main[0] == "&" and main[1:] in mapped_generics):
+    if main == given or (len(main) > 1 and main[0] == "&" and main[1:] == given):
         main = ("&" if main[0] == "&" else "") + wanted
 
     if len(main) > 0 and main[0] == "&" and main[1:] in primitives and not main[1:] == "any":
@@ -1867,9 +1868,6 @@ def type_check(function, instructions, program_types, program_structs, functions
                     
                 cached_types = cached_types[::-1]
 
-                #if function2.name == "_.[]=" and function.name == "main":
-                    #print(str(named_functions) + " " + str(cached_types))
-
                 if len(named_functions) > 1:
                     for function5 in list(named_functions):
                         if len(function5.generics) < len(instruction.type_parameters):
@@ -1888,9 +1886,6 @@ def type_check(function, instructions, program_types, program_structs, functions
                                 named_functions.remove(function3)
 
                 function2 = named_functions[0]
-
-                #if function.name == "main":
-                    #print(function2.parameters)
 
                 set_params = False
                 if len(instruction.parameters) == 0:
@@ -1911,6 +1906,7 @@ def type_check(function, instructions, program_types, program_structs, functions
                 for i in range(0, len(function2.parameters)):
                     mapped_previous = dict(mapped)
                     mapped.update(get_mapped_type(cached_types[i], function2.parameters[i], function2.generics))
+                    #print(str(mapped_previous) + " " + str(mapped) + " " + cached_types[i] + " " + function2.parameters[i])
                     for item in mapped_previous:
                         if not mapped[item] == mapped_previous[item]:
                             print("PROCESS: Invoke of " + function2.name + " in " + function.name + " has conflicting type parameters.")
@@ -1924,6 +1920,8 @@ def type_check(function, instructions, program_types, program_structs, functions
                             instruction.parameters[i] = replace_type(instruction.parameters[i], key, mapped[key], mapped)
 
                     add_to_generic_functions(instruction.name, function2.parameters, mapped)
+                    #if function.name == "HashMap":
+                        #print(function.name + " " + function2.name + " " + str(function2.parameters))
 
                     instruction.type_parameters = []
                     for generic in function2.generics:
@@ -1937,8 +1935,14 @@ def type_check(function, instructions, program_types, program_structs, functions
 
                 if len(function2.return_) > 0:
                     for type in function2.return_[::-1]:
+                        #if "HashMap" in type:
+                            #print(mapped)
+                            #print(function.name + " " + str(function.parameters))
+                        #print(type)
                         for key in mapped:
                             type = replace_type(type, key, mapped[key], mapped)
+                        #print(type)
+
                         types.append(type)
 
         elif isinstance(instruction, Return):
@@ -1996,7 +2000,7 @@ def is_type(given, wanted, generics = []):
     if (wanted[0] == "&" or wanted[0] == "?") and (wanted[1 : len(wanted)] == given or wanted[1:] == "any"):
         return True
 
-    if wanted in generics or ((wanted[0] == "&" or wanted[0] == "?") and wanted[1:] in generics):
+    if (wanted in generics and not given[0] == "&") or ((wanted[0] == "&" or wanted[0] == "?") and wanted[1:] in generics):
         return True
 
     if "<" in wanted and "<" in given:
@@ -2100,7 +2104,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("mov rbp, rsp")
     _start.instructions.append("mov rax, 12")
     _start.instructions.append("mov rdi, 0")
-    _start.instructions.append("syscall") # rax not holds current brk
+    _start.instructions.append("syscall") # rax now holds current brk
     _start.instructions.append("mov rbx, rax")
     _start.instructions.append("mov rdi, rbx")
     _start.instructions.append("add rdi, 16384")
@@ -2155,9 +2159,7 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("call Array_any~integer_String")
     _start.instructions.append("add rsp, 16")
     _start.instructions.append("push r8")
-    #_start.instructions.append("call @print_memory__")
     _start.instructions.append("call main")
-    #_start.instructions.append("call @print_memory__")
     _start.instructions.append("mov rax, 60")
     _start.instructions.append("xor rdi, rdi")
     _start.instructions.append("syscall")
@@ -2738,12 +2740,25 @@ def create_linux_binary(program, file_name_base):
     read_file.instructions.append("ret")
     asm_program.functions.append(read_file)
 
+    write_file = AsmFunction("@write_file_size_any~any~integer_", [])
+    write_file.instructions.append("push rbp")
+    write_file.instructions.append("mov rbp, rsp")
+    write_file.instructions.append("mov rdi, [rbp+16]")
+    write_file.instructions.append("mov rsi, [rbp+24]")
+    write_file.instructions.append("mov rdx, [rbp+32]")
+    write_file.instructions.append("mov rax, 1")
+    write_file.instructions.append("syscall")
+    write_file.instructions.append("mov rsp, rbp")
+    write_file.instructions.append("pop rbp")
+    write_file.instructions.append("ret")
+    asm_program.functions.append(write_file)
+
     open_file = AsmFunction("@open_file_any_", [])
     open_file.instructions.append("push rbp")
     open_file.instructions.append("mov rbp, rsp")
     open_file.instructions.append("mov rdi, [rbp+16]")
-    open_file.instructions.append("xor rsi, rsi")
-    open_file.instructions.append("xor rdx, rdx")
+    open_file.instructions.append("mov rsi, 102")
+    open_file.instructions.append("mov rdx, 452")
     open_file.instructions.append("mov rax, 2")
     open_file.instructions.append("syscall")
     open_file.instructions.append("mov r8, rax")
@@ -2866,6 +2881,9 @@ def create_linux_binary(program, file_name_base):
                             elif byte == 0x22 and encoded[index - 1] == 0x5c:
                                 put.pop()
                                 put.append("0x22")
+                            elif byte == 0x74 and encoded[index - 1] == 0x5c:
+                                put.pop()
+                                put.append("0x9")
                             else:
                                 put.append(hex(byte))
 
@@ -2963,7 +2981,7 @@ def create_linux_binary(program, file_name_base):
 
             stack_index_max = max(stack_index, stack_index_max)
         
-        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8 * 16))
+        function.instructions.insert(2, "sub rsp, " + str(stack_index_max * 8 * 64))
     
         for instruction in function.instructions:
             file.write("   " + instruction + "\n")

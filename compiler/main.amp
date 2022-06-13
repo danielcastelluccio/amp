@@ -1,5 +1,6 @@
 use "std"
 use "compiler/parser"
+use "compiler/linux_x86-64"
 
 struct UseToken {
     path: String
@@ -8,6 +9,33 @@ struct UseToken {
 struct FunctionToken {
     name: String
     parameters: Array<String>
+    instructions: LinkedList<Box>
+}
+
+struct InvokeToken {
+    name: String
+    parameter_count: integer
+}
+
+struct StringToken {
+    value: String
+}
+
+struct IntegerToken {
+    value: integer
+}
+
+struct ReturnToken {
+    count: integer
+}
+
+struct DeclareToken {
+    name: String
+    type: String
+}
+
+struct RetrieveToken {
+    name: String
 }
 
 fn main(arguments: Array<String>) {
@@ -21,14 +49,29 @@ fn main(arguments: Array<String>) {
     let file = File::open(arguments[0].clone())
     parse_file(file, program)
 
-    let i = 0
-    while i < program.size() {
-        if program[i].type == UseToken {
-            println(@cast_&UseToken(program[i].value).path)
-        } else if program[i].type == FunctionToken {
-            println(@cast_&FunctionToken(program[i].value).name)
-            //println(@cast_&FunctionToken(program[i].value).parameters[0])
-        }
-        i = i + 1
-    }
+    //let i = 0
+    //while i < program.size() {
+    //    if program[i].type == UseToken {
+    //        println(@cast_&UseToken(program[i].value).path)
+    //    } else if program[i].type == FunctionToken {
+    //        let function = @cast_&FunctionToken(program[i].value)
+    //        println(function.name)
+    //        println(function.parameters.length.to_string())
+
+    //        let j = 0
+    //        while j < function.instructions.size() {
+    //            if function.instructions[j].type == InvokeToken {
+    //                let invoke = @cast_&InvokeToken(function.instructions[j].value)
+    //                println("Invoke: " + invoke.name)
+    //            } else if function.instructions[j].type == StringToken {
+    //                let string = @cast_&StringToken(function.instructions[j].value)
+    //                println("String: " + string.value)
+    //            }
+    //            j = j + 1
+    //        }
+    //    }
+    //    i = i + 1
+    //}
+
+    create_linux_x86_64_binary(program)
 }

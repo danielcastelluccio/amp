@@ -1,0 +1,13 @@
+fn main() {
+    @print_size("Hello World!")
+}
+
+fn print(string: String) {
+    @print_size(string.pointer, string.size)
+}
+
+struct String {
+    pointer: any
+    size: integer
+    static: boolean
+}

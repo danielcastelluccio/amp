@@ -1,5 +1,5 @@
 use "std"
 
-fn main(test: String) {
+fn main() {
     println("Hello World!")
 }
