@@ -13,8 +13,10 @@ fn parse_file(file: File, program: &LinkedList<Box>) {
         }
 
         if @and(character == "\n", inside == 0) {
-            program.append_all(parse_element(buffer.strip()))
-            buffer = ""
+	    if buffer.strip().length > 0 {
+            	program.append_all(parse_element(buffer.strip()))
+            	buffer = ""
+	    }
         } else {
             buffer = buffer + character
         }
@@ -283,6 +285,7 @@ fn parse_invoke_dot(contents: &String): LinkedList<Box> {
 fn parse_string(contents: &String): LinkedList<Box> {
     let list = LinkedList<Box>()
 
+    contents = contents.replace("\\" + "n", "\n")
     list.append(Box(StringToken(contents.substring(1, contents.length - 1))))
 
     return list

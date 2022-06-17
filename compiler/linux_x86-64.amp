@@ -314,7 +314,7 @@ fn get_internal_functions(): LinkedList<InternalFunction> {
 access String {
     fn remove_invalid(string: &String): String {
         let new_string = string.clone()
-        let invalid = "! "
+        let invalid = "! \\\n"
         let i = 0
         while i < invalid.length {
             new_string = new_string.replace(invalid[i], "")

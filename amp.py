@@ -178,7 +178,11 @@ def parse(contents, type, extra):
                 current_indent += 1
             elif character == '}' and not in_quotes:
                 current_indent -= 1
-            prev_character = character
+
+            if prev_character == '\\':
+                prev_character = ''
+            else:
+                prev_character = character
 
         return Program(things)
     elif type == "Function":
@@ -692,7 +696,7 @@ def parse_statement(contents, extra):
         instructions.append(Constant(int(contents)))
     elif contents == "true" or contents == "false":
         instructions.append(Constant(contents == "true"))
-    elif contents.startswith("\"") and contents.endswith("\"") and contents.count("\"") - contents.count("\\\"") == 2:
+    elif contents.startswith("\"") and contents.endswith("\"") and contents.count("\"") - contents.count("\\\"") + contents.count("\\\\\"") == 2:
         instructions.append(Constant(contents[1 : len(contents) - 1]))
     elif contents.startswith("if"):
         instructions.extend(parse_statement(contents[3 : first_non_quote_index(contents, "{")], extra + instructions))
@@ -752,7 +756,10 @@ def parse_statement(contents, extra):
                     instructions2.append(EndIfBlock(end_id))
                     current_thing = ""
 
-            prev_character = character
+            if prev_character == '\\':
+                prev_character = ''
+            else:
+                prev_character = character
 
         instructions.extend(instructions2)
 
@@ -791,7 +798,10 @@ def parse_statement(contents, extra):
             elif character == '}' and not in_quotes:
                 current_indent -= 1
 
-            prev_character = character
+            if prev_character == '\\':
+                prev_character = ''
+            else:
+                prev_character = character
 
         instructions.extend(instructions2)
 
@@ -818,7 +828,10 @@ def parse_statement(contents, extra):
                 current_indent += 1
             elif character == '}' and not in_quotes:
                 current_indent -= 1
-            prev_character = character
+            if prev_character == '\\':
+                prev_character = ''
+            else:
+                prev_character = character
         instructions.append(EndBlock(id_thing))
     else:
         split = False
@@ -843,7 +856,10 @@ def parse_statement(contents, extra):
                 else:
                     current_thing += character
 
-                prev_character = character
+                if prev_character == '\\':
+                    prev_character = ''
+                else:
+                    prev_character = character
 
             if current_thing and split:
                 instructions2 = parse(current_thing, getType(current_thing), extra + instructions + instructions2) + instructions2
@@ -1039,7 +1055,10 @@ def parse_statement(contents, extra):
                         elif character == ")" and not in_quotations:
                             current_parenthesis -= 1
 
-                        prev_character = character
+                        if prev_character == '\\':
+                            prev_character = ''
+                        else:
+                            prev_character = character
 
                     if arguments:
                         argument_count += 1
@@ -2518,6 +2537,12 @@ def create_linux_binary(program, file_name_base):
     copy = AsmFunction("@copy_any~any~integer_", [])
     copy.instructions.append("push rbp")
     copy.instructions.append("mov rbp, rsp")
+    #copy.instructions.append("push qword [rbp+16]")
+    #copy.instructions.append("call @print_integer_integer_")
+    #copy.instructions.append("push qword [rbp+24]")
+    #copy.instructions.append("call @print_integer_integer_")
+    #copy.instructions.append("push qword [rbp+32]")
+    #copy.instructions.append("call @print_integer_integer_")
     copy.instructions.append("mov rsi, [rbp+16]")
     copy.instructions.append("mov rdi, [rbp+24]")
     copy.instructions.append("mov rcx, [rbp+32]")
@@ -2884,6 +2909,9 @@ def create_linux_binary(program, file_name_base):
                             elif byte == 0x74 and encoded[index - 1] == 0x5c:
                                 put.pop()
                                 put.append("0x9")
+                            elif byte == 0x5c and index > 0 and encoded[index - 1] == 0x5c:
+                                put.pop()
+                                put.append("0x5c")
                             else:
                                 put.append(hex(byte))
 

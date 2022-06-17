@@ -153,6 +153,10 @@ access String {
 
     fn substring(string: &String, start_index: integer, end_index: integer): String {
         let string_length = end_index - start_index
+	if end_index < start_index {
+	    println("Invalid substring!")
+	    @exit()
+	}
         let new_memory = @allocate(string_length)
         @copy(string.pointer + start_index, new_memory, string_length)
         return String(new_memory, string_length)
@@ -204,11 +208,11 @@ access String {
 
     fn strip(string: &String): String {
         let actual_string = string.clone()
-        while @or(actual_string[0] == " ", actual_string[0] == "\n") {
+        while @and(@or(actual_string[0] == " ", actual_string[0] == "\n"), actual_string.length > 0) {
             actual_string = actual_string.substring(1, actual_string.length)
         }
 
-        while @or(actual_string[actual_string.length - 1] == " ", actual_string[actual_string.length - 1] == "\n") {
+        while @and(@or(actual_string[actual_string.length - 1] == " ", actual_string[actual_string.length - 1] == "\n"), actual_string.length > 0) {
             actual_string = actual_string.substring(0, actual_string.length - 1)
         }
 
@@ -219,11 +223,16 @@ access String {
         let built_string = ""
         let i = 0
         while i < string.length {
-            if string[i] == from {
-                built_string = built_string + to
-            } else {
+	    if i < string.length - from.length - 1 {
+                if string.substring(i, i + from.length) == from {
+                    built_string = built_string + to
+		    i = i + to.length
+                } else {
+                    built_string = built_string + string[i]
+                }
+	    } else {
                 built_string = built_string + string[i]
-            }
+	    }
             i = i + 1
         }
 
