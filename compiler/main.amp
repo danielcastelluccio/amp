@@ -38,6 +38,10 @@ struct RetrieveToken {
     name: String
 }
 
+struct StoreToken {
+    name: String
+}
+
 fn main(arguments: Array<String>) {
     if arguments.length < 1 {
         println("Must provide a file to compile.")
@@ -46,7 +50,8 @@ fn main(arguments: Array<String>) {
 
     let program = LinkedList<Box>()
 
-    let file = File::open(arguments[0].clone())
+    let file_name = arguments[0]
+    let file = File::open(file_name.clone())
     parse_file(file, program)
 
     //let i = 0
@@ -73,5 +78,6 @@ fn main(arguments: Array<String>) {
     //    i = i + 1
     //}
 
-    create_linux_x86_64_binary(program)
+    let file_name_split = file_name.split(".")
+    create_linux_x86_64_binary(file_name_split[0], program)
 }

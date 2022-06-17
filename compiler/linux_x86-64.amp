@@ -1,4 +1,4 @@
-fn create_linux_x86_64_binary(program: LinkedList<Box>) {
+fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
     let text_string = "global _start\nsection .text\n"
     let data_string = "section .data\n"
     let bss_string = "section .bss\n\tmemory: resb 8\n"
@@ -39,6 +39,8 @@ fn create_linux_x86_64_binary(program: LinkedList<Box>) {
                     text_string = text_string + "\tpush " + k.to_string() + "\n"
                     text_string = text_string + "\tpush " + string.value.remove_invalid() + "\n"
                     text_string = text_string + "\tcall String\n"
+                    text_string = text_string + "\tadd rsp, 24\n"
+                    text_string = text_string + "\tpush r8\n"
                 } else if instruction.type == IntegerToken {
                     let integer = @cast_&IntegerToken(instruction.value)
                     text_string = text_string + "\tpush " + integer.value.to_string() + "\n"
@@ -59,6 +61,15 @@ fn create_linux_x86_64_binary(program: LinkedList<Box>) {
                     let declare = @cast_&DeclareToken(instruction.value)
                     map[declare.name.clone()] = current_declare
                     current_declare = current_declare + 1
+                } else if instruction.type == StoreToken {
+                    let store = @cast_&StoreToken(instruction.value)
+                    let parameter_count = function.parameters.length
+                    let local_index = map[store.name]
+                    if local_index < parameter_count {
+                        text_string = text_string + "\tpop qword [rbp+" + (16 + (local_index * 8)).to_string() + "]\n"
+                    } else {
+                        text_string = text_string + "\tpop qword [rbp-" + (8 + ((local_index - parameter_count) * 8)).to_string() + "]\n"
+                    }
                 } else if instruction.type == RetrieveToken {
                     let retrieve = @cast_&RetrieveToken(instruction.value)
                     let parameter_count = function.parameters.length
@@ -66,7 +77,7 @@ fn create_linux_x86_64_binary(program: LinkedList<Box>) {
                     if local_index < parameter_count {
                         text_string = text_string + "\tpush qword [rbp+" + (16 + (local_index * 8)).to_string() + "]\n"
                     } else {
-                        
+                        text_string = text_string + "\tpush qword [rbp-" + (8 + ((local_index - parameter_count) * 8)).to_string() + "]\n"
                     }
                 }
 
@@ -95,22 +106,22 @@ fn create_linux_x86_64_binary(program: LinkedList<Box>) {
         i = i + 1
     }
 
-    let file = File::open("thing.asm")
+    let file = File::open("build/" + name + ".asm")
     file.write(text_string + data_string + bss_string)
     file.close()
 
     let arguments = Array<String>(3)
     arguments[0] = "/bin/nasm"
     arguments[1] = "-felf64"
-    arguments[2] = "thing.asm"
+    arguments[2] = "build/" + name + ".asm"
 
     execute_command("/bin/nasm", arguments, true)
 
     let arguments = Array<String>(4)
     arguments[0] = "/bin/ld"
-    arguments[1] = "thing.o"
+    arguments[1] = "build/" + name + ".o"
     arguments[2] = "-o"
-    arguments[3] = "thing"
+    arguments[3] = "build/" + name
 
     execute_command("/bin/ld", arguments, true)
 }
@@ -154,6 +165,36 @@ fn get_internal_functions(): LinkedList<InternalFunction> {
     instructions.append("pop rbp")
     instructions.append("ret")
     functions.append(InternalFunction("@print_size", instructions))
+
+    let instructions = LinkedList<String>()
+    instructions.append("push rbp")
+    instructions.append("mov rbp, rsp")
+    instructions.append("mov rdx, [rbp+24]")
+    instructions.append("mov rsi, [rbp+16]")
+    instructions.append("mov [rsi], rdx")
+    instructions.append("pop rbp")
+    instructions.append("ret")
+    functions.append(InternalFunction("@set_8", instructions))
+    
+    let instructions = LinkedList<String>()
+    instructions.append("push rbp")
+    instructions.append("mov rbp, rsp")
+    instructions.append("mov rsi, [rbp+16]")
+    instructions.append("mov r8, [rsi]")
+    instructions.append("pop rbp")
+    instructions.append("ret")
+    functions.append(InternalFunction("@get_8", instructions))
+
+    let instructions = LinkedList<String>()
+    instructions.append("push rbp")
+    instructions.append("mov rbp, rsp")
+    instructions.append("mov rdx, [rbp+24]")
+    instructions.append("mov rsi, [rbp+16]")
+    instructions.append("add rsi, rdx")
+    instructions.append("mov r8, rsi")
+    instructions.append("pop rbp")
+    instructions.append("ret")
+    functions.append(InternalFunction("@add", instructions))
 
     let instructions = LinkedList<String>()
     instructions.append("push rbp")

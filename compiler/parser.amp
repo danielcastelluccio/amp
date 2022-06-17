@@ -66,10 +66,10 @@ fn parse_element(contents: String): LinkedList<Box> {
         if elements.size() > 1 {
             let list = LinkedList<Box>()
 
-            let i = 0
-            while i < elements.size() {
+            let i = elements.size()
+            while i > 0 {
+                i = i - 1
                 list.append_all(parse_element(elements[i].clone()))
-                i = i + 1
             }
 
             return list
@@ -94,9 +94,11 @@ fn parse_element(contents: String): LinkedList<Box> {
             
             if type == "." {
                 return parse_invoke_dot(contents)
-            } else {
+            } else if contents.index("(") != 999 {
                 return parse_invoke(contents)
-            }
+            } else {
+	    	return parse_retrieve(contents)
+	    }
         }
     }
 
@@ -147,6 +149,12 @@ fn parse_struct(contents: &String): LinkedList<Box> {
         parameters[0] = "&" + name
 
         let instructions = LinkedList<Box>()
+	instructions.append(Box(DeclareToken("instance", "&" + name)))
+        instructions.append(Box(RetrieveToken("instance")))
+        instructions.append(Box(IntegerToken(8 * i)))
+        instructions.append(Box(InvokeToken("@add", 2)))
+        instructions.append(Box(InvokeToken("@get_8", 1)))
+        instructions.append(Box(ReturnToken(1)))
 
         list.append(Box(FunctionToken(getter_name, parameters, instructions)))
         i = i + 1
@@ -162,17 +170,20 @@ fn parse_struct(contents: &String): LinkedList<Box> {
 
     instructions.append(Box(IntegerToken(items.size() * 8)))
     instructions.append(Box(InvokeToken("@allocate", 1)))
+    instructions.append(Box(DeclareToken("instance", "&" + name)))
+    instructions.append(Box(StoreToken("instance")))
     let i = 0
     while i < items.size() {
         let item = items[i]
         instructions.append(Box(RetrieveToken(item.clone())))
-
-        let getter_name = "_" + item
-        let parameters = Array<String>(1)
-        parameters[0] = "&" + name
+        instructions.append(Box(RetrieveToken("instance")))
+        instructions.append(Box(IntegerToken(8 * i)))
+        instructions.append(Box(InvokeToken("@add", 2)))
+        instructions.append(Box(InvokeToken("@set_8", 2)))
 
         i = i + 1
     }
+    instructions.append(Box(RetrieveToken("instance")))
     instructions.append(Box(ReturnToken(1)))
 
     list.append(Box(FunctionToken(name, item_types.to_array(), instructions)))
@@ -262,6 +273,7 @@ fn parse_invoke_dot(contents: &String): LinkedList<Box> {
         i = i + 1
     }
 
+    list.append_all(parse_element(contents.substring(0, index)))
     let name = "_" + contents.substring(index + 1, contents.length)
     list.append(Box(InvokeToken(name, 1)))
 
@@ -272,6 +284,14 @@ fn parse_string(contents: &String): LinkedList<Box> {
     let list = LinkedList<Box>()
 
     list.append(Box(StringToken(contents.substring(1, contents.length - 1))))
+
+    return list
+}
+
+fn parse_retrieve(contents: &String): LinkedList<Box> {
+    let list = LinkedList<Box>()
+
+    list.append(Box(RetrieveToken(contents.clone())))
 
     return list
 }

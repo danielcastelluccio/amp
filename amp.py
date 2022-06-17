@@ -871,13 +871,13 @@ def parse_statement(contents, extra):
                 elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign) and not in_quotes:
                     special_sign = "+"
                     special_index = index
-                elif character == "-" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                elif character == "-" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign) and not in_quotes:
                     special_sign = "-"
                     special_index = index
                 elif character == "*" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                     special_sign = "*"
                     special_index = index
-                elif character == "/" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
+                elif character == "/" and current_parenthesis == 0 and not in_quotes and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                     special_sign = "/"
                     special_index = index
                 elif character == "%" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):

@@ -1,5 +1,6 @@
 fn main() {
-    @print_size("Hello World!")
+    print("Hello World!")
+    print("test")
 }
 
 fn print(string: String) {
