@@ -36,6 +36,8 @@ fn parse_element(contents: String): LinkedList<Box> {
         return parse_function(contents)
     } else if contents.substring(0, 7) == "struct " {
         return parse_struct(contents)
+    } else if contents.substring(0, 4) == "let " {
+	return parse_let(contents)
     } else if @and(contents[0] == "\"", contents[contents.length - 1] == "\"") {
         return parse_string(contents)
     } else {
@@ -89,12 +91,16 @@ fn parse_element(contents: String): LinkedList<Box> {
 
                 if @and(character == ".", inside == 0) {
                     type = "."
-                }
+                } else if @and(@and(character == "(", inside == 1), type == ".") {
+		    type = ".()"
+		}
 
                 i = i + 1
             }
             
             if type == "." {
+                return parse_dot(contents)
+	    } else if type == ".()" {
                 return parse_invoke_dot(contents)
             } else if contents.index("(") != 999 {
                 return parse_invoke(contents)
@@ -128,12 +134,33 @@ fn parse_struct(contents: &String): LinkedList<Box> {
 
     let buffer = ""
     let i = 0
+    let inside = 0
     while i < body.length {
-        if body[i] == "\n" {
+        if @or(body[i] == "{", body[i] == "(") {
+	    inside = inside + 1
+        } else if @or(body[i] == "}", body[i] == ")") {
+	    inside = inside - 1
+	}
+
+	if @and(body[i] == "\n", inside == 0) {
             if buffer.length > 0 {
-                let split = buffer.strip().split(":")
-                items.append(split[0].strip().clone())
-                item_types.append(split[1].strip().clone())
+	        if buffer.index("{") != 999 {
+                    let function_list = parse_function(buffer.strip())
+		    let j = 0
+		    while j < function_list.size() {
+		    	if function_list[j].type == FunctionToken {
+			    let function = @cast_&FunctionToken(function_list[j].value)
+		    	    function.name = "_." + function.name
+			}
+			j = j + 1
+		    }
+                    
+		    list.append_all(function_list)
+		} else {
+        	    let split = buffer.strip().split(":")
+                    items.append(split[0].strip().clone())
+                    item_types.append(split[1].strip().clone())
+		}
             }
             buffer = ""
         } else {
@@ -226,7 +253,7 @@ fn parse_function(contents: &String): LinkedList<Box> {
         }
 
         if @and(character == "\n", inside == 0) {
-            instructions.append_all(parse_element(buffer))
+            instructions.append_all(parse_element(buffer.strip()))
             buffer = ""
         } else {
             buffer = buffer + character
@@ -236,7 +263,7 @@ fn parse_function(contents: &String): LinkedList<Box> {
     }
 
     if buffer.length > 0 {
-        instructions.append_all(parse_element(buffer))
+        instructions.append_all(parse_element(buffer.strip()))
     }
 
     list.append(Box(FunctionToken(name, parameters.to_array(), instructions)))
@@ -258,7 +285,7 @@ fn parse_invoke(contents: &String): LinkedList<Box> {
     return list
 }
 
-fn parse_invoke_dot(contents: &String): LinkedList<Box> {
+fn parse_dot(contents: &String): LinkedList<Box> {
     let list = LinkedList<Box>()
 
     let index = 0
@@ -278,6 +305,46 @@ fn parse_invoke_dot(contents: &String): LinkedList<Box> {
     list.append_all(parse_element(contents.substring(0, index)))
     let name = "_" + contents.substring(index + 1, contents.length)
     list.append(Box(InvokeToken(name, 1)))
+
+    return list
+}
+
+fn parse_invoke_dot(contents: &String): LinkedList<Box> {
+    let list = LinkedList<Box>()
+
+    let dot_index = 0
+    let parenthesis_index = 0
+    let i = 0
+    let inside = 0
+    while i < contents.length {
+        if contents[i] == "(" {
+            inside = inside + 1
+
+	    if @and(inside == 1, dot_index != 0) {
+	    	parenthesis_index = i
+	    }
+        } else if contents[i] == ")" {
+            inside = inside - 1
+        } else if @and(contents[i] == ".", inside == 0) {
+            dot_index = i
+        }
+        i = i + 1
+    }
+
+    list.append_all(parse_element(contents.substring(0, dot_index)))
+    let name = "_." + contents.substring(dot_index + 1, parenthesis_index)
+    list.append(Box(InvokeToken(name, 1)))
+
+    return list
+}
+
+fn parse_let(contents: &String): LinkedList<Box> {
+    let list = LinkedList<Box>()
+
+    let name = contents.substring(4, contents.index("="))
+    list.append_all(parse_element(contents.substring(contents.index("=") + 1, contents.length).strip()))
+    list.append(Box(DeclareToken(name.clone(), "")))
+    list.append(Box(StoreToken(name)))
 
     return list
 }

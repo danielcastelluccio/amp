@@ -884,7 +884,7 @@ def parse_statement(contents, extra):
                     current_parenthesis += 1
                 elif character == ")" and not in_quotes:
                     current_parenthesis -= 1
-                elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign) and not in_quotes:
+                elif character == "+" and current_parenthesis == 0 and (special_index == -1 or "." == special_sign or "[]" == special_sign) and not in_quotes:
                     special_sign = "+"
                     special_index = index
                 elif character == "-" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign) and not in_quotes:
@@ -899,10 +899,10 @@ def parse_statement(contents, extra):
                 elif character == "%" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
                     special_sign = "%"
                     special_index = index
-                elif character == "=" and last_character == "=" and current_parenthesis == 0:
+                elif character == "=" and last_character == "=" and current_parenthesis == 0 and not in_quotes:
                     special_sign = "=="
                     special_index = index - 1
-                elif character == "=" and last_character == "!" and current_parenthesis == 0:
+                elif character == "=" and last_character == "!" and current_parenthesis == 0 and not in_quotes:
                     special_sign = "!="
                     special_index = index - 1
                 elif character == "<" and current_parenthesis == 0 and (special_index == -1 or "." in special_sign or "[]" == special_sign):
@@ -917,26 +917,34 @@ def parse_statement(contents, extra):
                 elif character == "]" and current_parenthesis == 0 and special_index2 == -1 and special_sign == "[":
                     special_index2 = index
                     special_sign = "[]"
-                elif character == "=" and current_parenthesis == 0 and special_sign == "[]":
+                elif character == "=" and current_parenthesis == 0 and special_sign == "[]" and not in_quotes:
                     if not last_character == "=":
                         special_sign = "[]="
                         special_index3 = index
                 elif character == "." and current_parenthesis == 0 and (special_index == -1 or special_sign == "." or special_sign == "[]") and not "(" in contents[index : (contents.rindex("=") if "=" in contents[index:] else len(contents))]:
                     special_sign = "."
                     special_index = index
-                elif character == "=" and current_parenthesis == 0 and special_sign == ".":
+                elif character == "=" and current_parenthesis == 0 and special_sign == "." and not in_quotes:
                     if not last_character == "=":
                         special_sign = ".="
                         special_index2 = index
+                elif character == "=" and not in_quotes and current_parenthesis == 0:
+                    special_sign = "="
+                    special_index = index
                 
                 last_character = character
 
-            if "=" in contents and not contents[contents.index("=") + 1] == "=" and not contents[contents.index("=") - 1] == "!" and not special_sign == "[]=" and not special_sign == ".=":
-                    name = contents.split(" ")[0]
-                    expression = contents[contents.index("=") + 1 : len(contents)]
-                    expression = expression.lstrip()
-                    instructions.extend(parse_statement(expression, extra + instructions))
+            if special_sign == "=":
+                name = contents.split(" ")[0]
+                expression = contents[contents.index("=") + 1 : len(contents)]
+                expression = expression.lstrip()
+                instructions.extend(parse_statement(expression, extra + instructions))
+                if "." in name or "()" in name:
+                    instructions.extend(parse_statement(name[0 : name.rindex(".")], extra + instructions))
+                    instructions.append(Invoke("_" + name[name.rindex(".") + 1 : ] + "=", 2, []))
+                else:
                     instructions.append(Assign(name))
+
             elif special_sign == "+":
                 before = contents[0 : special_index].strip()
                 after = contents[special_index + 1 : len(contents)].strip()

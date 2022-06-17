@@ -1,14 +1,39 @@
 fn main() {
-    print("Hello World!\n")
-    print("test")
+    let foo = "test"
+    foo.test()
 }
 
 fn print(string: String) {
     @print_size(string.pointer, string.size)
 }
 
+fn println(string: String) {
+    print(string)
+    print("\n")
+}
+
 struct String {
     pointer: any
     size: integer
     static: boolean
+
+    fn test(string: &String) {
+    	println(string)
+    }
 }
+
+//fn to_string(integer: integer): String {
+//    let string = ""
+//    if integer == 0 {
+//        string = "0"
+//    }
+//
+//    while integer > 0 {
+//        let modulo = integer % 10
+//        integer = integer / 10
+//        let prepended_string = String(store(modulo + 48), 1)
+//        string = prepended_string +string
+//    }
+//
+//    return string
+//}

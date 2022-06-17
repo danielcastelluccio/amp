@@ -3,6 +3,8 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
     let data_string = "section .data\n"
     let bss_string = "section .bss\n\tmemory: resb 8\n"
 
+    let data_index = 0
+
     let i = 0
     while i < program.size() {
         let token = program[i]
@@ -23,7 +25,7 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
 
                 if instruction.type == StringToken {
                     let string = @cast_&StringToken(instruction.value)
-                    data_string = data_string + "\t" + string.value.remove_invalid() + ": db "
+                    data_string = data_string + "\t" + string.value.remove_invalid() + "_" + data_index.to_string() + ": db "
 
                     let k = 0
                     while k < string.value.length {
@@ -37,10 +39,11 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
 
                     text_string = text_string + "\tpush " + 1.to_string() + "\n"
                     text_string = text_string + "\tpush " + k.to_string() + "\n"
-                    text_string = text_string + "\tpush " + string.value.remove_invalid() + "\n"
+                    text_string = text_string + "\tpush " + string.value.remove_invalid() + "_" + data_index.to_string() + "\n"
                     text_string = text_string + "\tcall String\n"
                     text_string = text_string + "\tadd rsp, 24\n"
                     text_string = text_string + "\tpush r8\n"
+		    data_index = data_index + 1
                 } else if instruction.type == IntegerToken {
                     let integer = @cast_&IntegerToken(instruction.value)
                     text_string = text_string + "\tpush " + integer.value.to_string() + "\n"
