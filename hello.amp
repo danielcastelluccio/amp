@@ -1,6 +1,8 @@
 fn main() {
     let foo = "test"
-    foo.test()
+    if true {
+    	foo.test()
+    }
 }
 
 fn print(string: String) {

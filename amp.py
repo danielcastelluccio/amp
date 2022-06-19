@@ -234,6 +234,7 @@ def parse(contents, type, extra):
         if "{" in contents:
             has_body = True
             in_quotes = False
+            prev_character = ''
             for character in contents[contents.index("{") + 1 : contents.rindex("}")]:
                 if character == '\n' and current_indent == 0:
                     instructions.extend(parse(current_thing, getType(current_thing), instructions))
@@ -241,12 +242,13 @@ def parse(contents, type, extra):
                 else:
                     current_thing += character
 
-                if character == '"':
+                if character == '"' and not prev_character == '\\':
                     in_quotes = not in_quotes
                 elif character == '{' and not in_quotes:
                     current_indent += 1
                 elif character == '}' and not in_quotes:
                     current_indent -= 1
+                prev_character = character
                 
         locals = []
                 
@@ -718,6 +720,8 @@ def parse_statement(contents, extra):
         in_quotes = False
 
         prev_character = ''
+        #print(contents)
+        #print(first_non_quote_index(contents, "{"))
         for character in contents[first_non_quote_index(contents, "{") + 1 : contents.rindex("}")]:
             if character == '\n' and current_indent == 0:
                 instructions2.extend(parse(current_thing, getType(current_thing), extra + instructions))

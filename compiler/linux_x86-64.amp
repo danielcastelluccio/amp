@@ -43,10 +43,17 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
                     text_string = text_string + "\tcall String\n"
                     text_string = text_string + "\tadd rsp, 24\n"
                     text_string = text_string + "\tpush r8\n"
-		    data_index = data_index + 1
+		    		data_index = data_index + 1
                 } else if instruction.type == IntegerToken {
                     let integer = @cast_&IntegerToken(instruction.value)
                     text_string = text_string + "\tpush " + integer.value.to_string() + "\n"
+				} else if instruction.type == BooleanToken {
+                    let boolean = @cast_&BooleanToken(instruction.value)
+					let value = 0
+					if boolean.value {
+						value = 1
+					}
+                    text_string = text_string + "\tpush " + value.to_string() + "\n"
                 } else if instruction.type == InvokeToken {
                     let invoke = @cast_&InvokeToken(instruction.value)
                     text_string = text_string + "\tcall " + invoke.name + "\n"
@@ -82,7 +89,15 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
                     } else {
                         text_string = text_string + "\tpush qword [rbp-" + (8 + ((local_index - parameter_count) * 8)).to_string() + "]\n"
                     }
-                }
+                } else if instruction.type == JumpConditionalToken {
+					let jump_conditional = @cast_&JumpConditionalToken(instruction.value)
+					text_string = text_string + "\tpop r8\n"
+					text_string = text_string + "\tcmp r8, 1\n"
+					text_string = text_string + "\tje target_" + jump_conditional.id.to_string() + "\n"
+				} else if instruction.type == TargetToken {
+					let target = @cast_&TargetToken(instruction.value)
+					text_string = text_string + "\ttarget_" + target.id.to_string() + ":\n"
+				}
 
                 j = j + 1
             }
@@ -198,6 +213,15 @@ fn get_internal_functions(): LinkedList<InternalFunction> {
     instructions.append("pop rbp")
     instructions.append("ret")
     functions.append(InternalFunction("@add", instructions))
+
+    let instructions = LinkedList<String>()
+    instructions.append("push rbp")
+    instructions.append("mov rbp, rsp")
+    instructions.append("mov r8, [rbp+16]")
+    instructions.append("xor r8, 1")
+    instructions.append("pop rbp")
+    instructions.append("ret")
+    functions.append(InternalFunction("@not", instructions))
 
     let instructions = LinkedList<String>()
     instructions.append("push rbp")

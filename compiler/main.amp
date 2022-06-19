@@ -25,6 +25,10 @@ struct IntegerToken {
     value: integer
 }
 
+struct BooleanToken {
+	value: boolean
+}
+
 struct ReturnToken {
     count: integer
 }
@@ -42,6 +46,23 @@ struct StoreToken {
     name: String
 }
 
+struct JumpConditionalToken {
+	id: integer
+}
+
+struct JumpToken {
+	id: integer
+}
+
+struct TargetToken {
+	id: integer
+}
+
+struct IntegerStore {
+	value: integer
+}
+
+
 fn main(arguments: Array<String>) {
     if arguments.length < 1 {
         println("Must provide a file to compile.")
@@ -52,7 +73,7 @@ fn main(arguments: Array<String>) {
 
     let file_name = arguments[0]
     let file = File::open(file_name.clone())
-    parse_file(file, program)
+    parse_file(file, program, IntegerStore(0))
 
     //let i = 0
     //while i < program.size() {
