@@ -1,5 +1,11 @@
 fn parse_file(file: File, program: &LinkedList<Box>, jump_id: &IntegerStore) {
     let contents = file.read()
+	program.append_all(parse_elements(contents, jump_id))
+}
+
+
+fn parse_elements(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
+	let list = LinkedList<Box>()
 
     let i = 0
     let inside = 0
@@ -13,16 +19,21 @@ fn parse_file(file: File, program: &LinkedList<Box>, jump_id: &IntegerStore) {
         }
 
         if @and(character == "\n", inside == 0) {
-	    if buffer.strip().length > 0 {
-            	program.append_all(parse_element(buffer.strip(), jump_id))
+	    	if buffer.strip().length > 0 {
+            	list.append_all(parse_element(buffer.strip(), jump_id))
             	buffer = ""
-	    }
+	    	}
         } else {
             buffer = buffer + character
         }
 
         i = i + 1
     }
+	if buffer.strip().length > 0 {
+        list.append_all(parse_element(buffer.strip(), jump_id))
+	}
+
+	return list
 }
 
 fn parse_element(contents: String, jump_id: &IntegerStore): LinkedList<Box> {
@@ -40,6 +51,8 @@ fn parse_element(contents: String, jump_id: &IntegerStore): LinkedList<Box> {
 		return parse_let(contents, jump_id)
     } else if contents.substring(0, 3) == "if " {
 		return parse_if(contents, jump_id)
+    } else if contents.substring(0, 6) == "while " {
+		return parse_while(contents, jump_id)
     } else if @and(contents[0] == "\"", contents[contents.length - 1] == "\"") {
         return parse_string(contents)
 	} else if @or(contents == "true", contents == "false") {
@@ -97,6 +110,8 @@ fn parse_element(contents: String, jump_id: &IntegerStore): LinkedList<Box> {
                     type = "."
                 } else if @and(@and(character == "(", inside == 1), type == ".") {
 		    		type = ".()"
+				} else if @and(character == "=", inside == 0) {
+					type = "="
 				}
 
                 i = i + 1
@@ -106,6 +121,8 @@ fn parse_element(contents: String, jump_id: &IntegerStore): LinkedList<Box> {
                 return parse_dot(contents, jump_id)
 	    	} else if type == ".()" {
                 return parse_invoke_dot(contents, jump_id)
+			} else if type == "=" {
+				return parse_assign(contents, jump_id)
             } else if contents.index("(") != 999 {
                 return parse_invoke(contents, jump_id)
             } else {
@@ -161,9 +178,9 @@ fn parse_struct(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
                     
 		    list.append_all(function_list)
 		} else {
-        	    let split = buffer.strip().split(":")
-                    items.append(split[0].strip().clone())
-                    item_types.append(split[1].strip().clone())
+        	let split = buffer.strip().split(":")
+            items.append(split[0].strip().clone())
+            item_types.append(split[1].strip().clone())
 		}
             }
             buffer = ""
@@ -182,7 +199,7 @@ fn parse_struct(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
         parameters[0] = "&" + name
 
         let instructions = LinkedList<Box>()
-	instructions.append(Box(DeclareToken("instance", "&" + name)))
+		instructions.append(Box(DeclareToken("instance", "&" + name)))
         instructions.append(Box(RetrieveToken("instance")))
         instructions.append(Box(IntegerToken(8 * i)))
         instructions.append(Box(InvokeToken("@add", 2)))
@@ -353,6 +370,16 @@ fn parse_let(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
     return list
 }
 
+fn parse_assign(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
+    let list = LinkedList<Box>()
+
+    let name = contents.substring(0, contents.index("=")).strip()
+    list.append_all(parse_element(contents.substring(contents.index("=") + 1, contents.length).strip(), jump_id))
+    list.append(Box(StoreToken(name)))
+
+    return list
+}
+
 fn parse_if(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
     let list = LinkedList<Box>()
 
@@ -363,8 +390,34 @@ fn parse_if(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
 	list.append_all(parse_element(condition.strip(), jump_id))
 	list.append(Box(InvokeToken("@not", 1)))
 	list.append(Box(JumpConditionalToken(id)))
-	list.append_all(parse_element(contents.substring(contents.real_index("{") + 1, contents.last_index("}")).strip(), jump_id))
+
+	let body = contents.substring(contents.real_index("{") + 1, contents.last_index("}")).strip()
+	list.append_all(parse_elements(body, jump_id))
+
 	list.append(Box(TargetToken(id)))
+
+    return list
+}
+
+fn parse_while(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
+    let list = LinkedList<Box>()
+
+	let stop_id = jump_id.value
+	jump_id.value = jump_id.value + 1
+	let repeat_id = jump_id.value
+	jump_id.value = jump_id.value + 1
+
+    let condition = contents.substring(3, contents.real_index("{"))
+	list.append(Box(TargetToken(repeat_id)))
+	list.append_all(parse_element(condition.strip(), jump_id))
+	list.append(Box(InvokeToken("@not", 1)))
+	list.append(Box(JumpConditionalToken(stop_id)))
+
+	let body = contents.substring(contents.real_index("{") + 1, contents.last_index("}")).strip()
+	list.append_all(parse_elements(body, jump_id))
+
+	list.append(Box(JumpToken(repeat_id)))
+	list.append(Box(TargetToken(stop_id)))
 
     return list
 }

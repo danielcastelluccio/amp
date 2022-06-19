@@ -94,6 +94,9 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
 					text_string = text_string + "\tpop r8\n"
 					text_string = text_string + "\tcmp r8, 1\n"
 					text_string = text_string + "\tje target_" + jump_conditional.id.to_string() + "\n"
+                } else if instruction.type == JumpToken {
+					let jump = @cast_&JumpToken(instruction.value)
+					text_string = text_string + "\tjmp target_" + jump.id.to_string() + "\n"
 				} else if instruction.type == TargetToken {
 					let target = @cast_&TargetToken(instruction.value)
 					text_string = text_string + "\ttarget_" + target.id.to_string() + ":\n"
