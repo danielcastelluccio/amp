@@ -111,7 +111,12 @@ fn parse_element(contents: String, jump_id: &IntegerStore): LinkedList<Box> {
                 } else if @and(@and(character == "(", inside == 1), type == ".") {
 		    		type = ".()"
 				} else if @and(character == "=", inside == 0) {
-					type = "="
+					if contents[i + 1] == "=" {
+						type = "=="
+					} else if @not(contents[i - 1] == "=") {
+						type = "="
+						i = 999
+					}
 				}
 
                 i = i + 1
@@ -123,6 +128,8 @@ fn parse_element(contents: String, jump_id: &IntegerStore): LinkedList<Box> {
                 return parse_invoke_dot(contents, jump_id)
 			} else if type == "=" {
 				return parse_assign(contents, jump_id)
+			} else if type == "==" {
+				return parse_equal(contents, jump_id)
             } else if contents.index("(") != 999 {
                 return parse_invoke(contents, jump_id)
             } else {
@@ -380,6 +387,20 @@ fn parse_assign(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
     return list
 }
 
+fn parse_equal(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
+    let list = LinkedList<Box>()
+
+    let before = contents.substring(0, contents.index("=")).strip()
+    let after = contents.substring(contents.index("=") + 2, contents.length).strip()
+	list.append_all(parse_element(before, jump_id))
+	list.append_all(parse_element(after, jump_id))
+	list.append(Box(InvokeToken("@equal", 2)))
+    //list.append_all(parse_element(contents.substring(contents.index("=") + 1, contents.length).strip(), jump_id))
+    //list.append(Box(StoreToken(name)))
+
+    return list
+}
+
 fn parse_if(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
     let list = LinkedList<Box>()
 
@@ -407,7 +428,7 @@ fn parse_while(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
 	let repeat_id = jump_id.value
 	jump_id.value = jump_id.value + 1
 
-    let condition = contents.substring(3, contents.real_index("{"))
+    let condition = contents.substring(6, contents.real_index("{"))
 	list.append(Box(TargetToken(repeat_id)))
 	list.append_all(parse_element(condition.strip(), jump_id))
 	list.append(Box(InvokeToken("@not", 1)))

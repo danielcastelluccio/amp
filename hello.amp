@@ -1,6 +1,6 @@
 fn main() {
     let foo = "test"
-    while true {
+    while 0 == 0 {
 		foo = "test2"
     	foo.test()
     }
