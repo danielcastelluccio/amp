@@ -293,7 +293,7 @@ struct LinkedList<A> {
 	        let new_node = LinkedList_Node<A>(list_node.data, null())
             node = new_node
 	        temp_node.next = new_node
-            list_node.data = 0
+            list_node.data = null()
             i = i + 1
         }
 	}
@@ -350,6 +350,27 @@ struct LinkedList<A> {
         return @cast_&A(node.data)
     }
 
+    fn pop<A>(linked_list: &LinkedList<A>): A {
+        if linked_list.size() == 0 {
+            println("Cannot pop!")
+            @exit()
+        }
+
+	    let node = linked_list.head
+        let prev_node = linked_list.head
+	    while node.next != null() {
+            prev_node = node
+	        node = node.next
+	    }
+
+        prev_node.next = null()
+
+        let node_owned = @cast_LinkedList_Node<A>(node)
+        let data = node_owned.data_consume()
+        
+	    return data
+	}
+
     fn to_array<A>(linked_list: LinkedList<A>): Array<A> {
         let i = 0
         let size = linked_list.size()
@@ -358,7 +379,7 @@ struct LinkedList<A> {
         while i < size {
             node = node.next
             array[i] = @cast_A(node.data)
-            node.data = 0
+            node.data = null()
             i = i + 1
         }
 
@@ -403,20 +424,36 @@ struct LinkedList_Node<A> {
 struct HashMap<A, B> {
     size: integer
     array: Array<B>
+    zero_check: boolean
 
     fn <A, B>(): HashMap<A, B> {
         return HashMap<A, B>(20)
     }
 
     fn <A, B>(size: integer): HashMap<A, B> {
-        return HashMap<A, B>(size, Array<B>(size))
+        return HashMap<A, B>(size, Array<B>(size), true)
+    }
+
+    fn <A, B>(size: integer, zero_check: boolean): HashMap<A, B> {
+        return HashMap<A, B>(size, Array<B>(size), zero_check)
     }
 
     fn []<A, B>(hash_map: &HashMap<A, B>, key: &A): &B {
         let position = key.hash()
         position = position % hash_map.size
     
-        return hash_map.array[position]
+        let value = hash_map.array[position]
+        if @and(value == 0, hash_map.zero_check) {
+            println("HashMap does not contain value!")
+        }
+        return value
+    }
+
+    fn contains<A, B>(hash_map: &HashMap<A, B>, key: &A): boolean {
+        let position = key.hash()
+        position = position % hash_map.size
+    
+        return hash_map.array[position] != null()
     }
 
     fn []=<A, B>(hash_map: &HashMap<A, B>, key: A, value: B) {

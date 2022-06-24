@@ -1,6 +1,7 @@
 use "std"
 use "compiler/parser"
-use "compiler/linux_x86-64"
+use "compiler/processor"
+use "compiler/codegen/linux_x86-64"
 
 struct UseToken {
     path: String
@@ -9,12 +10,13 @@ struct UseToken {
 struct FunctionToken {
     name: String
     parameters: Array<String>
+    returns: Array<String>
     instructions: LinkedList<Box>
 }
 
 struct InvokeToken {
     name: String
-    parameter_count: integer
+    parameters: Array<String>
 }
 
 struct StringToken {
@@ -75,29 +77,7 @@ fn main(arguments: Array<String>) {
     let file = File::open(file_name.clone())
     parse_file(file, program, IntegerStore(0))
 
-    //let i = 0
-    //while i < program.size() {
-    //    if program[i].type == UseToken {
-    //        println(@cast_&UseToken(program[i].value).path)
-    //    } else if program[i].type == FunctionToken {
-    //        let function = @cast_&FunctionToken(program[i].value)
-    //        println(function.name)
-    //        println(function.parameters.length.to_string())
-
-    //        let j = 0
-    //        while j < function.instructions.size() {
-    //            if function.instructions[j].type == InvokeToken {
-    //                let invoke = @cast_&InvokeToken(function.instructions[j].value)
-    //                println("Invoke: " + invoke.name)
-    //            } else if function.instructions[j].type == StringToken {
-    //                let string = @cast_&StringToken(function.instructions[j].value)
-    //                println("String: " + string.value)
-    //            }
-    //            j = j + 1
-    //        }
-    //    }
-    //    i = i + 1
-    //}
+    process(program)
 
     let file_name_split = file_name.split(".")
     create_linux_x86_64_binary(file_name_split[0], program)

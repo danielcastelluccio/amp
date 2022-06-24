@@ -1,0 +1,155 @@
+fn process(program: &LinkedList<Box>) {
+    let functions = HashMap<String, LinkedList<?FunctionToken>>(256)
+    let i = 0
+    while i < program.size() {
+        let token = program[i]
+        if token.type == FunctionToken {
+            let function = @cast_&FunctionToken(token.value)
+            if @not(functions.contains(function.name)) {
+                functions[function.name.clone()] = LinkedList<?FunctionToken>()
+            }
+            functions[function.name].append(function)
+        }
+        i = i + 1
+    }
+
+    let i = 0
+    while i < program.size() {
+        let token = program[i]
+        if token.type == FunctionToken {
+            let function = @cast_&FunctionToken(token.value)
+            type_check(function, functions)
+        }
+        i = i + 1
+    }
+}
+
+fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?FunctionToken>>) {
+    let types = LinkedList<String>()
+    let variables = HashMap<String, String>()
+    let i = 0
+    while i < function.instructions.size() {
+        let instruction = function.instructions[i]
+        if instruction.type == IntegerToken {
+            types.append("integer")
+        } else if instruction.type == StringToken {
+            types.append("String")
+        } else if instruction.type == DeclareToken {
+            let declare = @cast_&DeclareToken(instruction.value)
+            variables[declare.name.clone()] = declare.type.clone()
+        } else if instruction.type == InvokeToken {
+            let invoke = @cast_&InvokeToken(instruction.value)
+
+            if invoke.name.substring(0, 6) == "@cast_" {
+                let _ = types.pop()
+                types.append(invoke.name.substring(6, invoke.name.length))
+            } else {
+                let called_function_options = functions[invoke.name]
+
+                let popped_types = LinkedList<String>()
+
+                let running = true
+                let j = 0
+                while running {
+                    let top = types.pop()
+                    popped_types.append(top.clone())
+
+                    let removed_any = false
+                    let more_params = false
+                    let k = 0
+                    while k < called_function_options.size() {
+                        let called_function = called_function_options[k]
+                        if (j + 1) > called_function.parameters.length {
+                            called_function_options.remove(k)
+                            removed_any = true
+                        } else if @not(is_type(called_function.parameters[j], top)) {
+                            called_function_options.remove(k)
+                            removed_any = true
+                            if (j + 1) < called_function.parameters.length { 
+                                more_params = true
+                            }
+                        } else {
+                            if (j + 1) < called_function.parameters.length { 
+                                more_params = true
+                            }
+                            k = k + 1
+                        }
+                    }
+
+                    if @and(@not(removed_any), @not(more_params)) {
+                        running = false
+                    }
+
+                    j = j + 1
+                }
+
+                if called_function_options.size() > 1 {
+                    let j = 0
+                    while j < popped_types.size() {
+                        let type = popped_types[j]
+                        let k = 0
+                        while k < called_function_options.size() {
+                            let called_function = called_function_options[k]
+                            if called_function.parameters[(called_function.parameters.length - j) - 1] != type {
+                                called_function_options.remove(k)
+                            } else {
+                                k = k + 1
+                            }
+                        }
+                        j = j + 1
+                    }
+                }
+
+                let called_function = called_function_options[0]
+
+                let j = 0
+                while j < called_function.parameters.length {
+                    
+                    //if @not(is_type(called_function.parameters[j], top)) {
+                    //    println("PROCESS: Invoke in " + function.name + " of " + called_function.name + " expected " + called_function.parameters[j] + ", got " + top + ".")
+                    //}
+                    j = j + 1
+                }
+
+                let j = 0
+                while j < called_function.parameters.length {
+                    invoke.parameters[j] = called_function.parameters[j]
+                    j = j + 1
+                }
+
+                let j = 0
+                while j < called_function.returns.length {
+                    types.append(called_function.returns[j].clone())
+                    j = j + 1
+                }
+            }
+        } else if instruction.type == StoreToken {
+            let store = @cast_&StoreToken(instruction.value)
+
+            if variables[store.name].length == 0 {
+                variables[store.name.clone()] = types.pop()
+            } else {
+                let current_type = types.pop()
+                if @not(is_type(variables[store.name], current_type)) {
+                    println("PROCESS: Store in " + function.name + " expected " + variables[store.name] + ", got " + current_type + ".")
+                }
+            }
+        } else if instruction.type == RetrieveToken {
+            let retrieve = @cast_&RetrieveToken(instruction.value)
+            types.append(variables[retrieve.name].clone())
+        }
+        i = i + 1
+    }
+}
+
+fn is_type(wanted: &String, given: &String): boolean {
+    if given == wanted.substring(1, wanted.length) {
+        return true
+    }
+
+    if wanted == "any" {
+        return true
+    }
+
+    return given == wanted
+}
