@@ -1285,6 +1285,7 @@ def process_program(program):
 
             loops = []
             variable_loops = {}
+            variable_loops2 = {}
             loop_errors = {}
 
             for instruction in list(function.tokens):
@@ -1315,12 +1316,6 @@ def process_program(program):
                     
                     index_thing += 1
                 elif isinstance(instruction, Declare):
-                    #if instruction.type == "A":
-                    #    print(function.name)
-                    #    print(instruction.type)
-                    #    print(function.parameters)
-                    #    print("------")
-                    #    exit()
                     variables[instruction.name] = instruction.type
                     if function.locals.index(instruction.name) < len(function.parameters):
                         if not instruction.name in owned_variables:
@@ -1333,6 +1328,7 @@ def process_program(program):
                     
                     if function.locals.index(instruction.name) < len(function.parameters):
                         variable_loops[instruction.name] = ""
+                        variable_loops2[instruction.name] = []
                 elif isinstance(instruction, Assign):
                     if instruction.name in owned_variables and not variables[instruction.name] in primitives and not variables[instruction.name][0] == "&" and not variables[instruction.name][0] == "?":
                         index = function.tokens.index(instruction)
@@ -1345,6 +1341,7 @@ def process_program(program):
 
                     if len(loops) > 0:
                         variable_loops[instruction.name] = loops[len(loops) - 1]
+                        variable_loops2[instruction.name] = list(loops)
 
                         current_loop = ""
                         if len(loops) > 0:
@@ -1354,6 +1351,7 @@ def process_program(program):
                             del loop_errors[instruction.name]
                     else:
                         variable_loops[instruction.name] = ""
+                        variable_loops2[instruction.name] = []
 
                     for usage in dict(variable_usages):
                         if variable_usages[usage] == stack:
@@ -1454,7 +1452,7 @@ def process_program(program):
                                         if len(loops) > 0:
                                             current_loop = loops[len(loops) - 1]
 
-                                        if (not variable_loops[usage] == current_loop and not (usage in variable_loops and not variable_loops[usage] in loops)) or (len(loops) > 0 and not variable_loops[usage] == current_loop):
+                                        if (not str(current_loop) in variable_loops2[usage] and not (usage in variable_loops and not variable_loops[usage] in loops)) or (len(loops) > 0 and not current_loop in variable_loops2[usage]):
                                             loop_errors[usage] = current_loop
                             
                                     del variable_usages[usage]
@@ -1477,11 +1475,6 @@ def process_program(program):
                                 if not return_type[0] == "&" and not return_type[0] == "?":
                                     id = "_" + str(index_thing)
                                     type = return_type
-                                    if return_type == "A":
-                                        print(instruction.name + " " + str(function.parameters))
-                                        print(return_type)
-                                        print(function2.generics)
-                                        exit()
 
                                     mapped_generics = {}
                                     for i in range(0, len(function2.parameters)):
