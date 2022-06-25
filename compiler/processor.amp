@@ -1,5 +1,5 @@
-fn process(program: &LinkedList<Box>) {
-    let functions = HashMap<String, LinkedList<?FunctionToken>>(256)
+fn process(program: &LinkedList<Box>): integer {
+    let functions = HashMap<String, LinkedList<?FunctionToken>>(2048)
     let i = 0
     while i < program.size() {
         let token = program[i]
@@ -18,13 +18,17 @@ fn process(program: &LinkedList<Box>) {
         let token = program[i]
         if token.type == FunctionToken {
             let function = @cast_&FunctionToken(token.value)
-            type_check(function, functions)
+            if type_check(function, functions) == 1 {
+                return 1
+            }
         }
         i = i + 1
     }
+
+    return 0
 }
 
-fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?FunctionToken>>) {
+fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?FunctionToken>>): integer {
     let types = LinkedList<String>()
     let variables = HashMap<String, String>()
     let i = 0
@@ -34,6 +38,8 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
             types.append("integer")
         } else if instruction.type == StringToken {
             types.append("String")
+        } else if instruction.type == BooleanToken {
+            types.append("boolean")
         } else if instruction.type == DeclareToken {
             let declare = @cast_&DeclareToken(instruction.value)
             variables[declare.name.clone()] = declare.type.clone()
@@ -44,9 +50,16 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
                 let _ = types.pop()
                 types.append(invoke.name.substring(6, invoke.name.length))
             } else {
-                let called_function_options = functions[invoke.name]
+                if @not(functions.contains(invoke.name)) {
+                    println("PROCESS: Invoke in " + function.name + " of " + invoke.name + " found no targets.")
+                    return 1
+                }
+                let called_function_options = functions[invoke.name].clone()
 
                 let popped_types = LinkedList<String>()
+
+                println(invoke.name)
+                println(called_function_options.size().to_string())
 
                 let running = true
                 let j = 0
@@ -68,6 +81,12 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
                             if (j + 1) < called_function.parameters.length { 
                                 more_params = true
                             }
+                        } else if @not(called_function.parameters.length == invoke.parameters.length) {
+                            called_function_options.remove(k)
+                            removed_any = true
+                            if (j + 1) < called_function.parameters.length { 
+                                more_params = true
+                            }
                         } else {
                             if (j + 1) < called_function.parameters.length { 
                                 more_params = true
@@ -82,6 +101,8 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
 
                     j = j + 1
                 }
+
+                println(called_function_options.size().to_string())
 
                 if called_function_options.size() > 1 {
                     let j = 0
@@ -98,6 +119,11 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
                         }
                         j = j + 1
                     }
+                }
+
+                if called_function_options.size() == 0 {
+                    println("PROCESS: Invoke in " + function.name + " of " + invoke.name + " found no targets.")
+                    return 1
                 }
 
                 let called_function = called_function_options[0]
@@ -132,6 +158,7 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
                 let current_type = types.pop()
                 if @not(is_type(variables[store.name], current_type)) {
                     println("PROCESS: Store in " + function.name + " expected " + variables[store.name] + ", got " + current_type + ".")
+                    return 1
                 }
             }
         } else if instruction.type == RetrieveToken {
@@ -140,6 +167,8 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
         }
         i = i + 1
     }
+
+    return 0
 }
 
 fn is_type(wanted: &String, given: &String): boolean {

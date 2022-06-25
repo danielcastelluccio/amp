@@ -8,8 +8,6 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
 
     let data_index = 0
 
-    println("Start Actual Generate")
-
     let p = 0
 
     let i = 0
@@ -48,21 +46,25 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
                         let string = @cast_&StringToken(instruction.value)
                         data_string = data_string + "\t_" + string.value.remove_invalid() + "_" + data_index.to_string() + ": db "
 
-                        let k = 0
-                        while k < string.value.length {
-                            let character = string.value[k]
-                            let code = @cast_integer(@get_1(character.pointer))
-                            data_string = data_string + code.to_string()
-                            if k < string.value.length - 1 {
-                                data_string = data_string + ","
+                        if string.value.length == 0 {
+                            data_string = data_string + "0"
+                        } else {
+                            let k = 0
+                            while k < string.value.length {
+                                let character = string.value[k]
+                                let code = @cast_integer(@get_1(character.pointer))
+                                data_string = data_string + code.to_string()
+                                if k < string.value.length - 1 {
+                                    data_string = data_string + ","
+                                }
+                                k = k + 1
                             }
-                            k = k + 1
                         }
 
                         data_string = data_string + "\n"
 
                         text_string.append("\tpush " + 1.to_string())
-                        text_string.append("\tpush " + k.to_string())
+                        text_string.append("\tpush " + string.value.length.to_string())
                         text_string.append("\tpush _" + string.value.remove_invalid() + "_" + data_index.to_string())
                         text_string.append("\tcall String_any_integer_boolean")
                         text_string.append("\tadd rsp, 24")
@@ -151,9 +153,6 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
         i = i + 1
     }
 
-    println(p.to_string())
-    println("Start Internal Functions")
-
     let text_string_real = ""
 
     let i = 0
@@ -175,8 +174,6 @@ fn create_linux_x86_64_binary(name: &String, program: LinkedList<Box>) {
         }
         i = i + 1
     }
-
-    println("Start Commands")
 
     let file = File::open("build/" + name + ".asm")
     file.write(text_string_real + data_string + bss_string)
@@ -235,6 +232,16 @@ fn get_internal_functions(): LinkedList<InternalFunction> {
     instructions.append("pop rbp")
     instructions.append("ret")
     functions.append(InternalFunction("@print_size_any_integer", instructions))
+
+    let instructions = LinkedList<String>()
+    instructions.append("push rbp")
+    instructions.append("mov rbp, rsp")
+    instructions.append("mov rdx, [rbp+24]")
+    instructions.append("mov rsi, [rbp+16]")
+    instructions.append("mov [rsi], al")
+    instructions.append("pop rbp")
+    instructions.append("ret")
+    functions.append(InternalFunction("@set_1_any_any", instructions))
 
     let instructions = LinkedList<String>()
     instructions.append("push rbp")

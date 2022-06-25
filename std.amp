@@ -106,6 +106,18 @@ access Array<A> {
     fn []<A>(array: &Array<A>, index: integer): &A {
         return @cast_&A(@get_8(array.pointer + (index * 8)))
     }
+
+    fn clone<A>(array: &Array<A>): Array<A> {
+        let new_array = Array<A>(array.length)
+
+        let i = 0
+        while i < array.length {
+            new_array[i] = array[i].clone()
+            i = i + 1
+        }
+
+        return new_array
+    }
 }
 
 access Function {
@@ -123,7 +135,7 @@ access String {
         let total = 0
         let i = 0
         while i < string.length {
-            total = total + @cast_integer(@get_1(string.pointer + i))
+            total = total + (@cast_integer(@get_1(string.pointer + i)) * i)
             i = i + 1
         }
         return total
@@ -339,6 +351,10 @@ struct LinkedList<A> {
 	}
 
     fn []<A>(linked_list: &LinkedList<A>, index: integer): &A {
+        if (index + 1) > linked_list.size() {
+            println("LinkedList index out of bounds!")
+            @exit()
+        }
         let node = linked_list.head
         let i = 0
 

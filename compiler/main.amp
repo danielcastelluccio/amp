@@ -12,6 +12,10 @@ struct FunctionToken {
     parameters: Array<String>
     returns: Array<String>
     instructions: LinkedList<Box>
+
+    fn clone(function: &FunctionToken): FunctionToken {
+        return FunctionToken(function.name.clone(), function.parameters.clone(), function.returns.clone(), LinkedList<Box>())
+    }
 }
 
 struct InvokeToken {
@@ -73,18 +77,13 @@ fn main(arguments: Array<String>) {
 
     let program = LinkedList<Box>()
 
-    println("Start Parse")
-
     let file_name = arguments[0]
     let file = File::open(file_name.clone())
     parse_file(file, program, IntegerStore(0))
 
-    println("Start Process")
-
-    process(program)
-
-    println("Start Generate")
-
-    let file_name_split = file_name.split(".")
-    create_linux_x86_64_binary(file_name_split[0], program)
+    let result = process(program)
+    if result == 0 {
+        let file_name_split = file_name.split(".")
+        create_linux_x86_64_binary(file_name_split[0], program)
+    }
 }

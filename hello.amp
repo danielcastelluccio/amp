@@ -22,9 +22,30 @@ struct String {
     size: integer
     static: boolean
 
+    fn (pointer: any, size: integer): String {
+        return String(pointer, size, false)
+    }
+
     fn test(string: &String) {
     	println(string)
     }
+}
+
+access integer {
+    fn to_string(integer: integer): String {
+        let string = ""
+
+        let prepended_string = String(store(1 + 48), 1)
+        string = prepended_string + string
+
+        return string
+    }
+}
+
+fn store(value: integer): any {
+    let new_memory = @allocate(1)
+    @set_1(new_memory, value)
+    return new_memory
 }
 
 fn _+(value1: any, value2: any): any {
@@ -37,6 +58,7 @@ fn _+(value1: integer, value2: integer): integer {
 
 fn @allocate(size: integer): any
 fn @set_8(pointer: any, value: any)
+fn @set_1(pointer: any, value: any)
 fn @get_8(pointer: any): any
 
 fn @print_size(pointer: any, size: integer): any
@@ -44,5 +66,6 @@ fn @print_size(pointer: any, size: integer): any
 fn @add(value1: any, value2: any): any
 
 fn @less(value1: integer, value2: integer): boolean
+fn @greater(value1: integer, value2: integer): boolean
 
 fn @not(value: boolean): boolean
