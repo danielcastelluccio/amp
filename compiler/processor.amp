@@ -58,9 +58,6 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
 
                 let popped_types = LinkedList<String>()
 
-                println(invoke.name)
-                println(called_function_options.size().to_string())
-
                 let running = true
                 let j = 0
                 while running {
@@ -102,8 +99,6 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
                     j = j + 1
                 }
 
-                println(called_function_options.size().to_string())
-
                 if called_function_options.size() > 1 {
                     let j = 0
                     while j < popped_types.size() {
@@ -111,7 +106,8 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
                         let k = 0
                         while k < called_function_options.size() {
                             let called_function = called_function_options[k]
-                            if called_function.parameters[(called_function.parameters.length - j) - 1] != type {
+                            let parameter = called_function.parameters[(called_function.parameters.length - j) - 1]
+                            if @and(parameter != type, parameter.substring(1, parameter.length) != type) {
                                 called_function_options.remove(k)
                             } else {
                                 k = k + 1

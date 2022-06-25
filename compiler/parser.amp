@@ -563,7 +563,7 @@ fn parse_plus(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
     let after = contents.substring(contents.index("+") + 1, contents.length).strip()
     list.append_all(parse_element(after, jump_id))
 	list.append_all(parse_element(before, jump_id))
-	list.append(Box(InvokeToken("_+", Array<String>(2))))
+	list.append(Box(InvokeToken("_.+", Array<String>(2))))
 
     return list
 }

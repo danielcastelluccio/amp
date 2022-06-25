@@ -1,4 +1,5 @@
 fn main() {
+    println(9213091.to_string())
     let foo = "test"
     let integer = 0
     while integer < 5 {
@@ -9,7 +10,7 @@ fn main() {
 }
 
 fn print(string: &String) {
-    @print_size(string.pointer, string.size)
+    @print_size(string.pointer, string.length)
 }
 
 fn println(string: &String) {
@@ -19,7 +20,7 @@ fn println(string: &String) {
 
 struct String {
     pointer: any
-    size: integer
+    length: integer
     static: boolean
 
     fn (pointer: any, size: integer): String {
@@ -29,14 +30,30 @@ struct String {
     fn test(string: &String) {
     	println(string)
     }
+
+    fn +(string1: &String, string2: &String): String {
+        let string1_length = string1.length
+        let string2_length = string2.length
+        let new_memory = @allocate(string1_length + string2_length)
+        @copy(string1.pointer, new_memory, string1_length)
+        @copy(string2.pointer, new_memory + string1_length, string2_length)
+        return String(new_memory, string1_length + string2_length)
+    }
 }
 
 access integer {
     fn to_string(integer: integer): String {
         let string = ""
+        if integer == 0 {
+            string = "0"
+        }
 
-        let prepended_string = String(store(1 + 48), 1)
-        string = prepended_string + string
+        while integer > 0 {
+            let modulo = integer % 10
+            integer = integer / 10
+            let prepended_string = String(store(modulo + 48), 1)
+            string = prepended_string + string
+        }
 
         return string
     }
@@ -48,11 +65,11 @@ fn store(value: integer): any {
     return new_memory
 }
 
-fn _+(value1: any, value2: any): any {
+fn _.+(value1: any, value2: any): any {
     return @add(value1, value2)
 }
 
-fn _+(value1: integer, value2: integer): integer {
+fn _.+(value1: integer, value2: integer): integer {
     return @add(value1, value2)
 }
 
@@ -60,12 +77,16 @@ fn @allocate(size: integer): any
 fn @set_8(pointer: any, value: any)
 fn @set_1(pointer: any, value: any)
 fn @get_8(pointer: any): any
+fn @copy(pointer_from: any, pointer_to: any, size: integer)
 
 fn @print_size(pointer: any, size: integer): any
 
 fn @add(value1: any, value2: any): any
+fn @divide(value1: integer, value2: integer): integer
+fn @modulo(value1: integer, value2: integer): integer
 
 fn @less(value1: integer, value2: integer): boolean
 fn @greater(value1: integer, value2: integer): boolean
+fn @equal(value1: any, value2: any): boolean
 
 fn @not(value: boolean): boolean
