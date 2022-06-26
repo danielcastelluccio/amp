@@ -144,6 +144,8 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
                     types.append(called_function.returns[j].clone())
                     j = j + 1
                 }
+
+				@no_free(called_function_options)
             }
         } else if instruction.type == StoreToken {
             let store = @cast_&StoreToken(instruction.value)
@@ -153,7 +155,8 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
             } else {
                 let current_type = types.pop()
                 if @not(is_type(variables[store.name], current_type)) {
-                    println("PROCESS: Store in " + function.name + " expected " + variables[store.name] + ", got " + current_type + ".")
+					println(variables[store.name].length.to_string())
+                    println("PROCESS: Store in " + function.name + " of " + store.name + " expected " + variables[store.name] + ", got " + current_type + ".")
                     return 1
                 }
             }

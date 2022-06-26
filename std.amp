@@ -152,7 +152,11 @@ access String {
 
     fn clone(string: &String): String {
         let string_length = string.length
-        let new_memory = @allocate(string_length)
+        let string_length_allocate = string_length
+		if string_length_allocate == 0 {
+			string_length_allocate = 1
+		}
+        let new_memory = @allocate(string_length_allocate)
         @copy(string.pointer, new_memory, string_length)
         return String(new_memory, string_length)
     }

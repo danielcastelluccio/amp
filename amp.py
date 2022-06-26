@@ -1397,6 +1397,22 @@ def process_program(program):
                         stack -= 1
 
                     scopes.append("if_" + str(instruction.false_id))
+                elif isinstance(instruction, PreCheckIf):
+                    id = "if_" + str(instruction.id)
+                    if len(scopes) > 0 and id == scopes[len(scopes) - 1]:
+                        scopes.pop()
+                        index = function.tokens.index(instruction)
+                        added = []
+                        for variable in owned_variables:
+                            if not variables[variable] in primitives and not variables[variable][0] == "&" and not variables[variable][0] == "?" and not variables[variable] in program_enums:
+                                name = function.name
+                                if variable in owned_variable_scopes and owned_variable_scopes[variable] == id:
+                                    function.tokens.insert(index, Invoke(normalize(variables[variable]) + "::memory_size", 0, [], ["integer"]))
+                                    function.tokens.insert(index + 1, Retrieve(variable, None))
+                                    function.tokens.insert(index + 2, Invoke("@free", 2, ["any", "integer"], []))
+                                    index += 3
+                                    added.append(variable)
+                                    owned_variables.remove(variable)
                 elif isinstance(instruction, EndIf):
                     id = "if_" + str(instruction.id)
                     if len(scopes) > 0 and id == scopes[len(scopes) - 1]:
@@ -1569,8 +1585,9 @@ def process_program(program):
                         if instruction.name in variables:
                             if variables[instruction.name].type == "":
                                 variables[instruction.name].type = given_type
-                                #if given_type == "A":
-                                #    print("brrrr")
+                            #if function.name == "type_check" and "FunctionToken" in given_type:
+                                #print(given_type)
+                                #print(instruction.name)
 
                     if instruction.name in variables_realtime:
                         variables[instruction.name] = variables_realtime[instruction.name]
@@ -1593,6 +1610,9 @@ def process_program(program):
                     elif instruction.name.startswith("@free"):
                         free_type = types.pop()
                         #free_type = free_type.replace("?", "")
+                        if function.name == "type_check" and "FunctionToken" in free_type:
+                            print(free_type)
+                            print(variables["called_function_options"].type)
                         if len(types) > 0:
                             types.pop()
 
@@ -2273,9 +2293,10 @@ def create_linux_binary(program, file_name_base):
     _start.instructions.append("push rcx")
     _start.instructions.append("push rdx")
     _start.instructions.append("push rbx")
+    _start.instructions.append("push 1")
     _start.instructions.append("push r9")
-    _start.instructions.append("call String_any_")
-    _start.instructions.append("add rsp, 8")
+    _start.instructions.append("call String_any~boolean_")
+    _start.instructions.append("add rsp, 16")
     _start.instructions.append("pop rbx")
     _start.instructions.append("pop rdx")
     _start.instructions.append("pop rcx")
@@ -2471,16 +2492,22 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("mov r8, rcx") # move the index of the memory into r8
     #allocate.instructions.append("add r8, memory") # make the value an actually relevant memory value
     allocate.instructions.append("sub rbx, 16")
-    allocate.instructions.append("mov rcx, 0")
-    allocate.instructions.append("allocate_zero:")
-    allocate.instructions.append("cmp rcx, rbx")
-    allocate.instructions.append("je allocate_zero_done")
-    allocate.instructions.append("mov r9, r8")
-    allocate.instructions.append("add r9, rcx")
-    allocate.instructions.append("mov qword [r9], 0")
-    allocate.instructions.append("add rcx, 8")
-    allocate.instructions.append("jmp allocate_zero")
-    allocate.instructions.append("allocate_zero_done:")
+    #allocate.instructions.append("mov rcx, 0")
+    #allocate.instructions.append("allocate_zero:")
+    #allocate.instructions.append("cmp rcx, rbx")
+    #allocate.instructions.append("je allocate_zero_done")
+    #allocate.instructions.append("mov r9, r8")
+    #allocate.instructions.append("add r9, rcx")
+    #allocate.instructions.append("mov qword [r9], 0")
+    #allocate.instructions.append("add rcx, 8")
+    #allocate.instructions.append("jmp allocate_zero")
+    #allocate.instructions.append("allocate_zero_done:")
+    allocate.instructions.append("push r8")
+    allocate.instructions.append("mov rdi, r8")
+    allocate.instructions.append("mov al, 0")
+    allocate.instructions.append("mov rcx, rbx")
+    allocate.instructions.append("rep stosb")
+    allocate.instructions.append("pop r8")
 
     allocate.instructions.append("mov rsp, rbp")
     allocate.instructions.append("pop rbp")
@@ -2824,6 +2851,14 @@ def create_linux_binary(program, file_name_base):
     exit.instructions.append("xor rdi, rdi")
     exit.instructions.append("syscall")
     asm_program.functions.append(exit)
+
+    no_free = AsmFunction("@no_free_any_", [])
+    no_free.instructions.append("push rbp")
+    no_free.instructions.append("mov rbp, rsp")
+    no_free.instructions.append("mov rsp, rbp")
+    no_free.instructions.append("pop rbp")
+    no_free.instructions.append("ret")
+    asm_program.functions.append(no_free)
 
     execute = AsmFunction("@execute_any~any~boolean_", [])
     execute.instructions.append("push rbp")

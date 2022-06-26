@@ -7,6 +7,10 @@ struct String {
 	    return String(pointer, length(pointer), false)
     }
 
+    fn (pointer: any, static: boolean): String {
+	    return String(pointer, length(pointer), static)
+    }
+
 	fn free_custom(string: &String) {
 		if @not(string.static) {
 			@free(string.pointer, string.length)
@@ -121,5 +125,8 @@ fn @call_function(pointer_function: &any, pointer_arguments: &any, arguments_len
 
 fn @random(length: integer): any
 fn @print_integer(value: integer)
+fn @print_memory()
 
 fn @exit()
+
+fn @no_free(value: any)

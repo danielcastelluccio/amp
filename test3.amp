@@ -1,0 +1,62 @@
+use "std"
+
+fn main(arguments: Array<String>) {
+	main2(arguments)
+	@print_memory()
+}
+
+fn main2(arguments: Array<String>) {
+    if arguments.length < 1 {
+        println("Must provide a file to compile.")
+        @exit()
+    }
+
+    let program = LinkedList<Box>()
+
+    println("Parsing...")
+
+    let file_name = arguments[0]
+    let file = File::open(file_name.clone())
+    parse_file(file, program)
+}
+
+fn parse_file(file: File, program: &LinkedList<Box>) {
+    let contents = file.read()
+	program.append_all(parse_elements(contents))
+}
+
+fn parse_elements(contents: &String): LinkedList<Box> {
+	let list = LinkedList<Box>()
+
+    let i = 0
+    let inside = 0
+    let buffer = ""
+    while i < contents.length {
+        let character = contents[i]
+        if @or(character == "{", character == "(") {
+            inside = inside + 1
+        } else if @or(character == "}", character == ")") {
+            inside = inside - 1
+        }
+
+        if @and(character == "\n", inside == 0) {
+	    	if buffer.strip().length > 0 {
+            	list.append_all(parse_element(buffer.strip()))
+            	buffer = ""
+	    	}
+        } else {
+            buffer = buffer + character
+        }
+
+        i = i + 1
+    }
+	if buffer.strip().length > 0 {
+        list.append_all(parse_element(buffer.strip()))
+	}
+
+	return list
+}
+
+fn parse_element(contents: &String): LinkedList<Box> {
+	return LinkedList<Box>()
+}
