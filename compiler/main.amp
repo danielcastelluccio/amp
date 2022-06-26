@@ -77,12 +77,18 @@ fn main(arguments: Array<String>) {
 
     let program = LinkedList<Box>()
 
+    println("Parsing...")
+
     let file_name = arguments[0]
     let file = File::open(file_name.clone())
     parse_file(file, program, IntegerStore(0))
 
+    @exit()
+    println("Processing...")
+
     let result = process(program)
     if result == 0 {
+        println("Generating...")
         let file_name_split = file_name.split(".")
         create_linux_x86_64_binary(file_name_split[0], program)
     }

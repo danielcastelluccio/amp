@@ -2405,6 +2405,7 @@ def create_linux_binary(program, file_name_base):
     allocate.instructions.append("push r11")
     allocate.instructions.append("syscall")
     allocate.instructions.append("pop r11")
+    
     allocate.instructions.append("mov qword [r9], rbx")
     #allocate.instructions.append("sub r11, 16")
     allocate.instructions.append("mov qword [rbx+8], r11")
@@ -2412,6 +2413,22 @@ def create_linux_binary(program, file_name_base):
 
     allocate.instructions.append("pop rbx")
     allocate.instructions.append("pop rax")
+
+    allocate.instructions.append("push r10")
+    allocate.instructions.append("push r9")
+    allocate.instructions.append("push rdx")
+    allocate.instructions.append("push rcx")
+    allocate.instructions.append("push rbx")
+    allocate.instructions.append("push r8")
+    #allocate.instructions.append("push 999")
+    #allocate.instructions.append("call @print_integer_integer_")
+    #allocate.instructions.append("add rsp, 8")
+    allocate.instructions.append("pop r8")
+    allocate.instructions.append("pop rbx")
+    allocate.instructions.append("pop rcx")
+    allocate.instructions.append("pop rdx")
+    allocate.instructions.append("pop r9")
+    allocate.instructions.append("pop r10")
 
     allocate.instructions.append("no_alloc:")
     

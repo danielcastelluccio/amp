@@ -1,0 +1,10 @@
+use "std"
+
+fn main() {
+    let string = " a,a"
+    let i = 0
+    while i < 100000 {
+        let foo = string.strip()
+        i = i + 1
+    }
+}

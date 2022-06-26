@@ -36,6 +36,7 @@ fn parse_elements(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {
 }
 
 fn parse_element(contents: String, jump_id: &IntegerStore): LinkedList<Box> {
+    //println(contents)
     if contents.length == 0 {
         return LinkedList<Box>()
     }

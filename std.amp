@@ -220,12 +220,16 @@ access String {
 
     fn strip(string: &String): String {
         let actual_string = string.clone()
-        while @and(@or(@or(actual_string[0] == " ", actual_string[0] == "\n"), actual_string[0] == "\t"), actual_string.length > 0) {
+        let first = actual_string[0]
+        while @and(@or(@or(first == " ", first == "\n"), first == "\t"), actual_string.length > 0) {
             actual_string = actual_string.substring(1, actual_string.length)
+            first = actual_string[0]
         }
 
-        while @and(@or(@or(actual_string[actual_string.length - 1] == " ", actual_string[actual_string.length - 1] == "\n"), actual_string[actual_string.length - 1] == "\t"), actual_string.length > 0) {
+        let last = actual_string[actual_string.length - 1]
+        while @and(@or(@or(last == " ", last == "\n"), last == "\t"), actual_string.length > 0) {
             actual_string = actual_string.substring(0, actual_string.length - 1)
+            last = actual_string[actual_string.length - 1]
         }
 
         return actual_string
