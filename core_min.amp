@@ -1,0 +1,55 @@
+struct String {
+    pointer: any
+    length: integer
+    static: boolean
+
+    fn (pointer: any): String {
+	    return String(pointer, length(pointer), false)
+    }
+
+    fn (pointer: any, static: boolean): String {
+	    return String(pointer, length(pointer), static)
+    }
+
+	fn free_custom(string: &String) {
+		if @not(string.static) {
+			@free(string.pointer, string.length)
+		}
+	}
+}
+
+fn length(string: &any): integer {
+    let location = string
+    let i = 0
+
+    while true {
+        if @equal(@get_1(location), 0) {
+            return i
+        }
+        location = @add(location, 1)
+        i = @cast_integer(@add(i, 1))
+    }
+
+    return 999
+}
+
+fn @allocate(size: integer): any
+fn @set_8(pointer: any, value: any)
+fn @set_1(pointer: any, value: any)
+fn @get_8(pointer: any): any
+fn @get_1(pointer: any): any
+fn @copy(pointer_from: any, pointer_to: any, size: integer)
+
+fn @print_size(pointer: any, size: integer): any
+
+fn @add(value1: any, value2: any): any
+fn @divide(value1: integer, value2: integer): integer
+fn @modulo(value1: integer, value2: integer): integer
+
+fn @less(value1: integer, value2: integer): boolean
+fn @greater(value1: integer, value2: integer): boolean
+fn @equal(value1: any, value2: any): boolean
+
+fn @not(value: boolean): boolean
+
+fn @free(value: any, size: integer)

@@ -246,6 +246,15 @@ fn get_internal_functions(): LinkedList<InternalFunction> {
     let instructions = LinkedList<String>()
     instructions.append("push rbp")
     instructions.append("mov rbp, rsp")
+    instructions.append("mov rsi, [rbp+16]")
+    instructions.append("mov r8b, [rsi]")
+    instructions.append("pop rbp")
+    instructions.append("ret")
+    functions.append(InternalFunction("@get_1_any", instructions))
+
+    let instructions = LinkedList<String>()
+    instructions.append("push rbp")
+    instructions.append("mov rbp, rsp")
     instructions.append("mov rdx, [rbp+24]")
     instructions.append("mov rsi, [rbp+16]")
     instructions.append("mov [rsi], rdx")
@@ -493,6 +502,130 @@ fn get_internal_functions(): LinkedList<InternalFunction> {
     instructions.append("pop rbp")
     instructions.append("ret")
     functions.append(InternalFunction("@allocate_integer", instructions))
+
+    let instructions = LinkedList<String>()
+    instructions.append("push rbp")
+    instructions.append("mov rbp, rsp")
+
+    instructions.append("mov rbx, [rbp+24]") // length
+    instructions.append("cmp rbx, 0")
+    instructions.append("jne _continue_free")
+    instructions.append("mov rsp, rbp")
+    instructions.append("pop rbp")
+    instructions.append("ret")
+    instructions.append("_continue_free:")
+    instructions.append("mov rax, [rbp+16]") // rax is the pointer to freed memory
+    instructions.append("mov r9, rax") // r9 = freed_head
+    instructions.append("mov rcx, [memory]") // rcx stores the pointed head (before free)
+    instructions.append("mov [rax], rcx") // now we store the head as our next memory slot
+    instructions.append("mov r11, rbx")
+    
+    instructions.append("push rax")
+
+    instructions.append("xor rdx, rdx") // hacky solution bc buggyness happens when it's not a multiple of 8
+    instructions.append("mov rax, rbx")
+    instructions.append("mov r10, 8")
+    instructions.append("div r10")
+    instructions.append("cmp rdx, 0")
+    instructions.append("je free_skip_filter")
+    instructions.append("inc rax")
+    instructions.append("mul r10")
+    instructions.append("mov rbx, rax")
+    instructions.append("free_skip_filter:")
+
+    instructions.append("pop rax")
+
+    instructions.append("add rbx, 16")
+    instructions.append("mov [rax+8], rbx") // storing length of free space (including the 16 bytes for data storage)
+    //free.instructions.append("sub rax, memory")
+    instructions.append("mov [memory], rax") // set new head to our location
+    
+    //free.instructions.append("add rax, memory")
+    instructions.append("add rax, rbx") // rax = freed_tail
+    instructions.append("mov rcx, memory") // rcx = previous_current_check
+    instructions.append("mov rdx, [memory]") // rdx = current_check
+    instructions.append("free_loop:")
+    
+    instructions.append("cmp rdx, 0")
+    instructions.append("je free_done")
+    instructions.append("mov rbx, rdx")
+    //free.instructions.append("add rbx, memory")
+
+    instructions.append("cmp rbx, rax") // if (current_check == freed_tail)
+
+    instructions.append("jne free_done_if")
+
+    instructions.append("mov r10, [rax+8]") // add length of the second segment to this segment's length
+    instructions.append("add [r9+8], r10")
+
+    instructions.append("push rdx")
+    instructions.append("push rbx")
+    instructions.append("push rcx")
+
+    //free.instructions.append("add rcx, memory")
+    //free.instructions.append("add rdx, memory")
+    instructions.append("mov rbx, [rdx]")
+    instructions.append("mov [rcx], rbx")
+
+    instructions.append("pop rcx")
+    instructions.append("pop rbx")
+    instructions.append("pop rdx")
+
+    instructions.append("jmp free_done_if2")
+
+    instructions.append("free_done_if:")
+
+    instructions.append("mov r12, rbx")
+    instructions.append("add r12, [rbx+8]")
+    instructions.append("cmp r12, r9") // if (current_tail == freed_head)
+    instructions.append("jne free_done_if2")
+    
+    instructions.append("mov r10, [r9+8]") // add this segments length to the length of the segment before
+    instructions.append("add [rbx+8], r10")
+    
+    instructions.append("push rcx")
+    instructions.append("push r11")
+    instructions.append("push r12")
+
+    instructions.append("mov r11, memory")
+    instructions.append("before_loop:")
+    //free.instructions.append("add r11, memory")
+    instructions.append("mov r12, [r11]")
+    //free.instructions.append("sub r11, memory")
+    //free.instructions.append("add r12, memory")
+    
+    instructions.append("cmp r12, r9")
+    instructions.append("jne not_pointing")
+
+    instructions.append("mov rcx, [r12]")
+    instructions.append("mov [r11], rcx")
+
+    instructions.append("not_pointing:")
+
+    //free.instructions.append("add r11, memory")
+    instructions.append("mov r11, [r11]")
+    instructions.append("cmp r11, 0")
+    instructions.append("je end_before_loop")
+    instructions.append("jmp before_loop")
+    instructions.append("end_before_loop:")
+    instructions.append("mov r9, rbx")
+    instructions.append("pop r12")
+    instructions.append("pop r11")
+    instructions.append("pop rcx")
+
+    instructions.append("free_done_if2:")
+
+    instructions.append("mov rcx, rdx")
+    //free.instructions.append("add rdx, memory")
+    instructions.append("mov rdx, [rdx]")
+    instructions.append("jmp free_loop")
+
+    instructions.append("free_done:")
+    instructions.append("mov rsp, rbp")
+    instructions.append("pop rbp")
+    instructions.append("ret")
+
+    functions.append(InternalFunction("@free_any_integer", instructions))
 
     return functions
 }

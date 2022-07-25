@@ -61,6 +61,11 @@ fn type_check(function: &FunctionToken, functions: &HashMap<String, LinkedList<?
                 let running = true
                 let j = 0
                 while running {
+					//println(invoke.name)
+					//println(called_function_options.size().to_string())
+					//println(functions.contains(invoke.name).to_string())
+					//println(invoke.name.hash().to_string())
+					//println(@cast_integer(functions[invoke.name]).to_string())
                     let top = types.pop()
                     popped_types.append(top.clone())
 

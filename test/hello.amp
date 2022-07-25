@@ -1,4 +1,4 @@
-use "std"
+use "std_min"
 
 fn main() {
     println("Hello World!")

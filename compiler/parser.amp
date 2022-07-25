@@ -1,6 +1,24 @@
-fn parse_file(file: File, program: &LinkedList<Box>, jump_id: &IntegerStore) {
+fn parse_file(file: File, jump_id: &IntegerStore): LinkedList<Box> {
+	let program = LinkedList<Box>()
     let contents = file.read()
 	program.append_all(parse_elements(contents, jump_id))
+
+	let i = 0
+	let size = program.size()
+	while i < size {
+		let element = program[i]
+
+		if element.type == UseToken {
+			let use = @cast_&UseToken(element.value)
+			let file = File::open(use.path + ".amp")
+
+			program.append_all(parse_file(file, jump_id))
+		}
+
+		i = i + 1
+	}
+
+	return program
 }
 
 fn parse_elements(contents: &String, jump_id: &IntegerStore): LinkedList<Box> {

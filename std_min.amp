@@ -1,0 +1,10 @@
+use "core_min"
+
+fn print(string: &String) {
+    @print_size(string.pointer, string.length)
+}
+
+fn println(string: &String) {
+    print(string)
+    print("\n")
+}
